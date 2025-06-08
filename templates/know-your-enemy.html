@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI CyberSec Project</title>    
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+         body {
+            background-color: black;
+            color: #00ff00;
+            font-family: "Courier New", monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start; /* Cambiado de center a flex-start */
+            height: 100vh;
+            margin: 0;
+            text-align: center;
+        }
+        h1 {
+            margin: 20px 0 10px; /* Añadido margen superior */
+        }
+        .container {
+            display: flex;
+            width: 100%;
+            height: 60vh; /* Reducida la altura */
+            margin-top: 10px; /* Añadido margen superior */
+        }
+        #ascii-container {
+            position: absolute;
+            bottom: 20px; /* Ajustado para que no quede tan pegado al borde */
+            left: 10px;
+            text-align: left;
+        }
+        .left-panel, .right-panel {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #00ff00;
+            overflow: auto;
+        }
+        .left-panel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #chat-box {
+            width: 100%;
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid #00ff00;
+            padding: 10px;
+        }
+        .loading {
+            color: #00ff00;
+            font-style: italic;
+            animation: blink 1s infinite;
+        }
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+        input, button {
+            background: black;
+            color: #00ff00;
+            border: 1px solid #00ff00;
+            padding: 5px;
+            font-family: "Courier New", monospace;
+        }
+        button {
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: rgba(0, 255, 0, 0.2);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            color: #00ff00;
+        }
+        th, td {
+            border: 1px solid #00ff00;
+            padding: 5px;
+            text-align: left;
+        }
+    </style>
+     
+</head>
+<body>
+    <h1>ORION CHATBOT</h1>
+    <div class="container">
+        <div class="left-panel">
+            <div id="chat-box"></div>
+            <input type="text" id="user-input" placeholder="Enter message..." />
+            <button onclick="sendMessage()">Send</button>
+        </div>
+        <div class="right-panel">
+            <table>
+                <tr>
+                    <th>Category</th>
+                    <th>Techniques</th>
+                </tr>
+                <tr>
+                    <td>Reconnaissance</td>
+                    <td>Search for Victim's Publicly Available Research Materials, Active Scanning, Gather RAG-Indexed Targets</td>
+                </tr>
+                <tr>
+                    <td>Resource Development</td>
+                    <td>Acquire Public ML Artifacts, Poison Training Data, Publish Poisoned Models</td>
+                </tr>
+                <tr>
+                    <td>Initial Access</td>
+                    <td>ML Supply Chain Compromise, Phishing, Exploit Public-Facing Application</td>
+                </tr>
+                <tr>
+                    <td>ML Model Access</td>
+                    <td>AI Model Inference API Access, Full ML Model Access</td>
+                </tr>
+                <tr>
+                    <td>Execution</td>
+                    <td>User Execution, LLM Prompt Injection</td>
+                </tr>
+                <tr>
+                    <td>Persistence</td>
+                    <td>Backdoor ML Model, RAG Poisoning</td>
+                </tr>
+                <tr>
+                    <td>Privilege Escalation</td>
+                    <td>LLM Plugin Compromise, LLM Jailbreak</td>
+                </tr>
+                <tr>
+                    <td>Defense Evasion</td>
+                    <td>Evade ML Model, LLM Prompt Obfuscation</td>
+                </tr>
+                <tr>
+                    <td>Credential Access</td>
+                    <td>Unsecured Credentials</td>
+                </tr>
+                <tr>
+                    <td>Discovery</td>
+                    <td>Discover ML Model Ontology, Discover LLM System Information</td>
+                </tr>
+                <tr>
+                    <td>Collection</td>
+                    <td>ML Artifact Collection, Data from Local System</td>
+                </tr>
+                <tr>
+                    <td>ML Attack Staging</td>
+                    <td>Create Proxy ML Model, Craft Adversarial Data</td>
+                </tr>
+                <tr>
+                    <td>Exfiltration</td>
+                    <td>Exfiltration via ML Inference API, LLM Data Leakage</td>
+                </tr>
+                <tr>
+                    <td>Impact</td>
+                    <td>Denial of ML Service, Erode ML Model Integrity</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+    <div id="ascii-container">
+        <pre>
+ ___   ___    __   ____  ___    ___    __    __    
+|   | /  |   |  |  |  |  |  |  /  |   |  |  |  |       [0][1][0]  
+|   |/  /    |  |  |  |  |  | /  /    |  |  |  |       [0][0][1]   
+|      /     |  |  |  |  |      |      \  \_/  /       [1][1][1]
+|  |\  \     |  '--'  |  |  |\  \        \   /        
+| _| `.__\   |________|  | _| `.__\      |___| 
+        </pre>
+    </div>
+</body>
+
+<script>
+    async function sendMessage() {
+        
+        let userInput = document.getElementById('user-input').value;
+        let chatBox = document.getElementById('chat-box');
+        chatBox.innerHTML += `<p><strong>You:</strong> ${userInput}</p>`;
+        document.getElementById('user-input').value = '';
+        
+        let loadingMessage = document.createElement('p');
+        loadingMessage.className = 'loading';
+        loadingMessage.innerText = 'Orion is thinking...';
+        chatBox.appendChild(loadingMessage);
+        
+        chatBox.appendChild(loadingMessage);
+
+        try {
+            // Enviar el mensaje al backend
+            let response = await fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ message: userInput })
+            });
+
+            if (response.ok) {
+                let data = await response.json();
+                loadingMessage.remove();
+                let markdownResponse = marked.parse(data.response);
+                chatBox.innerHTML += `<p><strong>Orion:</strong></p><div>${markdownResponse}</div>`;
+            } else {
+                loadingMessage.remove();
+                chatBox.innerHTML += `<p><strong>Orion:</strong> Error: Unable to process your request.</p>`;
+            }
+        } catch (error) {
+            loadingMessage.remove();
+            chatBox.innerHTML += `<p><strong>Orion:</strong> Error: ${error.message}</p>`;
+        }
+    }
+</script>
+</html>

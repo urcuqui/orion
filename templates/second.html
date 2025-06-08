@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI CyberSec Project</title>
+    <style>
+        body {
+            background-color: black;
+            color: #00ff00;
+            font-family: "Courier New", monospace;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        h1 {
+            font-size: 32px;
+            margin-bottom: 20px;
+        }
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        button {
+            background: black;
+            color: #00ff00;
+            border: 1px solid #00ff00;
+            padding: 10px 20px;
+            font-size: 18px;
+            font-family: "Courier New", monospace;
+            cursor: pointer;
+            width: 200px;
+        }
+        button:hover {
+            background-color: rgba(0, 255, 0, 0.2);
+        }
+        #ascii-text {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            font-size: 12px;
+            text-align: left;
+            white-space: pre;
+        }
+        #ascii-banner {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            font-size: 12px;
+            text-align: right;
+            white-space: pre;
+        }
+    </style>
+</head>
+<body>
+    <h1>WELCOME TO AI CYBERSEC ORION</h1>
+    <div class="button-container">
+        <button onclick="location.href='know-your-enemy.html'">Know Your Enemy</button>
+        <button onclick="location.href='know-yourself.html'">Know Yourself</button>
+        <button onclick="location.href='know-the-environment.html'">Know The Environment</button>
+    </div>
+    <div id="ascii-text">
+    <pre>
+ ___   ___    __   ____  ___    ___    __    __    
+|   | /  |   |  |  |  |  |  |  /  |   |  |  |  |       [0][1][0]  
+|   |/  /    |  |  |  |  |  | /  /    |  |  |  |       [0][0][1]   
+|      /     |  |  |  |  |      |      \  \_/  /       [1][1][1]
+|  |\  \     |  '--'  |  |  |\  \        \   /        
+| _| `.__\   |________|  | _| `.__\      |___| 
+    </pre>
+</div>
+    <div id="ascii-banner"></div>
+    <script>
+        const banners = [
+            "[I am a pirate] Exploit Ready...",
+            "[AI] Neural Net Loaded!",
+            "[CyberSec] Firewall Breached!",
+            "[No way] Payload Deployed!",
+            "[AI] Adversarial Attack Running...",
+            "[CyberSec] IDS Bypassed!",
+            "[Hack] Gaining Shell Access...",
+            "[AI] Model Training Complete!",
+            "[CyberSec] Encryption Cracked!",
+            "[AISEC]Session Established!"
+        ];
+        function updateBanner() {
+            const bannerElement = document.getElementById("ascii-banner");
+            bannerElement.innerText = banners[Math.floor(Math.random() * banners.length)];
+        }
+        setInterval(updateBanner, 3000);
+        updateBanner();
+    </script>
+</body>
+</html>
