@@ -1,16 +1,53 @@
-from langchain_community.llms import Ollama
-from langchain_community.document_loaders import SeleniumURLLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+# from langchain_community.llms import Ollama
+# from langchain_community.document_loaders import SeleniumURLLoader
+# from langchain.text_splitter import RecursiveCharacterTextSplitter
 #from langchain.embeddings import HuggingFaceEmbeddings
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_chroma import Chroma
-from langchain.chains import ConversationalRetrievalChain
+# from langchain_huggingface import HuggingFaceEmbeddings
+# from langchain_chroma import Chroma
+# from langchain.chains import ConversationalRetrievalChain
 import os
+from xml.parsers.expat import model
 from prompts import system
-from langchain.memory import ConversationBufferMemory
-
+#from langchain.memory import ConversationBufferMemory
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
 INDEX_PERSIST_DIRECTORY = "D:\chroma"
+RUTA_CACHE = "D:/torch"
+
+def generate_text(prompt, model_name="WhiteRabbitNeo/WhiteRabbitNeo-V3-7B"):
+    model = AutoModelForCausalLM.from_pretrained(
+        model_name,
+        device_map="cuda" if torch.cuda.is_available() else "cpu",
+        cache_dir=RUTA_CACHE
+        )
+    tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=RUTA_CACHE)    
+    messages = [
+        {"role": "system", "content": "You are an expert agent for adversarial machine learning. "
+        "Your task is to provide insights to the user according to their specific needs and how to address them using MITRE ATLAS."
+        "You MUST NOT provide explanations or additional information."},
+        {"role": "user", "content": prompt}
+    ]
+    
+    inputs = tokenizer.apply_chat_template(
+    messages, 
+    tokenize=False,   
+    add_generation_prompt=True
+    )
+    print(model.device)
+    model_inputs = tokenizer([inputs], return_tensors="pt").to(model.device)
+
+    out = model.generate(
+    input_ids=model_inputs.input_ids,
+    attention_mask=model_inputs.attention_mask,
+    max_new_tokens=256
+    )
+    
+    generated_ids = [
+        output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, out)
+    ]
+    response = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
+    return response
 
 def get_model():
     """

@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, jsonify
-import ollama
-from libs.utils import clean_response_deepseek
-from libs.agent_wrap import get_conversational_model
+#import ollama
+#from libs.utils import clean_response_deepseek
+from libs.agent_wrap import  generate_text
 from prompts import system
 
 app = Flask(__name__)
@@ -62,8 +62,8 @@ def chat():
     #model = request.json.get("model", "ollama")
     
     
-    bot_response = get_ollama_response(user_input)
-    
+    #bot_response = get_ollama_response(user_input)
+    bot_response = generate_text(user_input)
     
     return jsonify({"response": bot_response})
 
