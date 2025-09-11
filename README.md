@@ -2,6 +2,14 @@
 
 Orion is an AI security framework inspired by the principles of "The Art of War" and designed for both red (offensive) and blue (defensive) AI teams. It enables developers and security professionals to identify and address vulnerabilities using the MITRE ATT&CK framework, and provides a comprehensive suite of adversarial machine learning tools.
 
+## Demo
+
+Below is a demonstration of Orion in action:
+
+![Orion Demo](demo.gif)
+
+The demo shows the web interface, adversarial image generation, and AI chat functionalities.
+
 ## Features
 
 - **Red Team (Offensive AI):**
