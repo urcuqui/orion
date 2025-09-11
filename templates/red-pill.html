@@ -8,15 +8,9 @@
   <style>
     body {
       background-color: black;
-      color: #00ff00;
+      color: #ff0000;
       font-family: "Courier New", monospace;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      height: 100vh;
-      margin: 0;
-      text-align: center;
+      
     }
     h1 {
       margin: 20px 0 10px;
@@ -30,7 +24,7 @@
     .left-panel, .right-panel {
       flex: 1;
       padding: 10px;
-      border: 1px solid #00ff00;
+      border: 1px solid #ff0000;
       overflow: auto;
     }
     /* 1) convierte la izquierda en posicion relativa */
@@ -44,7 +38,7 @@
    #chat-box {
     position: relative;
     background-color: black;
-    border: 1px solid #00ff00;
+    border: 1px solid #ff0000;
     border-radius: 12px;
     padding: 12px;
     width: 79%;
@@ -73,7 +67,7 @@
         pointer-events: none;
     }
     .loading {
-      color: #00ff00;
+      color: #ff0000;
       font-style: italic;
       animation: blink 1s infinite;
     }
@@ -84,8 +78,8 @@
     }
     input, button {
       background: black;
-      color: #00ff00;
-      border: 1px solid #00ff00;
+      color: #ff0000;
+      border: 1px solid #ff0000;
       padding: 5px;
       font-family: "Courier New", monospace;
     }
@@ -93,15 +87,15 @@
       cursor: pointer;
     }
     button:hover {
-      background-color: rgba(0, 255, 0, 0.2);
+      background-color: rgba(255, 42, 0, 0.2);
     }
     table {
       width: 100%;
       border-collapse: collapse;
-      color: #00ff00;
+      color: #ff0000;
     }
     th, td {
-      border: 1px solid #00ff00;
+      border: 1px solid #ff0000;
       padding: 5px;
       text-align: left;
     }
@@ -116,27 +110,99 @@
     width: 0;
     height: 0;
     }
+    .pet-gif {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      width: 80px;
+      pointer-events: none;
+      }
+      .content {
+            width: 70%;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start; /* Antes estaba 'center' */
+            position: relative;
+            align-items: flex-start; /* Alinea a la izquierda si quieres */
+        }
+        .section {
+            margin-top: 50px; /* Ajusta este valor para moverlo un poco hacia abajo */
+        }
+      .sidebar {
+          width: 30%;
+          background-color: #111;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-right: 2px solid rgb(255, 0, 0);
+      }
   </style>
 </head>
 <body>
-  <h1>ORION Phishing Creator</h1>
-  <div class="container">
-    <div class="left-panel">
-      <div id="chat-box"></div>
-      
-      <!-- Tu input y botón -->
-      
-      <button onclick="sendMessage()">Create</button>
-      
-      <!-- 3) inserta aquí tu GIF -->
-      <img src="../static/lip.gif" alt="Mascota interactiva" class="pet-gif">
-    </div>
+   <!-- Menú superior -->
+    <nav style="position: fixed; top: 0; width: 100%; background-color: #111; border-bottom: 2px solid red; z-index: 999;">
+      <ul style="display: flex; list-style: none; margin: 0; padding: 10px; justify-content: center;">
+        <li style="margin: 0 15px;"><button onclick="showSection('home')">Principal</button></li>
+        <li style="margin: 0 15px;"><button onclick="showSection('adv')">Adversarial AI</button></li>
+        <li style="margin: 0 15px;"><button onclick="showSection('social')">Phishing Creator</button></li>
+        <li style="margin: 0 15px;"><button onclick="showSection('about')">About</button></li>
+      </ul>
+    </nav>
+    <div style="display: flex; flex-direction: row; margin-top: 60px; width: 100%;">
+      <div class="sidebar">
+        <img id="mascotGif" src="../static/dragon.gif" alt="Mascot" width="400">
+      </div>
+      <div class="content" style="margin-top: 0;">
+        <!-- El contenido principal irá aquí (ya está en tu HTML) -->
     
-    <div class="right-panel">
-      <h2>Chat History</h2>
-      <div id="chat-history"></div>
-    </div>
+   
+          <!-- Sección Inicio -->
+          <div id="home" class="section">
+              <h1>Welcome to red pill AI</h1>
+              <p>Select an option in the menu to start.</p>
+          </div>
+          <!-- Sección adversarial -->
+          <div id="adv" class="section" style="display: none;">
+              
+              <h1>Adversarial machine learning</h1>
+              
+                
+                <form action="/adverimage" method="post" enctype="multipart/form-data" style="display: flex; flex-direction: column">
+                    What are the weights of your model?: <input type="file" id="user-input" name="weights" accept=".h5,.pth,.pt" required placeholder="model's weights..." style="width: 100%;"/>
+                    <br>
+                    How many outputs?: <input type="number" name="numberoutputs" id="user-input2" placeholder="Enter number..." />
+                    <br>
+                    Enter the image to modify: <input type="file" name="file" id="user-input3" placeholder="Select the file" />
+                    <br>
+                    <button type="submit" onclick="message()">Create the adversarial</button>
+                    <br>
+                    <div id="chat-box-two"></div>
+                </form>
+              
+          </div>
+        <div id="social" class="section" style="display: none;">
+            <h1 style="margin-top: 50px;">ORION Social Center</h1>
+            <div class="container">
+          <div class="left-panel">
+            <div id="chat-box"></div>
+            
+            <!-- Tu input y botón -->
+            
+            <button onclick="sendMessage()">Create</button>
+            
+            <!-- 3) inserta aquí tu GIF -->
+            <img src="../static/lip.gif" alt="Mascota interactiva" class="pet-gif">
+          </div>
+          
+          <div class="right-panel">
+            <h2>Chat History</h2>
+            <div id="chat-history"></div>
+          </div>
+        </div>
   </div>
+</div>
+  
   
   <div id="ascii-container">
     <pre>
@@ -150,6 +216,18 @@
   </div>
 
   <script>
+    function message() {
+      let chatBoxTwo = document.getElementById('chat-box-two');
+      let loadingMessage = document.createElement('p');
+      loadingMessage.className = 'loading';
+      loadingMessage.innerText = 'Orion is thinking...';
+      chatBox.appendChild(loadingMessage);
+    }
+    function showSection(id) {
+            const sections = document.querySelectorAll('.section');
+            sections.forEach(s => s.style.display = 'none');
+            document.getElementById(id).style.display = 'block';
+        }
     async function sendMessage() {
       
       let chatBox = document.getElementById('chat-box');

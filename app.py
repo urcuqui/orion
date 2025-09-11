@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, jsonify
 #import ollama
 #from libs.utils import clean_response_deepseek
 from libs.agent_wrap import  generate_text
+from libs.adversarial import generate_advimage
 from prompts import system
 
 app = Flask(__name__)
@@ -55,6 +56,23 @@ def red_pill():
 def chat_phishing():    
     bot_response = get_ollama_response("Create one phishing email in English.")
     return jsonify({"response": bot_response})
+
+@app.route("/adverimage", methods=["GET", "POST"])
+def adversarial():
+    try:
+        weights = request.files["weights"]
+        if not weights:
+            return "No wights uploaded", 400
+        file = request.files["file"]
+        if not file:
+            return "No file uploaded", 400
+        noutoputs = request.values["numberoutputs"]
+        success = generate_advimage(weights, noutoputs, file)
+        if success:
+            return jsonify(message="Adversarial image created successfully", image_url="/static/adversarial/output_art.png"), 200
+    except Exception as e:
+        return jsonify(error=str(e)), 500
+
 
 @app.route('/chat', methods=['POST'])
 def chat():
