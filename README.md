@@ -13,8 +13,8 @@ Orion is an AI security framework inspired by the principles of "The Art of War"
   - Defensive tools to detect and mitigate adversarial attacks.
   - Analyze and strengthen model security.
 
-- **MITRE ATT&CK Integration:**
-  - Map AI threats and vulnerabilities to the MITRE ATT&CK framework.
+- **MITRE ATLAS Integration:**
+  - Map AI threats and vulnerabilities to the MITRE ATLAS framework.
   - Understand and visualize your AI system's security posture.
 
 - **Web Interface:**
