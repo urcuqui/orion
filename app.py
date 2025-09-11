@@ -1,7 +1,9 @@
 from flask import Flask, render_template, request, jsonify
 #import ollama
 #from libs.utils import clean_response_deepseek
-from libs.agent_wrap import  generate_text
+from libs.agent_wrap import  generate_text, get_conversational_model
+#from ollama import Ollama
+import os
 from libs.adversarial import generate_advimage
 from prompts import system
 
