@@ -4,11 +4,12 @@
 #from langchain.embeddings import HuggingFaceEmbeddings
 # from langchain_huggingface import HuggingFaceEmbeddings
 # from langchain_chroma import Chroma
-# from langchain.chains import ConversationalRetrievalChain
+from langchain.chains import ConversationalRetrievalChain
 import os
 from xml.parsers.expat import model
 from prompts import system
-#from langchain.memory import ConversationBufferMemory
+from langchain.memory import ConversationBufferMemory
+#from ollama import Ollama
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
@@ -16,12 +17,18 @@ INDEX_PERSIST_DIRECTORY = "D:\chroma"
 RUTA_CACHE = "D:/torch"
 
 def generate_text(prompt, model_name="WhiteRabbitNeo/WhiteRabbitNeo-V3-7B"):
+    device = (torch.device(f"cuda:{torch.cuda.current_device()}") if torch.cuda.is_available() else torch.device("mps") if getattr(torch.backends, "mps", None) and torch.backends.mps.is_available() else torch.device("xpu") if hasattr(torch, "xpu") and torch.xpu.is_available() else torch.device("cpu"))
+
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
-        device_map="cuda" if torch.cuda.is_available() else "cpu",
+        low_cpu_mem_usage=True,             # reduce picos en CPU
+        device_map=None,    
         cache_dir=RUTA_CACHE
         )
-    tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=RUTA_CACHE)    
+    tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=RUTA_CACHE, use_fast=True)
+    if tokenizer.pad_token_id is None:
+        tokenizer.pad_token = tokenizer.eos_token          # define el token
+    model.config.pad_token_id = tokenizer.pad_token_id
     messages = [
         {"role": "system", "content": "You are an expert agent for adversarial machine learning. "
         "Your task is to provide insights to the user according to their specific needs and how to address them using MITRE ATLAS."
@@ -35,7 +42,7 @@ def generate_text(prompt, model_name="WhiteRabbitNeo/WhiteRabbitNeo-V3-7B"):
     add_generation_prompt=True
     )
     print(model.device)
-    model_inputs = tokenizer([inputs], return_tensors="pt").to(model.device)
+    model_inputs = tokenizer([inputs], return_tensors="pt", padding=True).to(model.device)
 
     out = model.generate(
     input_ids=model_inputs.input_ids,

@@ -1,0 +1,16 @@
+flask
+torch
+# Adversarial ML and AI libraries
+pillow
+art
+# Vision models
+torchvision
+timm
+# Transformers and LLMs
+transformers
+# LangChain (for conversational AI and memory)
+langchain
+# If using DeepSeek or similar LLMs, add their SDKs or dependencies here
+# Example: deepseek (uncomment if used)
+# deepseek
+# Other dependencies
