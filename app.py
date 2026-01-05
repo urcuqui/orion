@@ -1,7 +1,10 @@
-from flask import Flask, render_template, request, jsonify
+import json
+
+from flask import Flask, Response, render_template, request, jsonify
 #import ollama
 #from libs.utils import clean_response_deepseek
-from libs.agent_wrap import  generate_text, get_conversational_model
+from libs.agent import build_api_state, format_report, run_supervisor_state, run_supervisor_stream
+#from libs.agent_wrap import get_conversational_model
 #from ollama import Ollama
 import os
 from libs.adversarial import generate_advimage
@@ -54,6 +57,13 @@ def index():
 def red_pill():
     return render_template('red-pill.html')
 
+@app.route('/know-environment.html')
+def know_environment():
+    return render_template('know-environment.html')
+
+def red_pill():
+    return render_template('red-pill.html')
+
 @app.route('/chat_phishing', methods=['POST'])
 def chat_phishing():    
     bot_response = get_ollama_response("Create one phishing email in English.")
@@ -83,9 +93,28 @@ def chat():
     
     
     #bot_response = get_ollama_response(user_input)
-    bot_response = generate_text(user_input)
+    final_state = run_supervisor_state(user_input)
+    bot_response = format_report(final_state)
     
-    return jsonify({"response": bot_response})
+    return jsonify({"response": bot_response, "state": build_api_state(final_state)})
+
+
+@app.route('/chat_stream', methods=['POST'])
+def chat_stream():
+    user_input = request.json.get("message", "")
+
+    def generate():
+        last_state = None
+        for state in run_supervisor_stream(user_input):
+            last_state = state
+            payload = {"state": build_api_state(state)}
+            yield f"data: {json.dumps(payload)}\n\n"
+        if last_state:
+            response = format_report(last_state)
+            payload = {"state": build_api_state(last_state), "response": response}
+            yield f"data: {json.dumps(payload)}\n\n"
+
+    return Response(generate(), mimetype="text/event-stream")
 
 if __name__ == '__main__':
     app.run(debug=False)

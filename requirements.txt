@@ -10,6 +10,14 @@ timm
 transformers
 # LangChain (for conversational AI and memory)
 langchain
+langchain_core>=0.2.38
+langchain-mcp-adapters
+langchain_tavily==0.2.10
+langgraph
+langgraph-cli==0.3.6
+langgraph-cli[inmem]==0.3.6
+langsmith
+requests
 # If using DeepSeek or similar LLMs, add their SDKs or dependencies here
 # Example: deepseek (uncomment if used)
 # deepseek

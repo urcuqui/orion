@@ -54,3 +54,4 @@ libs/__pycache__/__init__.cpython-311.pyc
 libs/__pycache__/agent_wrap.cpython-311.pyc
 prompts/__pycache__/system.cpython-311.pyc
 libs/__pycache__/agent_wrap.cpython-311.pyc
+.env

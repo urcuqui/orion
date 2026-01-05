@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ORION Supervisor Lab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --bg-1: #0b0f1a;
+            --bg-2: #101c2c;
+            --bg-3: #0c1924;
+            --neon: #22f3a7;
+            --accent: #ffb14a;
+            --ink: #e8f2ff;
+            --muted: #91a4b7;
+            --panel: rgba(10, 20, 32, 0.85);
+            --panel-strong: rgba(12, 30, 45, 0.9);
+            --border: rgba(34, 243, 167, 0.2);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Space Grotesk", sans-serif;
+            color: var(--ink);
+            background: radial-gradient(circle at top, rgba(34, 243, 167, 0.08), transparent 45%),
+                        radial-gradient(circle at 10% 20%, rgba(255, 177, 74, 0.18), transparent 40%),
+                        linear-gradient(135deg, var(--bg-1), var(--bg-2) 55%, var(--bg-3));
+            min-height: 100vh;
+            padding: 32px 32px 48px;
+        }
+
+        .backdrop {
+            position: fixed;
+            inset: 0;
+            background-image: linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+            background-size: 64px 64px;
+            pointer-events: none;
+            opacity: 0.4;
+            z-index: 0;
+        }
+
+        .page {
+            position: relative;
+            z-index: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header.hero {
+            display: grid;
+            gap: 12px;
+            margin-bottom: 28px;
+        }
+
+        .hero h1 {
+            font-size: clamp(2rem, 3vw, 3rem);
+            margin: 0;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .hero p {
+            margin: 0;
+            color: var(--muted);
+            max-width: 700px;
+        }
+
+        .hero .tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-family: "JetBrains Mono", monospace;
+            font-size: 0.85rem;
+            color: var(--neon);
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 20px 45px rgba(5, 15, 25, 0.4);
+            backdrop-filter: blur(12px);
+        }
+
+        .card h2 {
+            margin: 0 0 12px;
+            font-size: 1.2rem;
+        }
+
+        .card h3 {
+            margin: 0 0 8px;
+            font-size: 1rem;
+            color: var(--neon);
+        }
+
+        .mission textarea {
+            width: 100%;
+            min-height: 120px;
+            background: rgba(8, 16, 24, 0.7);
+            border: 1px solid rgba(145, 164, 183, 0.3);
+            border-radius: 12px;
+            padding: 12px;
+            color: var(--ink);
+            font-family: "JetBrains Mono", monospace;
+            resize: vertical;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        button {
+            border: none;
+            padding: 10px 16px;
+            border-radius: 999px;
+            font-family: "JetBrains Mono", monospace;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        button.primary {
+            background: var(--neon);
+            color: #071318;
+            box-shadow: 0 10px 25px rgba(34, 243, 167, 0.35);
+        }
+
+        button.secondary {
+            background: rgba(255, 177, 74, 0.15);
+            color: var(--accent);
+            border: 1px solid rgba(255, 177, 74, 0.4);
+        }
+
+        button.ghost {
+            background: transparent;
+            color: var(--muted);
+            border: 1px dashed rgba(145, 164, 183, 0.4);
+        }
+
+        button:hover {
+            transform: translateY(-1px);
+        }
+
+        .chip-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .chip {
+            background: rgba(34, 243, 167, 0.1);
+            border: 1px solid rgba(34, 243, 167, 0.35);
+            color: var(--neon);
+            border-radius: 999px;
+            padding: 6px 10px;
+            font-size: 0.75rem;
+        }
+
+        .console {
+            display: grid;
+            gap: 12px;
+        }
+
+        .chat-box {
+            min-height: 260px;
+            max-height: 320px;
+            overflow-y: auto;
+            border: 1px solid rgba(145, 164, 183, 0.25);
+            border-radius: 14px;
+            padding: 12px;
+            background: rgba(7, 14, 20, 0.75);
+            font-family: "JetBrains Mono", monospace;
+            font-size: 0.9rem;
+        }
+
+        .chat-box p {
+            margin: 0 0 10px;
+        }
+
+        .composer {
+            display: flex;
+            gap: 10px;
+        }
+
+        .composer input {
+            flex: 1;
+            padding: 10px 12px;
+            background: rgba(8, 16, 24, 0.7);
+            border: 1px solid rgba(145, 164, 183, 0.3);
+            border-radius: 12px;
+            color: var(--ink);
+            font-family: "JetBrains Mono", monospace;
+        }
+
+        .board .status-line {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+            font-family: "JetBrains Mono", monospace;
+            color: var(--muted);
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--muted);
+        }
+
+        .status-dot.active {
+            background: var(--neon);
+            box-shadow: 0 0 12px rgba(34, 243, 167, 0.7);
+        }
+
+        .board-grid {
+            display: grid;
+            gap: 14px;
+        }
+
+        .panel {
+            padding: 12px;
+            border-radius: 14px;
+            background: var(--panel-strong);
+            border: 1px solid rgba(145, 164, 183, 0.2);
+        }
+
+        .todo-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: grid;
+            gap: 8px;
+            font-family: "JetBrains Mono", monospace;
+            font-size: 0.85rem;
+        }
+
+        .todo-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border-radius: 12px;
+            background: rgba(8, 16, 24, 0.6);
+            border: 1px solid rgba(145, 164, 183, 0.2);
+        }
+
+        .todo-item.done {
+            border-color: rgba(34, 243, 167, 0.5);
+            color: var(--neon);
+        }
+
+        .todo-item span {
+            color: var(--muted);
+        }
+
+        .agent-list,
+        .toolkit-list {
+            display: grid;
+            gap: 8px;
+        }
+
+        .agent-card {
+            padding: 10px;
+            border-radius: 12px;
+            border: 1px solid rgba(34, 243, 167, 0.3);
+            background: rgba(8, 16, 24, 0.65);
+        }
+
+        .agent-card p {
+            margin: 4px 0 0;
+            font-size: 0.8rem;
+            color: var(--muted);
+        }
+
+        .toolkit-list span {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 177, 74, 0.4);
+            color: var(--accent);
+            font-size: 0.75rem;
+            font-family: "JetBrains Mono", monospace;
+        }
+
+        .iteration-log {
+            font-family: "JetBrains Mono", monospace;
+            font-size: 0.8rem;
+            color: var(--muted);
+            display: grid;
+            gap: 6px;
+        }
+
+        .loading {
+            color: var(--neon);
+            font-style: italic;
+        }
+
+        @media (max-width: 720px) {
+            body {
+                padding: 24px 16px 40px;
+            }
+
+            .composer {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="backdrop"></div>
+    <div class="page">
+        <header class="hero">
+            <span class="tag">Supervisor Lab</span>
+            <h1>ORION CORE</h1>
+            <p>Build a LangGraph Supervisor agent that decomposes objectives, spawns subagents with targeted prompts and toolsets, and iterates until the mission is complete.</p>
+        </header>
+
+        <main class="layout">
+            <section class="card mission">
+                <h2>Mission Objective</h2>
+                <p>Define the primary goal for the Supervisor. The system will generate TODOs, spawn subagents, and report progress in the board.</p>
+                <textarea id="objective-input" placeholder="Example: Design a general-purpose AI agent using LangGraph with a Supervisor that decomposes objectives into TODOs, spawns subagents, assigns tools, and iterates until done."></textarea>
+                <div class="controls">
+                    <button class="primary" id="run-objective">Run Supervisor</button>
+                    <button class="secondary" id="send-brief">Ask for Brief</button>
+                    <button class="ghost" id="clear-log">Reset Board</button>
+                </div>
+                <div class="chip-row">
+                    <button class="chip" data-preset="Design a general-purpose AI agent using LangGraph with a Supervisor architecture.">Preset: Supervisor</button>
+                    <button class="chip" data-preset="Create a TODO-driven agent with dynamic subagents and tool routing.">Preset: TODO-driven</button>
+                    <button class="chip" data-preset="Explain the runtime lifecycle for Supervisor, subagents, and tool selection.">Preset: Lifecycle</button>
+                </div>
+            </section>
+
+            <section class="card console">
+                <h2>Agent Console</h2>
+                <div id="chat-box" class="chat-box"></div>
+                <div class="composer">
+                    <input type="text" id="user-input" placeholder="Ask the supervisor or a subagent..." />
+                    <button class="primary" id="send-message">Send</button>
+                </div>
+            </section>
+
+            <section class="card board">
+                <h2>Supervisor Board</h2>
+                <div class="status-line">
+                    <div class="status-dot" id="status-dot"></div>
+                    <span id="status-text">Idle. Awaiting objective.</span>
+                </div>
+                <div class="board-grid">
+                    <div class="panel">
+                        <h3>TODO List</h3>
+                        <ul id="todo-list" class="todo-list"></ul>
+                    </div>
+                    <div class="panel">
+                        <h3>Spawned Subagents</h3>
+                        <div id="agent-list" class="agent-list"></div>
+                    </div>
+                    <div class="panel">
+                        <h3>Toolkits</h3>
+                        <div id="toolkit-list" class="toolkit-list"></div>
+                    </div>
+                    <div class="panel">
+                        <h3>Iteration Log</h3>
+                        <div id="iteration-log" class="iteration-log"></div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        const todoList = document.getElementById("todo-list");
+        const agentList = document.getElementById("agent-list");
+        const toolkitList = document.getElementById("toolkit-list");
+        const iterationLog = document.getElementById("iteration-log");
+        const statusDot = document.getElementById("status-dot");
+        const statusText = document.getElementById("status-text");
+        const chatBox = document.getElementById("chat-box");
+        const objectiveInput = document.getElementById("objective-input");
+        const userInput = document.getElementById("user-input");
+
+        const baselinePlan = [
+            "Interpret objective and constraints",
+            "Decompose objective into TODOs",
+            "Create subagents with targeted prompts",
+            "Assign toolsets and routing rules",
+            "Collect results and update plan",
+            "Iterate until completion"
+        ];
+
+        const baselineAgents = [
+            { name: "Planner", detail: "Decompose objective into actionable TODOs." },
+            { name: "Architect", detail: "Define Supervisor graph, states, and routing." },
+            { name: "Toolsmith", detail: "Select tools and guardrails for subagents." },
+            { name: "Validator", detail: "Check plan completion and risks." }
+        ];
+
+        const baselineTools = [
+            "LangGraph",
+            "LLM Router",
+            "Memory Store",
+            "Task Queue",
+            "Tool Policies"
+        ];
+
+        function resetBoard() {
+            todoList.innerHTML = "";
+            agentList.innerHTML = "";
+            toolkitList.innerHTML = "";
+            iterationLog.innerHTML = "";
+            statusDot.classList.remove("active");
+            statusText.textContent = "Idle. Awaiting objective.";
+        }
+
+        function renderPlan(items, completedCount = 0) {
+            todoList.innerHTML = "";
+            items.forEach((item, index) => {
+                const li = document.createElement("li");
+                const label = typeof item === "string" ? item : item.task;
+                const isDone = typeof item === "string" ? index < completedCount : item.status === "done";
+                const tools = typeof item === "string" ? "" : (item.tools || []).join(", ");
+                li.className = "todo-item" + (isDone ? " done" : "");
+                li.innerHTML = `<strong>Step ${index + 1}</strong> <span>${label}</span>${tools ? ` <span>[${tools}]</span>` : ""}`;
+                todoList.appendChild(li);
+            });
+        }
+
+        function renderAgents(list) {
+            agentList.innerHTML = "";
+            list.forEach(agent => {
+                const card = document.createElement("div");
+                card.className = "agent-card";
+                card.innerHTML = `<strong>${agent.name}</strong><p>${agent.detail}</p>`;
+                agentList.appendChild(card);
+            });
+        }
+
+        function renderTools(list) {
+            toolkitList.innerHTML = "";
+            list.forEach(tool => {
+                const span = document.createElement("span");
+                span.textContent = tool;
+                toolkitList.appendChild(span);
+            });
+        }
+
+        function addLog(message) {
+            const line = document.createElement("div");
+            line.textContent = message;
+            iterationLog.prepend(line);
+        }
+
+        function addChatMessage(role, content) {
+            const message = document.createElement("div");
+            message.innerHTML = `<p><strong>${role}:</strong></p><div>${content}</div>`;
+            chatBox.appendChild(message);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function renderState(state) {
+            if (!state) {
+                return;
+            }
+            if (state.todo && state.todo.length) {
+                renderPlan(state.todo);
+            }
+            if (state.subagents && state.subagents.length) {
+                const agents = state.subagents.map(agent => ({
+                    name: agent.name || "Subagent",
+                    detail: (agent.tools || []).length ? `Tools: ${agent.tools.join(", ")}` : "No tools assigned."
+                }));
+                renderAgents(agents);
+            }
+            if (state.tools && state.tools.length) {
+                renderTools(state.tools);
+            }
+            if (state.messages && state.messages.length) {
+                iterationLog.innerHTML = "";
+                state.messages.slice().reverse().forEach(msg => addLog(msg));
+            }
+            statusDot.classList.add("active");
+            statusText.textContent = state.done ? "Objective complete." : "Supervisor updated the plan.";
+        }
+
+        async function sendMessage(message, roleLabel = "You") {
+            if (!message) {
+                return;
+            }
+
+            addChatMessage(roleLabel, message);
+            userInput.value = "";
+
+            const loading = document.createElement("p");
+            loading.className = "loading";
+            loading.textContent = "Supervisor is thinking...";
+            chatBox.appendChild(loading);
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            try {
+                const response = await fetch("/chat_stream", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ message })
+                });
+
+                if (!response.ok || !response.body) {
+                    loading.remove();
+                    addChatMessage("Orion", "Error: Unable to process your request.");
+                    statusText.textContent = "Supervisor error. Check backend.";
+                    return;
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = "";
+                let hadUpdate = false;
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) {
+                        break;
+                    }
+                    buffer += decoder.decode(value, { stream: true });
+                    const parts = buffer.split("\n\n");
+                    buffer = parts.pop() || "";
+
+                    for (const part of parts) {
+                        const line = part.split("\n").find(item => item.startsWith("data:"));
+                        if (!line) {
+                            continue;
+                        }
+                        const jsonText = line.replace(/^data:\s*/, "");
+                        if (!jsonText) {
+                            continue;
+                        }
+                        let payload;
+                        try {
+                            payload = JSON.parse(jsonText);
+                        } catch (error) {
+                            continue;
+                        }
+                        hadUpdate = true;
+                        if (payload.state) {
+                            renderState(payload.state);
+                        }
+                        if (payload.response) {
+                            const markdownResponse = marked.parse(payload.response || "");
+                            addChatMessage("Orion", markdownResponse);
+                        }
+                    }
+                }
+
+                loading.remove();
+                if (!hadUpdate) {
+                    statusText.textContent = "Supervisor returned no updates.";
+                }
+            } catch (error) {
+                loading.remove();
+                addChatMessage("Orion", `Error: ${error.message}`);
+                statusText.textContent = "Supervisor error. Check network.";
+            }
+        }
+
+        function runSupervisor() {
+            const objective = objectiveInput.value.trim();
+            if (!objective) {
+                return;
+            }
+
+            statusDot.classList.add("active");
+            statusText.textContent = "Supervisor running. Decomposing objective...";
+            sendMessage(objective, "Objective");
+        }
+
+        function requestBrief() {
+            const objective = objectiveInput.value.trim();
+            if (!objective) {
+                return;
+            }
+            sendMessage(`Provide a concise brief and TODO list for: ${objective}`, "Brief");
+        }
+
+        document.getElementById("run-objective").addEventListener("click", runSupervisor);
+        document.getElementById("send-message").addEventListener("click", () => sendMessage(userInput.value));
+        document.getElementById("send-brief").addEventListener("click", requestBrief);
+        document.getElementById("clear-log").addEventListener("click", resetBoard);
+
+        document.querySelectorAll("[data-preset]").forEach(button => {
+            button.addEventListener("click", () => {
+                objectiveInput.value = button.dataset.preset;
+            });
+        });
+
+        userInput.addEventListener("keydown", event => {
+            if (event.key === "Enter") {
+                sendMessage(userInput.value);
+            }
+        });
+
+        resetBoard();
+    </script>
+</body>
+</html>
