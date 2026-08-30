@@ -10,7 +10,7 @@ from langgraph.graph import END, StateGraph
 
 from tools.execute_code import execute_code
 from tools.file_tools import edit_file, read_file, write_file
-from tools.mcp_client import call_tool, list_tools
+from tools.mcp_client import call_tool, list_tools, list_tools_detailed
 from libs.utils import clean_response_deepseek
 
 
@@ -95,10 +95,11 @@ def plan_objective(objective: str) -> List[str]:
                 "Implement tools and iterate to completion",
             ]
         )
-    return steps[:8]
+    return steps[0]
 
 
-LOCAL_TOOLS = {"read_file", "write_file", "edit_file", "execute_code"}
+#LOCAL_TOOLS = {"read_file", "write_file", "edit_file", "execute_code"}
+LOCAL_TOOLS = {"execute_code"}
 
 
 def _extract_json_list(text: str) -> List[str]:
@@ -174,13 +175,37 @@ def select_tools_for_objective(objective: str, available_mcp_tools: List[str]) -
     return sorted(tools)
 
 
-def build_subagent(task: str, tools: List[str]) -> Dict[str, Any]:
+def _format_tool_details(tool_details: List[Dict[str, Any]]) -> str:
+    if not tool_details:
+        return ""
+    lines = []
+    for detail in tool_details:
+        name = detail.get("name", "")
+        description = detail.get("description", "")
+        schema = detail.get("input_schema")
+        line = f"- {name}"
+        if description:
+            line = f"{line}: {description}"
+        if schema is not None:
+            try:
+                schema_text = json.dumps(schema, ensure_ascii=True)
+            except TypeError:
+                schema_text = str(schema)
+            line = f"{line}\n  input_schema: {schema_text}"
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def build_subagent(task: str, tools: List[str], tool_details: List[Dict[str, Any]]) -> Dict[str, Any]:
+    tool_details_text = _format_tool_details(tool_details)
+    details_section = f"\nTool details:\n{tool_details_text}\n" if tool_details_text else "\n"
     return {
         "name": f"Subagent-{abs(hash(task)) % 1000}",
         "prompt": (
             "You are a specialized subagent. Complete the task using the provided tools if needed.\n"
             f"Task: {task}\n"
             f"Tools: {', '.join(tools)}\n"
+            f"{details_section}"
             "If a tool is needed, reply with a JSON object containing tool and input."
         ),
         "tools": tools,
@@ -188,13 +213,18 @@ def build_subagent(task: str, tools: List[str]) -> Dict[str, Any]:
 
 
 def parse_tool_call(text: str) -> Optional[Dict[str, Any]]:
-    match = re.search(r"\{\s*\"tool\".*\}", text, re.DOTALL)
-    if not match:
+    code_block = re.search(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", text, re.IGNORECASE)
+    candidate = code_block.group(1) if code_block else None
+    if candidate is None:
+        match = re.search(r"\{[\s\S]*\"tool\"[\s\S]*\}", text, re.DOTALL)
+        candidate = match.group(0) if match else None
+    if not candidate:
         return None
     try:
-        return json.loads(match.group(0))
+        parsed = json.loads(candidate)
     except json.JSONDecodeError:
         return None
+    return parsed if isinstance(parsed, dict) else None
 
 
 def run_subagent(subagent: Dict[str, Any], registry: ToolRegistry) -> Dict[str, Any]:
@@ -202,21 +232,38 @@ def run_subagent(subagent: Dict[str, Any], registry: ToolRegistry) -> Dict[str, 
     tool_call = parse_tool_call(response)
     tool_result = None
     if tool_call:
-        tool_name = tool_call.get("tool")
-        tool_input = tool_call.get("input")
-        if tool_name:
+        tool_name = tool_call.get("tool") or tool_call.get("name")
+        tool_input = (
+            tool_call.get("input")
+            or tool_call.get("arguments")
+            or tool_call.get("tool_input")
+            or {}
+        )
+        if not tool_name:
+            tool_result = "Tool error: Missing tool name in response."
+        elif subagent["tools"] and tool_name not in subagent["tools"]:
+            tool_result = f"Tool error: Tool '{tool_name}' not allowed for this subagent."
+        else:
             try:
                 if tool_name in LOCAL_TOOLS:
                     tool_spec = registry.get(tool_name)
                     if tool_spec:
                         tool_result = tool_spec.func(tool_input)
+                    else:
+                        tool_result = f"Tool error: Tool '{tool_name}' not registered."
                 else:
+                    if not isinstance(tool_input, dict):
+                        tool_input = {"input": tool_input}
                     tool_result = call_tool(tool_name, tool_input or {})
             except Exception as exc:
                 tool_result = f"Tool error: {exc}"
     return {
         "response": response,
-        "tool_result": tool_result,
+        "tool_result": (
+            tool_result.get("text") or tool_result.get("result")
+            if isinstance(tool_result, dict)
+            else tool_result
+        ),
     }
 
 
@@ -227,14 +274,22 @@ def supervisor_node(state: AgentState) -> AgentState:
         selected_tools = select_tools_for_objective(
             state["objective"], available_mcp_tools
         )
+        # state["todo"] = [
+        #     {
+        #         "id": idx + 1,
+        #         "task": step,
+        #         "status": "pending",
+        #         "tools": selected_tools,
+        #     }
+        #     for idx, step in enumerate(steps)
+        # ]
         state["todo"] = [
             {
-                "id": idx + 1,
-                "task": step,
+                "id": 1,
+                "task": steps,
                 "status": "pending",
                 "tools": selected_tools,
             }
-            for idx, step in enumerate(steps)
         ]
         tools_summary = ", ".join(selected_tools) if selected_tools else "(none)"
         state["messages"].append(
@@ -295,7 +350,19 @@ def task_node(state: AgentState) -> AgentState:
             )
         )
     print("building subagent for tool: ", pending["tools"])
-    subagent = build_subagent(pending["task"], pending["tools"])
+    detailed = list_tools_detailed()
+    mcp_details = {item.get("name"): item for item in detailed if item.get("name")}
+    tool_details: List[Dict[str, Any]] = []
+    for tool in pending["tools"]:
+        if tool in LOCAL_TOOLS:
+            tool_spec = registry.get(tool)
+            if tool_spec:
+                tool_details.append({"name": tool_spec.name, "description": tool_spec.description})
+        else:
+            detail = mcp_details.get(tool)
+            if detail:
+                tool_details.append(detail)
+    subagent = build_subagent(pending["task"], pending["tools"], tool_details)
     state["subagents"].append(subagent)
 
     result = run_subagent(subagent, registry)
@@ -303,7 +370,7 @@ def task_node(state: AgentState) -> AgentState:
     state["results"].append(
         {
             "task": pending["task"],
-            "response": result["response"],
+            "response": result["response"] + "\n\nTool result: " + str(result["tool_result"]),
             "tool_result": result["tool_result"],
         }
     )
@@ -380,7 +447,7 @@ def build_api_state(state: AgentState) -> Dict[str, Any]:
     }
 
 
-def run_supervisor_state(objective: str, max_iterations: int = 6) -> AgentState:
+def run_supervisor_state(objective: str, max_iterations: int = 2) -> AgentState:
     app = build_graph()
     state: AgentState = {
         "objective": objective,

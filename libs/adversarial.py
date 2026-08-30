@@ -1,13 +1,12 @@
 
-from art.attacks.evasion import CarliniL2Method, HopSkipJump
-from art.estimators.classification import PyTorchClassifier, BlackBoxClassifier
-import torch
-import timm
-from torchvision import transforms
-from PIL import Image
-
 def generate_advimage(weights, noutputs, file):
     """ Generate adversarial image using Carlini & Wagner L2 Method """
+    from art.attacks.evasion import CarliniL2Method
+    from art.estimators.classification import PyTorchClassifier
+    import torch
+    import timm
+    from torchvision import transforms
+    from PIL import Image
 
     #device = (torch.device(f"cuda:{torch.cuda.current_device()}") if torch.cuda.is_available() else torch.device("mps") if getattr(torch.backends, "mps", None) and torch.backends.mps.is_available() else torch.device("xpu") if hasattr(torch, "xpu") and torch.xpu.is_available() else torch.device("cpu"))
     device = torch.device("cpu") # Force to use CPU

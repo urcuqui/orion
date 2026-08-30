@@ -1,14 +1,17 @@
 import json
+from pathlib import Path
 
-from flask import Flask, Response, render_template, request, jsonify
+from flask import Flask, Response, render_template, request, jsonify, send_from_directory
 #import ollama
 #from libs.utils import clean_response_deepseek
 from libs.agent import build_api_state, format_report, run_supervisor_state, run_supervisor_stream
+from tools.mcp_client import list_tools
 #from libs.agent_wrap import get_conversational_model
 #from ollama import Ollama
 import os
 from libs.adversarial import generate_advimage
 from prompts import system
+from libs.recon import web as recon_web
 
 app = Flask(__name__)
 
@@ -61,6 +64,68 @@ def red_pill():
 def know_environment():
     return render_template('know-environment.html')
 
+
+@app.route('/know-environment/run', methods=['POST'])
+def know_environment_run():
+    form = request.form
+    objective = (form.get('objective') or '').strip()
+    target = (form.get('target') or '').strip()
+    if not objective or not target:
+        return jsonify({"error": "objective and target are required"}), 400
+
+    try:
+        max_iterations = int(form.get('max_iterations') or 12)
+    except ValueError:
+        max_iterations = 12
+
+    run_id = recon_web.start_run(
+        objective,
+        target,
+        max_iterations=max_iterations,
+        require_human_approval=bool(form.get('human_approval')),
+        require_sensitive_approval=bool(form.get('require_sensitive_approval')),
+        mock_mode=bool(form.get('mock', True)),
+        enable_playwright=bool(form.get('enable_playwright')),
+        enable_nuclei=bool(form.get('enable_nuclei')),
+        browser_username=(form.get('browser_username') or '').strip(),
+        browser_password=form.get('browser_password') or '',
+    )
+    return jsonify({"run_id": run_id}), 202
+
+
+@app.route('/know-environment/screenshots/<filename>')
+def know_environment_screenshot(filename):
+    """Serve a browser evidence screenshot (PNG only, no path traversal)."""
+    if not filename.endswith('.png') or '/' in filename or '..' in filename:
+        return jsonify({"error": "invalid filename"}), 400
+    screenshot_dir = (Path.cwd() / "reports" / "screenshots").resolve()
+    return send_from_directory(str(screenshot_dir), filename)
+
+
+@app.route('/know-environment/run/<run_id>')
+def know_environment_run_page(run_id):
+    if recon_web.get_run(run_id) is None:
+        return jsonify({"error": "unknown run_id"}), 404
+    return render_template('know-environment-run.html', run_id=run_id)
+
+
+@app.route('/know-environment/events/<run_id>')
+def know_environment_events(run_id):
+    if recon_web.get_run(run_id) is None:
+        return jsonify({"error": "unknown run_id"}), 404
+    response = Response(recon_web.stream_events(run_id), mimetype='text/event-stream')
+    response.headers['Cache-Control'] = 'no-cache'
+    response.headers['X-Accel-Buffering'] = 'no'
+    return response
+
+
+@app.route('/know-environment/approve/<run_id>', methods=['POST'])
+def know_environment_approve(run_id):
+    payload = request.get_json(silent=True) or {}
+    result = recon_web.submit_approval(run_id, bool(payload.get('approved')))
+    status_code = result.pop('status_code')
+    return jsonify(result), status_code
+
 def red_pill():
     return render_template('red-pill.html')
 
@@ -98,6 +163,14 @@ def chat():
     
     return jsonify({"response": bot_response, "state": build_api_state(final_state)})
 
+@app.route('/mcp_tools', methods=['GET'])
+def mcp_tools():
+    try:
+        tools = list_tools()
+    except Exception as exc:
+        return jsonify({"tools": [], "error": str(exc)}), 200
+    return jsonify({"tools": tools})
+
 
 @app.route('/chat_stream', methods=['POST'])
 def chat_stream():
@@ -117,4 +190,6 @@ def chat_stream():
     return Response(generate(), mimetype="text/event-stream")
 
 if __name__ == '__main__':
-    app.run(debug=False)
+    # threaded=True is required: without it the dev server serialises requests,
+    # so a live know-environment SSE stream would starve the /approve endpoint.
+    app.run(debug=False, threaded=True)

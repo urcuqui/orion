@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Run {{ run_id[:8] }} &mdash; ORION</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='recon/style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{{ url_for('index') }}">ORION</a>
+    <span class="topbar-tag">know the environment &mdash; agentic recon (educational, mock by default)</span>
+  </header>
+  <main class="page">
+    <section class="run-view" id="run-view" data-run-id="{{ run_id }}">
+      <div class="run-header">
+        <div>
+          <h1 class="panel-title" id="run-title">&gt; Run <span class="mono">{{ run_id[:8] }}</span></h1>
+          <p class="panel-sub" id="run-meta">connecting&hellip;</p>
+        </div>
+        <span class="status-badge status-running" id="status-badge">running</span>
+      </div>
+
+      <div class="run-grid">
+        <div class="panel log-panel">
+          <h2 class="panel-heading">&gt; live log</h2>
+          <div class="log" id="log"></div>
+        </div>
+
+        <div class="panel side-panel">
+          <div id="approval-panel" class="approval-panel hidden">
+            <h2 class="panel-heading">&#9888; approval required</h2>
+            <p id="approval-detail" class="mono"></p>
+            <div class="approval-actions">
+              <button class="btn-approve" id="btn-approve">Approve</button>
+              <button class="btn-deny" id="btn-deny">Deny</button>
+            </div>
+          </div>
+
+          <div id="browser-panel" class="browser-panel hidden">
+            <h2 class="panel-heading">&gt; browser session</h2>
+            <div class="browser-status-row">
+              <span class="browser-status-dot" id="browser-status-dot"></span>
+              <span class="browser-status-label" id="browser-status-label">inactive</span>
+            </div>
+            <div id="browser-summary" class="browser-summary"></div>
+            <div id="browser-errors" class="browser-errors hidden"></div>
+            <div id="browser-url" class="browser-url"></div>
+            <div id="browser-api-list" class="browser-api-list"></div>
+            <div id="screenshot-gallery" class="screenshot-gallery"></div>
+          </div>
+
+          <h2 class="panel-heading">&gt; findings</h2>
+          <ul class="findings" id="findings"></ul>
+        </div>
+      </div>
+
+      <div class="panel report-panel hidden" id="report-panel">
+        <div class="report-panel-header">
+          <h2 class="panel-heading">&gt; final report</h2>
+          <button class="btn-link" id="btn-toggle-raw" type="button">view raw markdown</button>
+        </div>
+        <div id="report-html" class="report-html"></div>
+        <pre id="report-raw" class="hidden"></pre>
+      </div>
+    </section>
+  </main>
+  <footer class="footer">
+    Educational proof-of-concept. Real tools (Playwright, Nuclei, live HTTP) are opt-in and off by default &mdash;
+    only ever target hosts you own or are explicitly authorised to test.
+  </footer>
+  <script src="{{ url_for('static', filename='recon/app.js') }}"></script>
+</body>
+</html>
