@@ -1,0 +1,64 @@
+name: pgd-evasion
+description: White-box adversarial evasion against an image classifier.
+phase: attack
+
+target:
+  task: image_classification
+  access: white_box
+  model_name: vit_base_patch16_224
+  model_version: teacher-v1
+
+adversary:
+  goal: targeted_misclassification
+  knowledge: full
+  access: white_box
+  budget: low
+  constraints:
+    - perturbation must remain visually imperceptible (small L-infinity)
+
+assets:
+  - model_integrity
+  - prediction_reliability
+
+surfaces:
+  - inference_api
+  - model_artifact
+
+rationale: >
+  A white-box adversary with full knowledge can craft imperceptible
+  perturbations that flip predictions of the deployed classifier, undermining
+  prediction reliability at the inference API.
+
+attack:
+  technique: PGD
+  epsilon: 0.03
+  iterations: 40
+
+metrics:
+  - clean_accuracy
+  - robust_accuracy
+  - attack_success_rate
+  - perturbation_linf
+  - confidence_shift
+
+hardening:
+  defenses:
+    - name: input_preprocessing
+      levels: 8
+    - name: confidence_threshold
+      threshold: 0.6
+
+mitre_atlas:
+  mappings:
+    - technique_id: AML.T0043.000
+      confidence: high
+      rationale: >
+        White-box optimization (PGD) to craft adversarial data matches
+        "Craft Adversarial Data: White-Box Optimization".
+    - technique_id: AML.T0015
+      confidence: high
+      rationale: The crafted input is used to evade the ML model at inference.
+
+dataset:
+  size: 20
+  seed: 1337

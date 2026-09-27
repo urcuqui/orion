@@ -15,6 +15,15 @@ from libs.recon import web as recon_web
 
 app = Flask(__name__)
 
+# Register the Orion methodology blueprint (Understand -> Threat Model -> Attack
+# -> Measure -> Harden -> Retest). Guarded so the existing app keeps working
+# even if the optional methodology dependencies are unavailable.
+try:
+    from orion.integrations.flask_blueprint import orion_bp
+    app.register_blueprint(orion_bp)
+except Exception as _orion_exc:  # noqa: BLE001
+    print(f"[orion] methodology blueprint not registered: {_orion_exc}")
+
 def get_ollama_response(prompt):
     #llm = agent.get_model()
 

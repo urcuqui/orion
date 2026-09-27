@@ -48,3 +48,42 @@ D:/torch/models--WhiteRabbitNeo--WhiteRabbitNeo-V3-7B/snapshots/361a5ce60e67c815
 D:/torch/models--WhiteRabbitNeo--WhiteRabbitNeo-V3-7B/snapshots/361a5ce60e67c815ff868a253fdfd54364dbb84f/vocab.json
 weights/vit_teacher.pth
 .env
+
+# --- Orion methodology additions ---
+# Virtual environments
+.venv/
+.venv
+venv/
+env/
+ENV/
+
+# Python caches / test artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Model weights (large binaries; ship separately)
+weights/*.pth
+weights/*.pt
+weights/*.safetensors
+
+# Windows model cache accidentally committed in the past
+D:/
+
+# Orion-generated evidence (reproducible; regenerate with `python -m orion run ...`)
+artifacts/
+reports/
+static/adversarial/output_art.png
