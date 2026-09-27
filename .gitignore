@@ -1,7 +1,7 @@
 .DS_Store
 __pycache__/
 *.py[cod]
-static/adversarial/output_art.png
+static/adversarial/*.png
 D:/torch/.locks/models--WhiteRabbitNeo--WhiteRabbitNeo-V3-7B/1a475a850156acec503bf0647a58a63f6513dd92.lock
 D:/torch/.locks/models--WhiteRabbitNeo--WhiteRabbitNeo-V3-7B/9c5ae00e602b8860cbd784ba82a8aa14e8feecec692e7076590d014d7b7fdafa.lock
 D:/torch/.locks/models--WhiteRabbitNeo--WhiteRabbitNeo-V3-7B/62ce47dcb40b1b8592aab468afee2ab7af6c5d33d2059b7b994ed122438b94c7.lock
@@ -86,4 +86,4 @@ D:/
 # Orion-generated evidence (reproducible; regenerate with `python -m orion run ...`)
 artifacts/
 reports/
-static/adversarial/output_art.png
+static/adversarial/*.png
