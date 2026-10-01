@@ -29,6 +29,13 @@ rationale: >
   perturbations that flip predictions of the deployed classifier, undermining
   prediction reliability at the inference API.
 
+prerequisites:
+  target_types:
+    - ml_inference_service
+  requires:
+    - inference_input
+    - model_behavior_observable
+
 attack:
   technique: PGD
   epsilon: 0.03

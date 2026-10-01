@@ -77,13 +77,28 @@
   if (ctxBtn) ctxBtn.addEventListener("click", analyzeContext);
 
   // ---- render assessment ----
+  function clsTag(c) { return `<span class="cls cls-${c}">${c.replace("_"," ")}</span>`; }
+  function evRefs(ids) {
+    if (!ids || !ids.length) return '<span class="evref">evidence: 0</span>';
+    return `<span class="evref">evidence: ${ids.length} · ${ids.map(Orion.esc).join(", ")}</span>`;
+  }
+  function renderItem(it, whyExtra) {
+    const c = it.classification || "HYPOTHESIS";
+    const why = (it.rationale || "") + (whyExtra || "");
+    return `<div class="analysis-item cls-${c}">
+      ${clsTag(c)}${Orion.esc(it.statement)}
+      <button class="why-btn">[ WHY? ]</button>
+      <div class="meta">confidence: ${Orion.esc(it.confidence||"NONE")} · ${evRefs(it.evidence)}</div>
+      <div class="why-box">${Orion.esc(why)}</div>
+    </div>`;
+  }
+
   function renderAssessment(a) {
     if (targetStatus) targetStatus.outerHTML = '<span class="ok" id="target-status">[+] TARGET STATUS: ANALYZED</span>';
-    const s = a.summary || {};
     const tm = a.threat_model || {};
     const adv = tm.adversary || {};
-    const hyps = a.threat_hypotheses || [];
-    const exps = a.suggested_experiments || [];
+    const ais = a.ai_surface || {};
+    const types = a.target_types || [];
     const key = a.recon_run_id || ("ctx:" + a.target);
 
     let html = `<div class="assessment-box">
@@ -92,22 +107,54 @@
         <div class="k">Target</div><div class="v">${Orion.esc(a.target)}</div>
         <div class="k">Source</div><div class="v">${Orion.esc(a.source)}${a.recon_run ? " · " + Orion.esc(a.recon_run) : ""}</div>
       </div>
-      <hr class="term-rule">
-      <div class="term-title" style="color:var(--muted)">Observed</div>
-      <ul class="observed-list">
-        <li>${s.counts ? s.counts.endpoints : 0} endpoint(s)</li>
-        <li>${s.counts ? s.counts.auth_flows : 0} authentication indicator(s)</li>
-        <li>${s.counts ? s.counts.findings : 0} recon finding(s)</li>
-        <li>${s.counts ? s.counts.screenshots : 0} screenshot(s)</li>
-      </ul>
-      <div class="term-title" style="color:var(--muted)">Threat hypotheses</div>
-      ${hyps.length ? hyps.map(h => `<div class="hyp sev-${(h.severity||'info').toLowerCase()}">
-          <span class="sev">[${Orion.esc(h.severity)}]</span>${Orion.esc(h.name)}
-          <div class="sub">${Orion.esc(h.rationale||"")}</div></div>`).join("")
-        : '<div class="state">No threat hypotheses derived.</div>'}
-      <div class="sub" style="margin-top:0.5rem;">Candidate MITRE ATLAS mappings: ${a.atlas_count || 0}</div>
-      <div class="next-action">NEXT ACTION: ${Orion.esc(a.next_action || "Human review required")}</div>
-    </div>`;
+      <div class="ttypes">${types.map(t => `<span class="ttype">${Orion.esc(t.type)} <span class="c">(${Orion.esc(t.confidence)})</span></span>`).join("")}</div>
+      <div class="ai-surface ${Orion.esc(ais.status)}">
+        <div class="st">AI SURFACE: ${Orion.esc(ais.status)} · confidence ${Orion.esc(ais.confidence)}</div>
+        <div class="sub">${Orion.esc(ais.rationale||"")}</div>
+      </div>`;
+
+    if (a.abstention) {
+      html += `<div class="statusline" style="margin:0.5rem 0;"><span class="off">[-] AI SECURITY: ${Orion.esc(a.abstention)}</span></div>`;
+    }
+    html += `<div class="next-action">NEXT ACTION: ${Orion.esc(a.next_action || "Human review required")}</div></div>`;
+
+    // Sections (never mixed)
+    function section(title, items, extraFn) {
+      if (!items || !items.length) return `<div class="term"><div class="term-title">${title}</div><div class="state">None.</div></div>`;
+      return `<div class="term"><div class="term-title">${title}</div>${items.map(i => renderItem(i, extraFn ? extraFn(i) : "")).join("")}</div>`;
+    }
+    html += section("OBSERVATIONS", a.observations);
+    html += section("INFERENCES", a.inferences);
+    html += section("THREAT HYPOTHESES", a.threat_hypotheses);
+    html += section("VALIDATED FINDINGS", a.validated_findings);
+
+    // MITRE ATLAS (gated)
+    const atlas = a.mitre_atlas || { applicable: false, mappings: [], message: "" };
+    html += `<div class="term"><div class="term-title">MITRE ATLAS</div>`;
+    if (atlas.applicable && atlas.mappings.length) {
+      html += atlas.mappings.map(m => Orion.atlasItem(m)).join("");
+    } else {
+      html += `<div class="state">${Orion.esc(atlas.message || "Not applicable with current evidence.")}</div>`;
+    }
+    html += `</div>`;
+
+    // Suggested experiments (applicability-gated, no auto-exec)
+    const exps = a.suggested_experiments || [];
+    html += `<div class="term"><div class="term-title">SUGGESTED EXPERIMENTS <span class="proposed">PROPOSED</span></div>
+      ${exps.map(e => `<div class="exp ${e.applicability === "APPLICABLE" ? "" : "na"}">
+        <span class="eid">${Orion.esc(e.id)}</span><span class="ename">${Orion.esc(e.name)}</span>
+        <span class="risk ${Orion.esc(e.risk)}">${Orion.esc(e.risk)}</span>
+        <span class="appl ${Orion.esc(e.applicability)}">${Orion.esc(e.applicability)}</span>
+        <button class="why-btn">[ WHY? ]</button>
+        <div class="why-box">${Orion.esc(e.rationale || "")}${e.missing && e.missing.length ? " · missing: " + Orion.esc(e.missing.join(", ")) : ""}${e.atlas && e.atlas.length ? " · ATLAS: " + e.atlas.map(m=>Orion.esc(m.technique_id)).join(", ") : ""}</div>
+        <div class="exp-launch hidden" style="margin-top:0.4rem;">
+          ${(e.scenario && e.applicability === "APPLICABLE") ? `<a class="btn btn-red" href="/adversarial">[ LAUNCH EXPERIMENT ]</a>` : `<span class="sub">${e.applicability === "APPLICABLE" ? "Manual experiment — review required." : "Not applicable to this target with current evidence."}</span>`}
+        </div></div>`).join("")}
+      <div class="btn-row" style="margin-top:0.6rem;">
+        <button class="btn" id="btn-review">[ REVIEW PLAN ]</button>
+        <button class="btn btn-red hidden" id="btn-approve-exp">[ APPROVE EXPERIMENT ]</button>
+      </div>
+      <div id="plan-note" class="sub" style="margin-top:0.4rem;"></div></div>`;
 
     // Threat model (PROPOSED → approve)
     const tmStatus = tm.status || "PROPOSED";
@@ -118,7 +165,6 @@
         <div class="k">Goal</div><div class="v">${Orion.esc(adv.goal||"N/A")}</div>
         <div class="k">Knowledge</div><div class="v">${Orion.esc(adv.knowledge||"N/A")}</div>
         <div class="k">Access</div><div class="v">${Orion.esc(adv.access||"N/A")}</div>
-        <div class="k">Budget</div><div class="v">${Orion.esc(adv.budget||"N/A")}</div>
         <div class="k">Assets</div><div class="v">${Orion.esc((tm.assets||[]).join(", ")||"N/A")}</div>
         <div class="k">Surfaces</div><div class="v">${Orion.esc((tm.surfaces||[]).join(", ")||"N/A")}</div>
       </div>
@@ -127,38 +173,25 @@
         <button class="btn" id="tm-accept">[ ACCEPT ]</button>
         <button class="btn btn-ghost" id="tm-edit">[ EDIT ]</button>
         <button class="btn btn-red" id="tm-reject">[ REJECT ]</button>
-      </div>
-    </div>`;
-
-    // Experiment plan (PROPOSED → review → approve, no auto-exec)
-    html += `<div class="term">
-      <div class="term-title">PROPOSED EXPERIMENT PLAN <span class="proposed">PROPOSED</span></div>
-      ${exps.map(e => `<div class="exp">
-        <span class="eid">${Orion.esc(e.id)}</span><span class="ename">${Orion.esc(e.name)}</span>
-        <span class="risk ${Orion.esc(e.risk)}">${Orion.esc(e.risk)}</span>
-        <div class="sub">${Orion.esc(e.rationale||"")} ${e.atlas && e.atlas.length ? "· ATLAS: " + e.atlas.map(m=>Orion.esc(m.technique_id)).join(", ") : ""}</div>
-        <div class="exp-launch hidden" style="margin-top:0.4rem;">
-          ${e.scenario ? `<a class="btn btn-red" href="/adversarial">[ LAUNCH EXPERIMENT ]</a>` : `<span class="sub">Manual experiment — review required.</span>`}
-        </div></div>`).join("")}
-      <div class="btn-row" style="margin-top:0.6rem;">
-        <button class="btn" id="btn-review">[ REVIEW PLAN ]</button>
-        <button class="btn btn-red hidden" id="btn-approve-exp">[ APPROVE EXPERIMENT ]</button>
-      </div>
-      <div id="plan-note" class="sub" style="margin-top:0.4rem;"></div>
-    </div>`;
+      </div></div>`;
 
     assessmentEl.innerHTML = html;
 
-    // wire threat-model approval
+    // WHY? delegation
+    assessmentEl.querySelectorAll(".why-btn").forEach(b =>
+      b.addEventListener("click", () => {
+        const box = b.parentElement.querySelector(".why-box");
+        if (box) box.classList.toggle("open");
+      }));
+
     document.getElementById("tm-accept").addEventListener("click", () => approveTM(key, true));
     document.getElementById("tm-reject").addEventListener("click", () => approveTM(key, false));
     document.getElementById("tm-edit").addEventListener("click", () => {
       document.getElementById("plan-note").textContent = "Edit mode: adjust the scenario YAML before running (threat model editing is manual in this build).";
     });
-    // wire experiment plan review
     document.getElementById("btn-review").addEventListener("click", () => {
       document.getElementById("btn-approve-exp").classList.remove("hidden");
-      document.getElementById("plan-note").textContent = "[!] Review complete. Approving reveals launch actions. Orion never auto-executes offensive tests.";
+      document.getElementById("plan-note").textContent = "[!] Review complete. Approving reveals launch actions for APPLICABLE experiments only. Orion never auto-executes offensive tests.";
     });
     document.getElementById("btn-approve-exp").addEventListener("click", () => {
       assessmentEl.querySelectorAll(".exp-launch").forEach(x => x.classList.remove("hidden"));

@@ -28,3 +28,46 @@
 .tm-box { border: 1px solid var(--blue); background: rgba(87,148,214,0.05); padding: 0.9rem; }
 .tm-box .term-title { color: var(--blue); }
 .tm-approve { display: flex; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap; }
+
+/* --- evidence-grounded analysis rendering --- */
+.ai-surface { border: 1px solid var(--border); background: var(--panel-alt); padding: 0.75rem 0.9rem; margin-bottom: 1rem; }
+.ai-surface .st { font-weight: 700; letter-spacing: 0.06em; }
+.ai-surface.CONFIRMED { border-color: var(--red); }
+.ai-surface.CONFIRMED .st { color: var(--red-bright); }
+.ai-surface.POSSIBLE { border-color: var(--warning); }
+.ai-surface.POSSIBLE .st { color: var(--warning); }
+.ai-surface.NOT_OBSERVED { border-color: var(--border-strong); }
+.ai-surface.NOT_OBSERVED .st { color: var(--muted); }
+
+.ttypes { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.4rem 0; }
+.ttype { font-size: 0.72rem; border: 1px solid var(--border-strong); padding: 0.15rem 0.5rem; color: var(--text); }
+.ttype .c { color: var(--muted); }
+
+.analysis-item { border-left: 3px solid var(--border); background: var(--panel-alt);
+  padding: 0.5rem 0.7rem; margin-bottom: 0.45rem; }
+.analysis-item .cls { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em;
+  padding: 0.05rem 0.4rem; border: 1px solid currentColor; margin-right: 0.5rem; }
+.cls-OBSERVED { color: var(--green); }
+.analysis-item.cls-OBSERVED { border-left-color: var(--green); }
+.cls-INFERRED { color: var(--blue); }
+.analysis-item.cls-INFERRED { border-left-color: var(--blue); }
+.cls-HYPOTHESIS { color: var(--warning); }
+.analysis-item.cls-HYPOTHESIS { border-left-color: var(--warning); }
+.cls-VALIDATED { color: var(--red-bright); }
+.analysis-item.cls-VALIDATED { border-left-color: var(--red); }
+.cls-NOT_APPLICABLE { color: var(--muted); }
+.analysis-item.cls-NOT_APPLICABLE { border-left-color: var(--border-strong); opacity: 0.75; }
+
+.analysis-item .meta { color: var(--muted); font-size: 0.74rem; margin-top: 0.2rem; }
+.analysis-item .evref { color: var(--blue); font-size: 0.72rem; }
+.why-btn { background: none; border: none; color: var(--green); font-family: var(--mono);
+  font-size: 0.7rem; cursor: pointer; text-decoration: underline; padding: 0; margin-left: 0.4rem; }
+.why-box { display: none; margin-top: 0.4rem; border-top: 1px solid var(--border); padding-top: 0.4rem;
+  font-size: 0.76rem; color: var(--muted); }
+.why-box.open { display: block; }
+
+.exp.na { opacity: 0.6; }
+.exp .appl { font-size: 0.66rem; margin-left: 0.5rem; padding: 0.05rem 0.4rem; border: 1px solid currentColor; }
+.exp .appl.APPLICABLE { color: var(--green); }
+.exp .appl.INSUFFICIENT_EVIDENCE { color: var(--warning); }
+.exp .appl.NOT_APPLICABLE { color: var(--muted); }

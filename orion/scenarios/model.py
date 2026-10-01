@@ -47,12 +47,16 @@ class Scenario:
     hardening: HardeningSpec = field(default_factory=HardeningSpec)
     phase: Phase = Phase.ATTACK
     dataset: Dict[str, Any] = field(default_factory=dict)
+    # Applicability gate: Orion only recommends this scenario as an active
+    # finding when the target evidence satisfies these prerequisites.
+    prerequisites: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, object]:
         return {
             "name": self.name,
             "description": self.description,
             "phase": self.phase.value,
+            "prerequisites": dict(self.prerequisites),
             "target": self.threat_model.target.to_dict(),
             "adversary": self.threat_model.adversary.to_dict(),
             "assets": list(self.threat_model.assets),
@@ -114,6 +118,7 @@ def build_scenario(data: Dict[str, Any]) -> Scenario:
         hardening=hardening,
         phase=phase,
         dataset=dict(data.get("dataset", {}) or {}),
+        prerequisites=dict(data.get("prerequisites", {}) or {}),
     )
 
 
