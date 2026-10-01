@@ -61,6 +61,40 @@ class EvidenceStore:
                 traces.append(d.name)
         return traces
 
+    def list_summaries(self) -> list:
+        """Return lightweight summaries for every stored run, newest first.
+
+        Reads the existing ``experiment.json`` files; no database required.
+        Malformed records are skipped rather than crashing the listing.
+        """
+        summaries = []
+        for trace_id in self.list_traces():
+            try:
+                rec = self.load(trace_id)
+            except Exception:  # noqa: BLE001 - a bad file must not break the list
+                continue
+            technique = (rec.attack_technique or "").lower()
+            if "recon" in (rec.scenario_name or "").lower() or rec.phase == "understand":
+                run_type = "recon"
+            elif "replay" in (rec.notes or "").lower():
+                run_type = "replay"
+            elif technique:
+                run_type = "adversarial"
+            else:
+                run_type = "agent"
+            summaries.append({
+                "trace_id": rec.trace_id,
+                "type": run_type,
+                "scenario": rec.scenario_name,
+                "target": (rec.target or {}).get("model_name") or (rec.target or {}).get("task", ""),
+                "status": rec.status,
+                "mode": rec.mode,
+                "technique": rec.attack_technique,
+                "timestamp": rec.timestamp,
+            })
+        summaries.sort(key=lambda s: s.get("timestamp", ""), reverse=True)
+        return summaries
+
 
 def save_record(record: ExperimentRecord, images: Optional[Dict[str, str]] = None,
                 base_dir: "str | Path" = DEFAULT_ARTIFACT_DIR) -> Path:

@@ -1,0 +1,4 @@
+{% macro status_badge(status) %}
+{% set s = (status or 'neutral')|lower %}
+<span class="badge badge-{{ s }}">{{ status or 'N/A' }}</span>
+{% endmacro %}

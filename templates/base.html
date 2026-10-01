@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}ORION{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/orion-terminal.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <header class="orion-topbar">
+    <a class="orion-brand" href="{{ url_for('index') }}">ORION<span class="cursor">_</span></a>
+    <nav class="orion-nav">
+      {% set sec = section|default('') %}
+      <a href="{{ url_for('index') }}" class="{{ 'active' if sec == 'dashboard' }}">Dashboard</a>
+      <a href="{{ url_for('adversarial_page') }}" class="{{ 'active' if sec == 'you' }}">Know Yourself</a>
+      <a href="{{ url_for('target_analysis_page') }}" class="{{ 'active' if sec == 'target' }}">Know Your Target</a>
+      <a href="{{ url_for('know_environment') }}" class="{{ 'active' if sec == 'env' }}">Know The Environment</a>
+      <a href="{{ url_for('red_team_page') }}" class="{{ 'active' if sec == 'attack' }}">Attack</a>
+      <a href="{{ url_for('runs_page') }}" class="{{ 'active' if sec == 'evidence' }}">Evidence</a>
+    </nav>
+    <button class="crt-toggle" id="crt-toggle" title="toggle CRT effects">CRT: ON</button>
+    <span class="orion-status"><span class="dot">●</span> red team // human oversight</span>
+  </header>
+
+  <main class="orion-main">
+    {% block content %}{% endblock %}
+  </main>
+
+  <pre class="dragon watermark sm" aria-hidden="true">        /\___/\
+   ___ /  o o  \ ___
+  /   \  &gt;\_/&lt;  /   \
+ | O R I O N  ===  |
+  \___/__\_/__\___/
+      /_/   \_\</pre>
+
+  <footer class="orion-footer">
+    ORION // ADVERSARIAL INTELLIGENCE SYSTEM &mdash; Know yourself. Know the adversary. Know the environment.
+  </footer>
+
+  <script src="{{ url_for('static', filename='js/orion.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -7,9 +7,16 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='recon/style.css') }}">
 </head>
 <body>
-  <header class="topbar">
-    <a class="brand" href="{{ url_for('index') }}">ORION</a>
-    <span class="topbar-tag">know the environment &mdash; agentic recon (educational, mock by default)</span>
+  <header class="orion-topbar">
+    <a class="orion-brand" href="{{ url_for('index') }}">ORION</a>
+    <nav class="orion-nav">
+      <a href="{{ url_for('index') }}">Dashboard</a>
+      <a href="{{ url_for('adversarial_page') }}">Know Yourself</a>
+      <a href="{{ url_for('red_team_page') }}">Know Your Enemy</a>
+      <a href="{{ url_for('know_environment') }}" class="active">Know The Environment</a>
+      <a href="{{ url_for('agent_page') }}">Agent</a>
+      <a href="{{ url_for('runs_page') }}">Evidence</a>
+    </nav>
   </header>
   <main class="page">
     <section class="run-view" id="run-view" data-run-id="{{ run_id }}">
@@ -58,7 +65,11 @@
       <div class="panel report-panel hidden" id="report-panel">
         <div class="report-panel-header">
           <h2 class="panel-heading">&gt; final report</h2>
-          <button class="btn-link" id="btn-toggle-raw" type="button">view raw markdown</button>
+          <span>
+            <a class="btn-link" href="{{ url_for('target_analysis_page') }}?recon={{ run_id }}">[ analyze with orion ]</a>
+            &nbsp;
+            <button class="btn-link" id="btn-toggle-raw" type="button">view raw markdown</button>
+          </span>
         </div>
         <div id="report-html" class="report-html"></div>
         <pre id="report-raw" class="hidden"></pre>

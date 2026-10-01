@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% from "components/methodology.html" import methodology_bar %}
+{% from "components/status.html" import status_badge %}
+{% from "components/metric.html" import metric_card %}
+{% from "components/atlas.html" import atlas_item %}
+{% set section = 'evidence' %}
+{% block title %}Run {{ trace_id[:8] }} — ORION{% endblock %}
+{% block head %}<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>{% endblock %}
+
+{% block content %}
+{% if not record %}
+  <div class="section-head"><h1>Run {{ trace_id[:8] }}</h1></div>
+  <div class="state error">Evidence unavailable for this trace. It may have been cleaned or never created.</div>
+  <div class="btn-row" style="margin-top:1rem;"><a class="btn" href="{{ url_for('runs_page') }}">▸ Back to runs</a></div>
+{% else %}
+  {% set atk = record.attack_technique or '' %}
+  {% set phase = 'retest' if record.mode == 'hardened' else (record.phase or 'attack') %}
+  <div class="section-head {{ 'offensive' if 'ATTACK_SUCCESS' == record.status else '' }}">
+    <h1>Run <span class="mono">{{ trace_id[:8] }}</span></h1>
+    <p class="sub">{{ record.scenario_name or 'ad-hoc experiment' }} &middot; mode: {{ record.mode }} &middot; {{ record.timestamp }}</p>
+  </div>
+
+  {{ methodology_bar(phase) }}
+
+  <div class="panel">
+    <div class="btn-row" style="justify-content:space-between; align-items:center;">
+      <div>Final status: {{ status_badge(record.status) }}</div>
+      <div class="btn-row">
+        <a class="btn btn-ghost" href="/api/artifacts/{{ trace_id }}/experiment.json" target="_blank">[ VIEW RAW JSON ]</a>
+        {% if report_md %}<a class="btn btn-ghost" href="/api/artifacts/{{ trace_id }}/report.md" target="_blank">[ DOWNLOAD REPORT ]</a>{% endif %}
+        {% if record.hardening %}<button class="btn btn-blue" id="btn-replay" data-trace="{{ trace_id }}">[ REPLAY HARDENED ]</button>{% endif %}
+        <a class="btn btn-ghost" href="{{ url_for('agent_page') }}?mission={{ ('Explain this ' ~ (record.attack_technique or 'experiment') ~ ' result and the security trade-off.')|urlencode }}&context={{ ('trace=' ~ trace_id)|urlencode }}">[ EXPLAIN RESULT ]</a>
+        <a class="btn" href="{{ url_for('adversarial_page') }}">[ NEW EXPERIMENT ]</a>
+      </div>
+    </div>
+    <div id="replay-status" class="hidden" style="margin-top:0.75rem;"></div>
+  </div>
+
+  {# ---- Image triptych (adversarial experiments) ---- #}
+  {% if record.artifacts %}
+  <div class="panel">
+    <div class="panel-title">Original · Adversarial · Difference</div>
+    <div class="img-triptych">
+      {% if record.artifacts.original %}
+      <div class="img-panel"><h4>Original</h4><img src="/api/artifacts/{{ trace_id }}/{{ record.artifacts.original }}" alt="original"></div>{% endif %}
+      {% if record.artifacts.adversarial %}
+      <div class="img-panel adv"><h4>Adversarial</h4><img src="/api/artifacts/{{ trace_id }}/{{ record.artifacts.adversarial }}" alt="adversarial"></div>{% endif %}
+      {% if record.artifacts.difference %}
+      <div class="img-panel"><h4>Difference / Perturbation</h4><img src="/api/artifacts/{{ trace_id }}/{{ record.artifacts.difference }}" alt="difference"></div>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# ---- Baseline vs Adversarial ---- #}
+  {% if record.baseline_result or record.adversarial_result %}
+  <div class="panel">
+    <div class="panel-title">Result</div>
+    <table class="orion compare">
+      <thead><tr><th></th><th>Baseline</th><th>Adversarial</th></tr></thead>
+      <tbody>
+        <tr><td>Prediction</td>
+          <td class="col-baseline">{{ record.baseline_result.get('prediction', record.baseline_result.get('clean_accuracy','N/A')) }}</td>
+          <td class="col-attack">{{ record.adversarial_result.get('prediction', record.adversarial_result.get('robust_accuracy','N/A')) }}</td></tr>
+        <tr><td>Confidence</td>
+          <td class="col-baseline">{{ record.baseline_result.get('confidence','N/A') }}</td>
+          <td class="col-attack">{{ record.adversarial_result.get('confidence','N/A') }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {# ---- Metrics ---- #}
+  <div class="panel">
+    <div class="panel-title">Metrics</div>
+    {% if record.metrics %}
+    <div class="metric-grid">
+      {% for k, m in record.metrics.items() %}
+        {% if m is mapping and 'value' in m %}
+          {{ metric_card(k, m.value, m.unit if m.unit is defined else '') }}
+        {% endif %}
+      {% endfor %}
+    </div>
+    {% else %}<div class="state">No metrics recorded.</div>{% endif %}
+  </div>
+
+  <div class="two-col">
+    {# ---- Threat model ---- #}
+    <div class="panel">
+      <div class="panel-title">Threat Model</div>
+      {% set tm = record.threat_model or {} %}
+      {% set adv = tm.adversary or {} %}
+      <table class="orion">
+        <tr><td>Goal</td><td>{{ adv.goal or 'N/A' }}</td></tr>
+        <tr><td>Knowledge</td><td>{{ adv.knowledge or 'N/A' }}</td></tr>
+        <tr><td>Access</td><td>{{ adv.access or 'N/A' }}</td></tr>
+        <tr><td>Budget</td><td>{{ adv.budget or 'N/A' }}</td></tr>
+        <tr><td>Assets</td><td>{{ (tm.assets or [])|join(', ') or 'N/A' }}</td></tr>
+        <tr><td>Surfaces</td><td>{{ (tm.surfaces or [])|join(', ') or 'N/A' }}</td></tr>
+      </table>
+      <div class="panel-title" style="margin-top:1rem;">Attack</div>
+      <table class="orion">
+        <tr><td>Technique</td><td>{{ record.attack_technique or 'N/A' }}</td></tr>
+        {% for k, v in (record.parameters or {}).items() %}<tr><td>{{ k }}</td><td>{{ v }}</td></tr>{% endfor %}
+      </table>
+    </div>
+
+    {# ---- MITRE ATLAS ---- #}
+    <div class="panel">
+      <div class="panel-title">MITRE ATLAS</div>
+      {% if record.mitre_atlas %}
+        {% for m in record.mitre_atlas %}{{ atlas_item(m) }}{% endfor %}
+      {% else %}
+        <div class="state">No validated MITRE ATLAS mapping for this scenario.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ---- Defensive view ---- #}
+  <div class="panel defensive">
+    <div class="panel-title">Defensive View</div>
+    {% if record.controls_tested %}
+      {% for c in record.controls_tested %}
+        <div class="finding sev-{{ 'low' if c.blocked else 'info' }}">
+          <span class="sev">{{ 'BLOCKED' if c.blocked else 'applied' }}</span>{{ c.name }} — {{ c.notes or '' }}
+        </div>
+      {% endfor %}
+    {% elif record.hardening %}
+      <p class="sub">Declared candidate controls (not yet retested here):
+        {{ record.hardening | map(attribute='name') | join(', ') }}.
+        Replay this trace as <em>hardened</em> to validate them.</p>
+    {% else %}
+      <div class="state">No controls applied in this run. A defense is not validated until the attack is replayed.</div>
+    {% endif %}
+  </div>
+
+  {# ---- Limitations ---- #}
+  <div class="panel">
+    <div class="panel-title">Limitations</div>
+    {% if record.limitations %}<ul>{% for l in record.limitations %}<li class="sub">{{ l }}</li>{% endfor %}</ul>
+    {% else %}<p class="sub">Results depend on the selected data and parameters; this is not a proof of security.</p>{% endif %}
+  </div>
+
+  {# ---- Full report ---- #}
+  {% if report_md %}
+  <div class="panel">
+    <div class="panel-title">Full Report</div>
+    <div class="report-html" id="report-html"></div>
+    <script>document.getElementById("report-html").innerHTML = Orion.markdown({{ report_md | tojson }});</script>
+  </div>
+  {% endif %}
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const btn = document.getElementById("btn-replay");
+  if (!btn) return;
+  const st = document.getElementById("replay-status");
+  btn.addEventListener("click", async function () {
+    btn.disabled = true;
+    Orion.setState(st, "running", "replaying same attack with declared defenses…");
+    try {
+      const res = await Orion.postJSON("/api/replay/" + encodeURIComponent(btn.dataset.trace), { mode: "hardened" });
+      st.innerHTML = `<div class="state">Replay complete: ${Orion.statusBadge(res.status)} — ` +
+        `<a href="/runs/${encodeURIComponent(res.trace_id)}">open hardened run</a> · ` +
+        `<a href="/orion/compare?before=${encodeURIComponent(btn.dataset.trace)}&after=${encodeURIComponent(res.trace_id)}" target="_blank">view comparison JSON</a></div>`;
+    } catch (e) {
+      Orion.setState(st, "error", "Replay failed: " + e.message);
+      btn.disabled = false;
+    }
+  });
+})();
+</script>
+{% endblock %}

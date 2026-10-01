@@ -460,3 +460,21 @@ code.inline-code {
   border-radius: 5px;
   border: 1px solid var(--border);
 }
+
+/* --- shared ORION nav (aligned with base.html shell) --- */
+.orion-topbar {
+  display: flex; align-items: center; gap: 1.25rem;
+  padding: 0.6rem 1.25rem; border-bottom: 1px solid var(--red, #8b0000);
+  background: #000; position: sticky; top: 0; z-index: 100; flex-wrap: wrap;
+}
+.orion-brand { font-weight: 700; font-size: 1.3rem; letter-spacing: 0.18em; color: #ff2b2b; text-decoration: none; }
+.orion-nav { display: flex; gap: 0.25rem; flex-wrap: wrap; flex: 1; }
+.orion-nav a { color: var(--text-dim); padding: 0.3rem 0.7rem; border: 1px solid transparent;
+  font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.05em; text-decoration: none; }
+.orion-nav a:hover { color: var(--text); border-color: var(--border); }
+.orion-nav a.active { color: var(--green); border-color: var(--green-dim); }
+.recon-methodology { display: flex; border: 1px solid var(--border); margin: 0 0 1.25rem; flex-wrap: wrap; }
+.recon-methodology .phase { flex: 1; min-width: 84px; padding: 0.45rem; text-align: center; font-size: 0.68rem;
+  text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); border-right: 1px solid var(--border); background: var(--panel-bg-alt); }
+.recon-methodology .phase:last-child { border-right: none; }
+.recon-methodology .phase.active { color: var(--yellow); background: rgba(255,204,102,0.06); }

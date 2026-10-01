@@ -1,0 +1,12 @@
+{# Methodology strip. `active` = current phase key; phases before it render done. #}
+{% macro methodology_bar(active='attack') %}
+  {% set order = ['understand','threat_model','attack','measure','harden','retest'] %}
+  {% set labels = {'understand':'Understand','threat_model':'Threat Model','attack':'Attack','measure':'Measure','harden':'Harden','retest':'Retest'} %}
+  {% set ai = order.index(active) if active in order else 2 %}
+  <div class="methodology">
+    {% for p in order %}
+      {% set i = loop.index0 %}
+      <div class="phase {{ 'done' if i < ai else ('active' if i == ai else 'todo') }}">{{ labels[p] }}</div>
+    {% endfor %}
+  </div>
+{% endmacro %}

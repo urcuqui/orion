@@ -1,0 +1,8 @@
+{% macro atlas_item(m) %}
+<div class="atlas-item">
+  <div><span class="tid">{{ m.technique_id }}</span> &mdash; <span class="tname">{{ m.technique or 'N/A' }}</span></div>
+  <div class="tac">Tactic: {{ m.tactic or 'N/A' }} &middot; confidence: {{ m.confidence or 'N/A' }}</div>
+  {% if m.rationale %}<div class="rat">{{ m.rationale }}</div>{% endif %}
+  {% if not m.known %}<div class="unverified">⚠ unverified: not in Orion's curated ATLAS index</div>{% endif %}
+</div>
+{% endmacro %}

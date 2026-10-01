@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% set section = 'enemy' %}
+{% block title %}Know Your Enemy — ORION{% endblock %}
+{% block head %}<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>{% endblock %}
+
+{% block content %}
+<div class="section-head offensive">
+  <h1>Know Your Enemy · Red Team</h1>
+  <p class="sub">Understand the threat and the adversary before selecting an attack.</p>
+</div>
+
+<div class="card-grid">
+  <div class="card enemy">
+    <h3>Adversarial ML</h3>
+    <div class="desc">Craft adversarial examples and measure model degradation.</div>
+    <div class="actions"><a href="{{ url_for('adversarial_page') }}">▸ Launch adversarial demo</a></div>
+  </div>
+  <div class="card enemy">
+    <h3>Agent Evaluation</h3>
+    <div class="desc">Use the Orion agent to plan and explain an evaluation.</div>
+    <div class="actions"><a href="{{ url_for('agent_page') }}">▸ Run Orion agent</a></div>
+  </div>
+  <div class="card env">
+    <h3>Recon</h3>
+    <div class="desc">Map the environment and attack surface (mock by default).</div>
+    <div class="actions"><a href="{{ url_for('know_environment') }}">▸ Launch recon</a></div>
+  </div>
+  <div class="card you">
+    <h3>Evidence</h3>
+    <div class="desc">Inspect metrics, ATLAS mappings and reproducible reports.</div>
+    <div class="actions"><a href="{{ url_for('runs_page') }}">▸ View evidence</a></div>
+  </div>
+</div>
+
+<div class="panel" id="threat" style="margin-top:1.5rem;">
+  <div class="panel-title">Threat Model (example scenario)</div>
+  <div class="two-col">
+    <table class="orion">
+      <tr><td>Task</td><td>image_classification</td></tr>
+      <tr><td>Access</td><td>white_box</td></tr>
+      <tr><td>Adversary goal</td><td>targeted_misclassification</td></tr>
+      <tr><td>Knowledge</td><td>full</td></tr>
+      <tr><td>Budget</td><td>low</td></tr>
+    </table>
+    <p class="sub">A structured, LLM-independent threat model defines <em>who</em> the adversary is and
+      <em>what</em> is at stake before any attack is chosen.
+      <br><br><strong>An attack algorithm without a threat model is only an experiment.</strong></p>
+  </div>
+</div>
+
+<div class="panel" id="atlas">
+  <div class="panel-title">MITRE ATLAS</div>
+  <p class="sub">AI-specific adversary tactics &amp; techniques (MITRE ATLAS &mdash; distinct from MITRE ATT&amp;CK).</p>
+  <table class="orion">
+    <thead><tr><th>Tactic</th><th>Representative techniques</th></tr></thead>
+    <tbody>
+      <tr><td>Reconnaissance</td><td>Search Victim's Publicly Available Research Materials</td></tr>
+      <tr><td>ML Model Access</td><td>ML Model Inference API Access, Full ML Model Access</td></tr>
+      <tr><td>Execution</td><td>User Execution, LLM Prompt Injection</td></tr>
+      <tr><td>Persistence</td><td>Backdoor ML Model, RAG Poisoning</td></tr>
+      <tr><td>Defense Evasion</td><td>Evade ML Model, LLM Prompt Obfuscation</td></tr>
+      <tr><td>ML Attack Staging</td><td>Create Proxy ML Model, Craft Adversarial Data</td></tr>
+      <tr><td>Exfiltration</td><td>Exfiltration via ML Inference API, LLM Data Leakage</td></tr>
+      <tr><td>Impact</td><td>Denial of ML Service, Erode ML Model Integrity</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<details class="panel secondary">
+  <summary style="cursor:pointer; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; font-size:0.85rem;">
+    Legacy / Experimental Tools
+  </summary>
+  <p class="sub" style="margin-top:0.75rem;">Not part of the core conference narrative. Kept for backward compatibility.</p>
+  <div class="btn-row">
+    <button class="btn btn-ghost" id="btn-phish">▸ Generate sample phishing email</button>
+    <a class="btn btn-ghost" href="{{ url_for('enemey') }}">▸ Legacy ATLAS chat</a>
+  </div>
+  <div id="phish-out" class="report-html" style="margin-top:0.75rem;"></div>
+</details>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById("btn-phish").addEventListener("click", async function () {
+  const out = document.getElementById("phish-out");
+  const btn = this;
+  btn.disabled = true;
+  Orion.setState(out, "running", "generating…");
+  try {
+    const data = await Orion.postJSON("/chat_phishing", {});
+    out.innerHTML = Orion.markdown(data.response || "(no response)");
+  } catch (e) {
+    Orion.setState(out, "error", "Generation failed: " + e.message);
+  } finally { btn.disabled = false; }
+});
+</script>
+{% endblock %}

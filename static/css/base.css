@@ -1,0 +1,327 @@
+/* ORION shared shell + components.
+   Terminal / hacker aesthetic: black background, monospace, red (offensive) +
+   green (safe/defensive) semantics. No CSS framework. */
+
+:root {
+  /* Retro adversarial-intelligence console palette. */
+  --bg: #050505;
+  --bg-deep: #000000;
+  --panel: #0a0a0a;
+  --panel-alt: #0c0707;        /* very dark red-black */
+  --border: #3b0e0e;           /* thin crimson border */
+  --border-strong: #5a1414;
+
+  --red: #d71920;              /* primary red-team crimson */
+  --red-bright: #ff3b3b;
+  --red-dark: #5a1414;
+  --red-mid: #d71920;
+
+  --green: #5cff8a;            /* phosphor green */
+  --green-dark: #35c866;
+
+  --blue: #5794d6;             /* muted information blue */
+  --blue-bright: #5794d6;
+
+  --warning: #ffb347;          /* amber */
+
+  --text: #e6e6e6;
+  --muted: #8a8a8a;
+  --dim: #5a5a5a;
+
+  --mono: "Courier New", "IBM Plex Mono", "Source Code Pro", ui-monospace, Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 15px;
+}
+body { min-height: 100vh; display: flex; flex-direction: column; }
+
+a { color: var(--green); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ---------------- App shell ---------------- */
+.orion-topbar {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.6rem 1.25rem;
+  border-bottom: 1px solid var(--red-dark);
+  background: var(--bg-deep);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  flex-wrap: wrap;
+}
+.orion-brand {
+  font-weight: 700;
+  font-size: 1.3rem;
+  letter-spacing: 0.18em;
+  color: var(--red);
+  text-shadow: 0 0 8px rgba(255, 43, 43, 0.35);
+}
+.orion-brand:hover { text-decoration: none; }
+.orion-brand .cursor { animation: blink 1.1s steps(1) infinite; color: var(--green); }
+
+.orion-nav { display: flex; gap: 0.25rem; flex-wrap: wrap; flex: 1; }
+.orion-nav a {
+  color: var(--muted);
+  padding: 0.3rem 0.7rem;
+  border: 1px solid transparent;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.orion-nav a:hover { color: var(--text); border-color: var(--border-strong); text-decoration: none; }
+.orion-nav a.active { color: var(--green); border-color: var(--green-dark); }
+
+.orion-status {
+  font-size: 0.72rem;
+  color: var(--dim);
+  white-space: nowrap;
+}
+.orion-status .dot { color: var(--green); }
+
+.orion-main { flex: 1; width: 100%; max-width: 1280px; margin: 0 auto; padding: 1.75rem 1.5rem; }
+
+.orion-footer {
+  text-align: center;
+  padding: 0.9rem;
+  font-size: 0.72rem;
+  color: var(--dim);
+  border-top: 1px solid var(--border);
+  background: var(--bg-deep);
+}
+.orion-footer .warn { color: var(--warning); }
+
+/* ---------------- Section headers ---------------- */
+.section-head { margin-bottom: 1.25rem; }
+.section-head h1 {
+  color: var(--green);
+  margin: 0 0 0.25rem;
+  font-size: 1.5rem;
+  letter-spacing: 0.03em;
+}
+.section-head h1::before { content: "> "; color: var(--dim); }
+.section-head .sub { color: var(--muted); font-size: 0.9rem; margin: 0; }
+.offensive .section-head h1 { color: var(--red); }
+.offensive .section-head h1::before { color: var(--red-dark); }
+
+/* ---------------- Panels ---------------- */
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+.panel.offensive { border-color: var(--red-dark); }
+.panel.defensive { border-color: #16407a; }
+.panel-title {
+  color: var(--green);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin: 0 0 0.9rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.4rem;
+}
+.panel.offensive .panel-title { color: var(--red); }
+.panel.defensive .panel-title { color: var(--blue-bright); }
+.panel-title::before { content: "// "; color: var(--dim); }
+
+/* ---------------- Buttons ---------------- */
+.btn {
+  background: var(--bg-deep);
+  color: var(--green);
+  border: 1px solid var(--green-dark);
+  padding: 0.55rem 1.1rem;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn:hover { background: rgba(0, 255, 102, 0.12); }
+.btn:disabled { color: var(--dim); border-color: var(--border); cursor: not-allowed; background: var(--bg-deep); }
+.btn-red { color: var(--red); border-color: var(--red-dark); }
+.btn-red:hover { background: rgba(255, 43, 43, 0.12); }
+.btn-blue { color: var(--blue-bright); border-color: #16407a; }
+.btn-blue:hover { background: rgba(41, 121, 255, 0.12); }
+.btn-ghost { color: var(--muted); border-color: var(--border-strong); }
+.btn-ghost:hover { background: rgba(255,255,255,0.05); }
+.btn-row { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+
+/* ---------------- Forms ---------------- */
+label.field { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.9rem; }
+.field-label { font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+input[type="text"], input[type="number"], input[type="password"], input[type="file"], textarea, select {
+  background: var(--panel-alt);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  padding: 0.55rem 0.7rem;
+  font-family: var(--mono);
+  font-size: 0.9rem;
+}
+input:focus, textarea:focus, select:focus { outline: none; border-color: var(--green-dark); }
+textarea { resize: vertical; min-height: 120px; }
+.toggle { display: flex; align-items: center; gap: 0.5rem; font-size: 0.82rem; cursor: pointer; margin-bottom: 0.5rem; color: var(--muted); }
+.toggle input { accent-color: var(--green); }
+
+/* ---------------- Status badges ---------------- */
+.badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.25rem 0.65rem;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  font-weight: 700;
+}
+.badge-attack_success, .badge-error { color: var(--red); }
+.badge-attack_blocked, .badge-no_attack, .badge-completed { color: var(--green); }
+.badge-partially_mitigated, .badge-awaiting_approval { color: var(--warning); }
+.badge-running { color: var(--blue-bright); }
+.badge-neutral { color: var(--muted); }
+
+/* ---------------- Methodology bar ---------------- */
+.methodology {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--border);
+  margin-bottom: 1.25rem;
+  overflow: hidden;
+  flex-wrap: wrap;
+}
+.methodology .phase {
+  flex: 1;
+  min-width: 90px;
+  padding: 0.5rem 0.4rem;
+  text-align: center;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--dim);
+  border-right: 1px solid var(--border);
+  background: var(--panel-alt);
+}
+.methodology .phase:last-child { border-right: none; }
+.methodology .phase.done { color: var(--green); }
+.methodology .phase.done::before { content: "[✓] "; }
+.methodology .phase.active { color: var(--warning); background: rgba(255,170,0,0.06); }
+.methodology .phase.active::before { content: "[>] "; }
+.methodology .phase.todo::before { content: "[ ] "; color: var(--dim); }
+
+/* ---------------- Metric cards ---------------- */
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem; }
+.metric {
+  border: 1px solid var(--border);
+  background: var(--panel-alt);
+  padding: 0.75rem 0.9rem;
+}
+.metric .k { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.metric .v { font-size: 1.35rem; color: var(--text); margin-top: 0.25rem; }
+.metric.good .v { color: var(--green); }
+.metric.bad .v { color: var(--red); }
+.metric.warn .v { color: var(--warning); }
+
+/* ---------------- Tables ---------------- */
+table.orion { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+table.orion th, table.orion td { border: 1px solid var(--border); padding: 0.5rem 0.7rem; text-align: left; }
+table.orion th { background: var(--panel-alt); color: var(--green); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; }
+table.orion tr:hover td { background: rgba(255,255,255,0.02); }
+table.orion td a { color: var(--green); }
+
+/* comparison table */
+table.compare td.col-baseline { color: var(--muted); }
+table.compare td.col-attack { color: var(--red); }
+table.compare td.col-hardened { color: var(--green); }
+
+/* ---------------- Findings / ATLAS / tools ---------------- */
+.finding { border-left: 3px solid var(--border); background: var(--panel-alt); padding: 0.5rem 0.7rem; margin-bottom: 0.5rem; font-size: 0.82rem; }
+.finding .sev { font-weight: 700; font-size: 0.68rem; text-transform: uppercase; margin-right: 0.4rem; }
+.finding.sev-critical, .finding.sev-high { border-left-color: var(--red); }
+.finding.sev-medium { border-left-color: var(--warning); }
+.finding.sev-low, .finding.sev-info { border-left-color: var(--blue); }
+
+.atlas-item { border: 1px solid var(--border); padding: 0.75rem; margin-bottom: 0.6rem; background: var(--panel-alt); }
+.atlas-item .tid { color: var(--warning); font-weight: 700; }
+.atlas-item .tname { color: var(--text); }
+.atlas-item .tac { color: var(--muted); font-size: 0.78rem; }
+.atlas-item .rat { color: var(--muted); font-size: 0.8rem; margin-top: 0.3rem; }
+.atlas-item .unverified { color: var(--red); font-size: 0.7rem; }
+
+.tool-item { border: 1px solid var(--border); padding: 0.6rem 0.75rem; margin-bottom: 0.5rem; background: var(--panel-alt); font-size: 0.82rem; }
+.tool-item .tname { color: var(--green); font-weight: 700; }
+.tool-item .tdesc { color: var(--muted); font-size: 0.78rem; margin-top: 0.2rem; }
+.tool-item pre { font-size: 0.72rem; color: var(--dim); overflow-x: auto; margin: 0.3rem 0 0; }
+
+/* ---------------- Image panels ---------------- */
+.img-triptych { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.9rem; }
+.img-panel { border: 1px solid var(--border); background: var(--panel-alt); padding: 0.6rem; text-align: center; }
+.img-panel h4 { margin: 0 0 0.5rem; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.img-panel.adv h4 { color: var(--red); }
+.img-panel img { width: 100%; height: auto; border: 1px solid var(--border); image-rendering: auto; background: #000; }
+
+/* ---------------- States (idle/loading/empty/error) ---------------- */
+.state { padding: 1.5rem; text-align: center; color: var(--muted); font-size: 0.9rem; border: 1px dashed var(--border); }
+.state.error { color: var(--red); border-color: var(--red-dark); }
+.state .spin { color: var(--green); }
+.loading-line { color: var(--green); animation: blink 1.1s steps(1) infinite; }
+.hidden { display: none !important; }
+
+@keyframes blink { 0%,49% { opacity: 1; } 50%,100% { opacity: 0.25; } }
+
+/* ---------------- Dashboard cards ---------------- */
+.card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.1rem; }
+.card {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  padding: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.card.you { border-top: 2px solid var(--green); }
+.card.enemy { border-top: 2px solid var(--red); }
+.card.env { border-top: 2px solid var(--blue); }
+.card h3 { margin: 0; font-size: 1rem; letter-spacing: 0.05em; }
+.card.you h3 { color: var(--green); }
+.card.enemy h3 { color: var(--red); }
+.card.env h3 { color: var(--blue-bright); }
+.card .desc { color: var(--muted); font-size: 0.82rem; min-height: 2.4em; }
+.card .actions { display: flex; flex-direction: column; gap: 0.4rem; margin-top: auto; }
+.card .actions a { font-size: 0.82rem; color: var(--text); border: 1px solid var(--border); padding: 0.4rem 0.6rem; }
+.card .actions a:hover { border-color: var(--green-dark); text-decoration: none; }
+
+/* ---------------- Report markdown ---------------- */
+.report-html { line-height: 1.55; font-size: 0.88rem; max-height: 640px; overflow-y: auto; }
+.report-html h1, .report-html h2, .report-html h3 { color: var(--green); margin: 1rem 0 0.5rem; }
+.report-html table { width: 100%; border-collapse: collapse; margin: 0.6rem 0; }
+.report-html th, .report-html td { border: 1px solid var(--border); padding: 0.35rem 0.55rem; font-size: 0.8rem; }
+.report-html th { background: var(--panel-alt); color: var(--green); }
+.report-html code { color: var(--warning); }
+.report-html pre { background: var(--panel-alt); border: 1px solid var(--border); padding: 0.6rem; overflow-x: auto; }
+
+/* ---------------- Demo mode ---------------- */
+body.demo { font-size: 17px; }
+body.demo .orion-nav, body.demo .orion-status, body.demo .secondary { display: none; }
+body.demo .section-head h1 { font-size: 2rem; }
+body.demo .metric .v { font-size: 1.7rem; }
+body.demo .orion-main { max-width: 1400px; }
+
+/* ---------------- Responsive ---------------- */
+@media (max-width: 1100px) { .img-triptych { grid-template-columns: 1fr; } }
+@media (max-width: 900px) {
+  .orion-nav { order: 3; width: 100%; }
+  .two-col { grid-template-columns: 1fr !important; }
+}
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; align-items: start; }
+.ascii-mini { color: var(--dim); font-size: 0.6rem; line-height: 1.1; white-space: pre; }

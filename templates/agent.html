@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% set section = 'target' %}
+{% block title %}Orion Analyst — ORION{% endblock %}
+{% block head %}<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>{% endblock %}
+
+{% block content %}
+<div class="section-head">
+  <h1>ORION // ANALYST MODE</h1>
+  <p class="sub">Target interpretation · threat analysis · experiment planning. The analyst plans and explains &mdash; it does not decide security.</p>
+</div>
+
+<div class="two-col">
+  <div class="panel">
+    <div class="panel-title">Mission</div>
+    <label class="field">
+      <span class="field-label">&gt; What should Orion evaluate, and why?</span>
+      <textarea id="mission" placeholder="Evaluate whether this target is vulnerable to low-perturbation attacks.">Evaluate the AI system and summarize security findings.</textarea>
+    </label>
+    <label class="field">
+      <span class="field-label">&gt; Context (optional)</span>
+      <input type="text" id="context" placeholder="recon_run=ORN-RECON-0034 or free text">
+    </label>
+    <label class="toggle"><input type="checkbox" id="opt-stream" checked> stream execution (live state)</label>
+    <div class="btn-row" style="margin-top:0.5rem;">
+      <button class="btn" id="btn-run">[ RUN ORION AGENT ]</button>
+      <button class="btn btn-ghost" id="btn-tools">▸ Inspect MCP tools</button>
+    </div>
+    <p class="sub" style="color:var(--warning); margin-top:0.6rem;">⚠ Agent output is advisory, never a security verdict.</p>
+
+    <div id="mcp-panel" class="panel secondary hidden" style="margin-top:1rem;">
+      <div class="panel-title">MCP Tools</div>
+      <div id="mcp-list"><div class="state">Not loaded.</div></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Agent State</div>
+    <div id="agent-timeline"><div class="state">Waiting for a mission.</div></div>
+  </div>
+</div>
+
+<div class="panel" id="report-panel" style="display:none;">
+  <div class="panel-title">Final Report</div>
+  <div class="report-html" id="agent-report"></div>
+</div>
+
+<div class="two-col" id="extras" style="display:none;">
+  <div class="panel"><div class="panel-title">Tools Used</div><div id="agent-tools"></div></div>
+  <div class="panel"><div class="panel-title">Findings / Results</div><div id="agent-findings"></div></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/agent.js') }}"></script>
+{% endblock %}

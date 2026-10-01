@@ -19,8 +19,9 @@ app = Flask(__name__)
 # -> Measure -> Harden -> Retest). Guarded so the existing app keeps working
 # even if the optional methodology dependencies are unavailable.
 try:
-    from orion.integrations.flask_blueprint import orion_bp
+    from orion.integrations.flask_blueprint import orion_bp, api_bp
     app.register_blueprint(orion_bp)
+    app.register_blueprint(api_bp)
 except Exception as _orion_exc:  # noqa: BLE001
     print(f"[orion] methodology blueprint not registered: {_orion_exc}")
 
@@ -65,9 +66,48 @@ def enemey():
 def index():
     return render_template('index.html')
 
+# --- Orion command-center pages (new UI) ---
+@app.route('/adversarial')
+def adversarial_page():
+    return render_template('adversarial.html')
+
+@app.route('/agent')
+def agent_page():
+    return render_template('agent.html')
+
+@app.route('/target-analysis')
+@app.route('/know-your-target')
+def target_analysis_page():
+    return render_template('target-analysis.html')
+
+@app.route('/runs')
+def runs_page():
+    return render_template('runs.html')
+
+@app.route('/runs/<trace_id>')
+def run_detail_page(trace_id):
+    record = None
+    report_md = None
+    try:
+        from orion.evidence import EvidenceStore
+        store = EvidenceStore('artifacts')
+        rec = store.load(trace_id)
+        record = rec.to_dict()
+        report_path = store.trace_dir(trace_id) / 'report.md'
+        if report_path.exists():
+            report_md = report_path.read_text(encoding='utf-8')
+    except Exception:
+        record = None
+    return render_template('run-detail.html', trace_id=trace_id, record=record, report_md=report_md)
+
+@app.route('/red-team')
+def red_team_page():
+    return render_template('red-team.html')
+
 @app.route('/red-pill.html')
 def red_pill():
-    return render_template('red-pill.html')
+    # Retired as a monolith: now the Red Team landing page.
+    return render_template('red-team.html')
 
 @app.route('/know-environment.html')
 def know_environment():

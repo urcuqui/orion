@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% from "components/methodology.html" import methodology_bar %}
+{% set section = 'target' %}
+{% block title %}Know Your Target — ORION{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/target-analysis.css') }}">{% endblock %}
+
+{% block content %}
+<div class="term">
+  <div class="term-title">ORION // TARGET ANALYSIS</div>
+  <div class="statusline"><span class="work" id="target-status">[*] TARGET STATUS: NOT ANALYZED</span></div>
+  <p class="sub" style="margin-top:0.5rem;">Recon collects evidence &middot; Orion interprets it &middot; the human decides what happens next.</p>
+</div>
+
+{{ methodology_bar('understand') }}
+
+<ul class="menu-list" id="capability-menu">
+  <li data-cap="recon"><span class="code">[01]</span><span class="name">Reconnaissance</span>
+    <div class="hint">Map assets, endpoints, services and attack surface.</div></li>
+  <li data-cap="agent"><span class="code">[02]</span><span class="name">Agent Analysis</span>
+    <div class="hint">Interpret evidence and propose security experiments.</div></li>
+  <li data-cap="threat"><span class="code">[03]</span><span class="name">Threat Model</span>
+    <div class="hint">Review assets, adversary, boundaries and risks.</div></li>
+  <li data-cap="guided"><span class="code">[04]</span><span class="name">Guided Analysis</span>
+    <div class="hint">Recon → Analyze → Threat Model → Suggested Experiments.</div></li>
+</ul>
+
+<div class="btn-row" style="margin-bottom:1.25rem;">
+  <button class="btn btn-red" data-cap="recon">[ RUN RECON ]</button>
+  <button class="btn" data-cap="agent">[ ANALYZE TARGET ]</button>
+  <button class="btn btn-blue" data-cap="threat">[ REVIEW THREAT MODEL ]</button>
+  <button class="btn" data-cap="guided">[ START GUIDED ANALYSIS ]</button>
+</div>
+
+<!-- RECON capability -->
+<div class="term cap hidden" id="cap-recon">
+  <div class="term-title">[01] Reconnaissance</div>
+  <p class="sub">Select a completed recon run to interpret, or launch a new one.</p>
+  <div class="btn-row" style="margin-bottom:0.75rem;">
+    <a class="btn btn-red" href="{{ url_for('know_environment') }}">[ LAUNCH NEW RECON ]</a>
+    <button class="btn btn-ghost" id="refresh-recon">[ REFRESH ]</button>
+  </div>
+  <div id="recon-runs"><div class="state">Loading recon runs…</div></div>
+</div>
+
+<!-- AGENT capability (no recon) -->
+<div class="term cap hidden" id="cap-agent">
+  <div class="term-title">[02] Agent Analysis</div>
+  <div id="agent-noevidence" class="statusline" style="margin-bottom:0.6rem;">
+    <span class="off">[-] NO TARGET EVIDENCE LOADED</span>
+  </div>
+  <label class="field">
+    <span class="field-label">Describe the target, model, architecture or security objective</span>
+    <textarea id="ctx-input" placeholder="e.g. payments-api with a RAG component and an inference endpoint behind token auth">payments-api with an inference endpoint and a token-auth login flow</textarea>
+  </label>
+  <div class="btn-row">
+    <button class="btn" id="btn-analyze-ctx">[ ANALYZE TARGET ]</button>
+    <button class="btn btn-ghost" data-cap="recon">[ RUN RECON FIRST ]</button>
+  </div>
+</div>
+
+<!-- GUIDED capability -->
+<div class="term cap hidden" id="cap-guided">
+  <div class="term-title">ORION // GUIDED TARGET ANALYSIS</div>
+  <div class="two-col" style="grid-template-columns:1fr 1.3fr;">
+    <div>
+      <label class="field"><span class="field-label">Objective</span>
+        <input type="text" id="g-objective" value="Map the attack surface"></label>
+      <label class="field"><span class="field-label">Target</span>
+        <input type="text" id="g-target" value="demo.thm.local"></label>
+      <p class="sub">Mock recon by default. Guided mode stops at <strong>REVIEW PLAN</strong> — it never auto-executes offensive tests.</p>
+      <button class="btn btn-red" id="btn-guided">[ START GUIDED ANALYSIS ]</button>
+    </div>
+    <div>
+      <ul class="phases" id="guided-phases">
+        <li data-p="recon"><span class="box">[ ]</span> Reconnaissance</li>
+        <li data-p="evidence"><span class="box">[ ]</span> Evidence collection</li>
+        <li data-p="analysis"><span class="box">[ ]</span> Agent analysis</li>
+        <li data-p="threat"><span class="box">[ ]</span> Threat model</li>
+        <li data-p="plan"><span class="box">[ ]</span> Experiment planning</li>
+        <li data-p="review"><span class="box">[ ]</span> Human review</li>
+      </ul>
+      <div id="guided-status" class="statusline"></div>
+    </div>
+  </div>
+</div>
+
+<!-- SHARED ASSESSMENT OUTPUT -->
+<div id="assessment" class="hidden"></div>
+
+<!-- THREAT MODEL only view -->
+<div class="term cap hidden" id="cap-threat">
+  <div class="term-title">[03] Threat Model</div>
+  <div id="threat-only"><div class="state">Analyze a target (recon or context) to propose a threat model.</div></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/target-analysis.js') }}"></script>
+{% endblock %}

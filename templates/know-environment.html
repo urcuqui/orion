@@ -7,10 +7,24 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='recon/style.css') }}">
 </head>
 <body>
-  <header class="topbar">
-    <a class="brand" href="{{ url_for('index') }}">ORION</a>
-    <span class="topbar-tag">know the environment &mdash; agentic recon (educational, mock by default)</span>
+  <header class="orion-topbar">
+    <a class="orion-brand" href="{{ url_for('index') }}">ORION</a>
+    <nav class="orion-nav">
+      <a href="{{ url_for('index') }}">Dashboard</a>
+      <a href="{{ url_for('adversarial_page') }}">Know Yourself</a>
+      <a href="{{ url_for('red_team_page') }}">Know Your Enemy</a>
+      <a href="{{ url_for('know_environment') }}" class="active">Know The Environment</a>
+      <a href="{{ url_for('agent_page') }}">Agent</a>
+      <a href="{{ url_for('runs_page') }}">Evidence</a>
+    </nav>
   </header>
+  <div style="max-width:960px;margin:1.25rem auto 0;padding:0 1.5rem;">
+    <div class="recon-methodology">
+      <div class="phase active">Understand</div><div class="phase">Threat Model</div>
+      <div class="phase">Attack</div><div class="phase">Measure</div>
+      <div class="phase">Harden</div><div class="phase">Retest</div>
+    </div>
+  </div>
   <main class="page">
     <section class="panel launch-panel">
       <h1 class="panel-title">&gt; Know The Environment</h1>

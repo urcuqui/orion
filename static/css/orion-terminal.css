@@ -1,0 +1,145 @@
+/* ORION retro terminal layer: CRT effects, dragon, status language.
+   Loaded site-wide after base.css. Effects are subtle and toggleable. */
+
+/* ---- CRT scanlines + flicker (body.crt) ---- */
+body.crt::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9000;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0px,
+    rgba(0, 0, 0, 0) 2px,
+    rgba(0, 0, 0, 0.18) 3px,
+    rgba(0, 0, 0, 0.18) 3px
+  );
+  mix-blend-mode: multiply;
+}
+body.crt::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9001;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0) 60%, rgba(0,0,0,0.35) 100%);
+  animation: crt-flicker 6s infinite steps(60);
+}
+@keyframes crt-flicker { 0%,97% { opacity: 1; } 98% { opacity: 0.92; } 100% { opacity: 1; } }
+/* Honour reduced-motion and the OFF toggle. */
+@media (prefers-reduced-motion: reduce) { body.crt::after { animation: none; } }
+
+/* ---- CRT toggle control in the topbar ---- */
+.crt-toggle {
+  background: none;
+  border: 1px solid var(--border-strong);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.crt-toggle:hover { color: var(--green); border-color: var(--green-dark); }
+
+/* ---- Dragon ASCII ---- */
+.dragon {
+  color: var(--red);
+  font-size: 0.72rem;
+  line-height: 1.05;
+  white-space: pre;
+  text-shadow: 0 0 6px rgba(215, 25, 32, 0.4);
+  margin: 0;
+}
+.dragon.sm { font-size: 0.58rem; color: var(--red-dark); }
+.dragon.watermark {
+  position: fixed;
+  right: 1rem;
+  bottom: 2.5rem;
+  opacity: 0.08;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* ---- Terminal panels / boxes ---- */
+.term {
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  padding: 1rem 1.1rem;
+  margin-bottom: 1.1rem;
+  position: relative;
+}
+.term-title {
+  color: var(--red);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.82rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.4rem;
+  margin: 0 0 0.8rem;
+}
+.term-rule { border: none; border-top: 1px solid var(--border); margin: 0.75rem 0; }
+.term-pre { white-space: pre-wrap; color: var(--green); font-size: 0.82rem; line-height: 1.5; margin: 0; }
+
+/* ---- Status language lines ([+] [*] [!] [-] [x]) ---- */
+.statusline { font-size: 0.84rem; line-height: 1.7; }
+.statusline .ok   { color: var(--green); }
+.statusline .work { color: var(--blue); }
+.statusline .warn { color: var(--warning); }
+.statusline .off  { color: var(--muted); }
+.statusline .err  { color: var(--red-bright); }
+
+/* ---- Command prompt line ---- */
+.prompt {
+  font-size: 0.9rem;
+  color: var(--green);
+  margin-top: 1rem;
+}
+.prompt .caret { animation: blink 1.1s steps(1) infinite; }
+
+/* ---- Menu list ([01] ... style) ---- */
+.menu-list { list-style: none; margin: 0; padding: 0; }
+.menu-list li { border: 1px solid var(--border); padding: 0.75rem 0.9rem; margin-bottom: 0.6rem; background: var(--panel-alt); }
+.menu-list li:hover { border-color: var(--red); }
+.menu-list .code { color: var(--red); font-weight: 700; margin-right: 0.6rem; }
+.menu-list .name { color: var(--text); text-transform: uppercase; letter-spacing: 0.06em; }
+.menu-list .hint { color: var(--muted); font-size: 0.8rem; margin-top: 0.25rem; }
+
+/* ---- Guided progress phases ---- */
+.phases { list-style: none; margin: 0 0 1rem; padding: 0; font-size: 0.9rem; line-height: 1.9; }
+.phases li { color: var(--dim); }
+.phases li .box { color: var(--dim); margin-right: 0.5rem; }
+.phases li.done { color: var(--green); }
+.phases li.done .box { color: var(--green); }
+.phases li.active { color: var(--warning); }
+.phases li.active .box { color: var(--warning); }
+
+/* ---- Threat hypotheses / experiment plan rows ---- */
+.hyp { border-left: 3px solid var(--border); background: var(--panel-alt); padding: 0.5rem 0.7rem; margin-bottom: 0.5rem; }
+.hyp .sev { font-weight: 700; margin-right: 0.5rem; }
+.hyp.sev-high .sev, .hyp.sev-critical .sev { color: var(--red-bright); }
+.hyp.sev-high, .hyp.sev-critical { border-left-color: var(--red); }
+.hyp.sev-medium .sev { color: var(--warning); }
+.hyp.sev-medium { border-left-color: var(--warning); }
+.hyp.sev-low .sev, .hyp.sev-info .sev { color: var(--blue); }
+
+.exp { border: 1px solid var(--border); background: var(--panel-alt); padding: 0.7rem 0.85rem; margin-bottom: 0.6rem; }
+.exp .eid { color: var(--red); font-weight: 700; margin-right: 0.5rem; }
+.exp .ename { color: var(--text); text-transform: uppercase; letter-spacing: 0.05em; }
+.exp .risk { font-size: 0.7rem; border: 1px solid currentColor; padding: 0.05rem 0.4rem; margin-left: 0.5rem; }
+.exp .risk.LOW { color: var(--green); }
+.exp .risk.MEDIUM { color: var(--warning); }
+.exp .risk.HIGH { color: var(--red-bright); }
+
+/* PROPOSED label */
+.proposed { color: var(--warning); border: 1px solid var(--warning); font-size: 0.65rem;
+  padding: 0.1rem 0.4rem; text-transform: uppercase; letter-spacing: 0.08em; }
+.approved-tag { color: var(--green); border-color: var(--green); }
+.rejected-tag { color: var(--red-bright); border-color: var(--red-bright); }
+
+/* demo mode: hide CRT + watermark, enlarge terminal output */
+body.demo .dragon.watermark { display: none; }
+body.demo.crt::before, body.demo.crt::after { display: none; }
+body.demo .term-pre, body.demo .statusline, body.demo .phases { font-size: 1.05rem; }

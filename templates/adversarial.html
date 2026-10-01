@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% from "components/methodology.html" import methodology_bar %}
+{% set section = 'you' %}
+{% block title %}Adversarial ML — ORION{% endblock %}
+
+{% block content %}
+<div class="section-head offensive">
+  <h1>Know Yourself · Adversarial ML</h1>
+  <p class="sub">Understand how the model behaves under a controlled adversarial attack.</p>
+</div>
+
+{{ methodology_bar('attack') }}
+
+<div class="two-col">
+  <div>
+    <form id="adv-form" class="panel offensive">
+      <div class="panel-title">Target Model</div>
+      <label class="field">
+        <span class="field-label">Model weights (.pth / .pt)</span>
+        <input type="file" name="weights" accept=".pth,.pt,.h5" id="f-weights">
+      </label>
+      <label class="field">
+        <span class="field-label">Image to perturb</span>
+        <input type="file" name="file" accept="image/*" id="f-image">
+      </label>
+      <label class="field">
+        <span class="field-label">Number of outputs / classes</span>
+        <input type="number" name="numberoutputs" id="f-outputs" value="2" min="2">
+      </label>
+
+      <div class="panel-title" style="margin-top:1rem;">Attack (backend: fixed)</div>
+      <div class="metric-grid secondary">
+        <div class="metric"><div class="k">technique</div><div class="v" style="font-size:1rem;">Carlini &amp; Wagner L2</div></div>
+        <div class="metric"><div class="k">access</div><div class="v" style="font-size:1rem;">white-box</div></div>
+      </div>
+      <p class="sub secondary" style="margin-top:0.4rem;">
+        This build exposes the C&amp;W L2 white-box attack. Epsilon/iteration selection is not
+        exposed by the backend, so it is not shown (no fabricated parameters).
+      </p>
+
+      <div class="panel-title" style="margin-top:1rem;">Threat Profile</div>
+      <div class="metric-grid">
+        <div class="metric"><div class="k">access level</div><div class="v" style="font-size:1rem;">white_box</div></div>
+        <div class="metric"><div class="k">objective</div><div class="v" style="font-size:1rem;">evasion</div></div>
+        <div class="metric"><div class="k">knowledge</div><div class="v" style="font-size:1rem;">full</div></div>
+      </div>
+
+      <div class="btn-row" style="margin-top:1rem;">
+        <button type="submit" class="btn btn-red">[ RUN ADVERSARIAL EXPERIMENT ]</button>
+        <button type="button" class="btn" id="btn-preset">▸ Use demo preset (local assets)</button>
+      </div>
+      <p class="sub" style="color:var(--warning); margin-top:0.6rem;">⚠ Educational / authorised environments only.</p>
+    </form>
+  </div>
+
+  <div>
+    <div class="panel">
+      <div class="panel-title">Run status</div>
+      <div id="adv-status"><div class="state">Waiting for experiment. Configure a target and run, or use the demo preset.</div></div>
+    </div>
+    <div class="panel secondary">
+      <div class="panel-title">Demo preset</div>
+      <p class="sub">Runs the real Carlini &amp; Wagner attack against the bundled
+        <code>weights/vit_teacher.pth</code> (fake/real classifier) and a local sample image.
+        Takes ~25&ndash;40s on CPU; produces full evidence + a replayable trace.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/adversarial.js') }}"></script>
+{% endblock %}

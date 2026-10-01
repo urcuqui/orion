@@ -1,25 +1,35 @@
-"""A Flask blueprint exposing the Orion methodology (read-only + run).
+"""Flask blueprints exposing the Orion methodology and evidence to the UI.
 
-Register it from ``app.py``::
+- ``orion_bp`` (/orion/*): methodology metadata + scenario/run/compare helpers.
+- ``api_bp`` (/api/*): JSON API the frontend consumes (runs, run detail,
+  adversarial execution, replay) plus safe evidence-file serving.
 
-    from orion.integrations.flask_blueprint import orion_bp
-    app.register_blueprint(orion_bp)
-
-Route handlers are thin: all logic lives in the ``orion`` package.
+Route handlers stay thin: all logic lives in the ``orion`` package. No attack,
+metric or evidence logic is recreated here.
 """
 from __future__ import annotations
 
-from flask import Blueprint, jsonify, request
+import tempfile
+from pathlib import Path
+
+from flask import Blueprint, jsonify, request, send_from_directory
 
 from orion.evidence import EvidenceStore
 from orion.experiments import compare as compare_traces
+from orion.experiments import replay as replay_trace
 from orion.experiments import run_scenario
 from orion.methodology import PHASES, describe_phase
 from orion.scenarios.loader import list_scenarios, load_scenario
 
 orion_bp = Blueprint("orion", __name__, url_prefix="/orion")
+api_bp = Blueprint("orion_api", __name__, url_prefix="/api")
+
+ARTIFACT_DIR = "artifacts"
 
 
+# --------------------------------------------------------------------------- #
+# /orion/* — methodology metadata
+# --------------------------------------------------------------------------- #
 @orion_bp.get("/methodology")
 def methodology():
     return jsonify({
@@ -43,23 +53,9 @@ def run():
     try:
         scenario = load_scenario(scenario_path)
         record = run_scenario(scenario, mode=mode)
-    except Exception as exc:  # noqa: BLE001 - surface a clean error to the UI
+    except Exception as exc:  # noqa: BLE001
         return jsonify({"error": str(exc)}), 400
     return jsonify(record.to_dict())
-
-
-@orion_bp.get("/traces")
-def traces():
-    return jsonify({"traces": EvidenceStore("artifacts").list_traces()})
-
-
-@orion_bp.get("/report/<trace_id>")
-def report(trace_id: str):
-    store = EvidenceStore("artifacts")
-    path = store.trace_dir(trace_id) / "report.md"
-    if not path.exists():
-        return jsonify({"error": "unknown trace_id"}), 404
-    return jsonify({"trace_id": trace_id, "report_markdown": path.read_text(encoding="utf-8")})
 
 
 @orion_bp.get("/compare")
@@ -73,3 +69,221 @@ def compare():
     except FileNotFoundError as exc:
         return jsonify({"error": str(exc)}), 404
     return jsonify(result)
+
+
+# --------------------------------------------------------------------------- #
+# /api/* — JSON API consumed by the frontend
+# --------------------------------------------------------------------------- #
+@api_bp.get("/scenarios")
+def api_scenarios():
+    return jsonify({"scenarios": list_scenarios("scenarios")})
+
+
+@api_bp.get("/runs")
+def api_runs():
+    return jsonify({"runs": EvidenceStore(ARTIFACT_DIR).list_summaries()})
+
+
+@api_bp.get("/runs/<trace_id>")
+def api_run_detail(trace_id):
+    store = EvidenceStore(ARTIFACT_DIR)
+    try:
+        record = store.load(trace_id)
+    except FileNotFoundError:
+        return jsonify({"error": "unknown trace_id"}), 404
+    data = record.to_dict()
+    # Attach a rendered Markdown report if present.
+    report = store.trace_dir(trace_id) / "report.md"
+    data["report_markdown"] = report.read_text(encoding="utf-8") if report.exists() else None
+    return jsonify(data)
+
+
+@api_bp.post("/replay/<trace_id>")
+def api_replay(trace_id):
+    payload = request.get_json(silent=True) or {}
+    mode = payload.get("mode")
+    try:
+        record = replay_trace(trace_id, mode=mode, base_dir=ARTIFACT_DIR)
+    except FileNotFoundError:
+        return jsonify({"error": "unknown trace_id"}), 404
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"error": str(exc)}), 400
+    return jsonify(record.to_dict())
+
+
+@api_bp.post("/scenario-run")
+def api_scenario_run():
+    """Run a synthetic scenario (baseline/attack/hardened) — no GPU required."""
+    payload = request.get_json(silent=True) or {}
+    scenario_path = payload.get("scenario", "scenarios/pgd_evasion.yaml")
+    mode = payload.get("mode", "attack")
+    try:
+        record = run_scenario(load_scenario(scenario_path), mode=mode, base_dir=ARTIFACT_DIR)
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"error": str(exc)}), 400
+    return jsonify(record.to_dict())
+
+
+@api_bp.post("/adversarial/run")
+def api_adversarial_run():
+    """Run the real (torch + ART) adversarial-image attack and save evidence.
+
+    Accepts either a multipart upload (weights + image + numberoutputs) or a
+    JSON body ``{"preset": true}`` that uses bundled local demo assets. Never
+    fabricates a result: if torch/ART are unavailable it returns a clean error.
+    """
+    from orion.adversarial import TORCH_AVAILABLE, run_adversarial_experiment
+
+    if not TORCH_AVAILABLE:
+        return jsonify({"error": "torch/ART unavailable on this host; adversarial demo disabled.",
+                        "status": "ERROR"}), 503
+
+    tmpdir = None
+    try:
+        json_body = request.get_json(silent=True) or {}
+        if json_body.get("preset"):
+            weights_path = "weights/vit_teacher.pth"
+            num_outputs = 2
+            image_path = json_body.get("image") or "static/fake/0001_00_00_01_0.jpg"
+            if not Path(weights_path).exists():
+                return jsonify({"error": f"demo weights not found at {weights_path}",
+                                "status": "ERROR"}), 400
+        else:
+            weights = request.files.get("weights")
+            image = request.files.get("file")
+            if not weights or not image:
+                return jsonify({"error": "weights and image files are required",
+                                "status": "ERROR"}), 400
+            num_outputs = int(request.values.get("numberoutputs") or 2)
+            # Weights load from weights/<name> (matches existing behaviour).
+            Path("weights").mkdir(exist_ok=True)
+            weights_path = str(Path("weights") / Path(weights.filename).name)
+            weights.save(weights_path)
+            tmpdir = tempfile.mkdtemp(prefix="orion_adv_")
+            image_path = str(Path(tmpdir) / Path(image.filename).name)
+            image.save(image_path)
+
+        record = run_adversarial_experiment(
+            weights_path=weights_path,
+            num_outputs=num_outputs,
+            image_path=image_path,
+            base_dir=ARTIFACT_DIR,
+        )
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"error": str(exc), "status": "ERROR"}), 500
+    finally:
+        if tmpdir:
+            import shutil
+            shutil.rmtree(tmpdir, ignore_errors=True)
+
+    return jsonify(record.to_dict())
+
+
+# --------------------------------------------------------------------------- #
+# Know Your Target: recon listing + agent interpretation (deterministic)
+# --------------------------------------------------------------------------- #
+@api_bp.get("/recon/runs")
+def api_recon_runs():
+    """List in-memory recon runs (newest first)."""
+    try:
+        from libs.recon import web as recon_web
+        from orion.target_analysis import display_run_id
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"runs": [], "error": str(exc)}), 200
+    runs = []
+    for rid, session in list(getattr(recon_web, "RUNS", {}).items()):
+        objective = target = ""
+        with session.lock:
+            for ev in session.events[:3]:
+                if ev.get("type") == "start":
+                    objective, target = ev.get("objective", ""), ev.get("target", "")
+                    break
+            status = session.status
+        runs.append({"run_id": rid, "display_id": display_run_id(rid),
+                     "objective": objective, "target": target or "unknown", "status": status})
+    runs.reverse()
+    return jsonify({"runs": runs})
+
+
+@api_bp.get("/recon/runs/<run_id>")
+def api_recon_run_detail(run_id):
+    from orion.target_analysis import summarize_recon
+    summary = summarize_recon(run_id)
+    if summary is None:
+        return jsonify({"error": "unknown recon run"}), 404
+    return jsonify(summary)
+
+
+@api_bp.post("/agent/analyze-recon")
+def api_agent_analyze_recon():
+    """Interpret a recon run into a PROPOSED threat model + experiment plan."""
+    from orion.target_analysis import build_assessment
+    payload = request.get_json(silent=True) or {}
+    run_id = payload.get("recon_run_id") or payload.get("run_id")
+    if not run_id:
+        return jsonify({"error": "recon_run_id is required"}), 400
+    assessment = build_assessment(run_id)
+    if assessment is None:
+        return jsonify({"error": "unknown recon run"}), 404
+    return jsonify(assessment)
+
+
+@api_bp.post("/agent/analyze-context")
+def api_agent_analyze_context():
+    """Interpret user-provided context (no recon) into a PROPOSED assessment."""
+    from orion.target_analysis import build_assessment_from_context
+    payload = request.get_json(silent=True) or {}
+    context = (payload.get("context") or "").strip()
+    if not context:
+        return jsonify({"error": "context is required"}), 400
+    target = (payload.get("target") or "manual-context").strip()
+    return jsonify(build_assessment_from_context(context, target))
+
+
+@api_bp.get("/target-analysis/<run_id>")
+def api_target_analysis(run_id):
+    from orion.target_analysis import ANALYSES, build_assessment
+    assessment = ANALYSES.get(run_id) or build_assessment(run_id)
+    if assessment is None:
+        return jsonify({"error": "unknown run"}), 404
+    return jsonify(assessment)
+
+
+@api_bp.post("/threat-model/<run_id>/approve")
+def api_threat_model_approve(run_id):
+    from orion.target_analysis import approve_threat_model
+    payload = request.get_json(silent=True) or {}
+    approved = payload.get("approved", True)
+    result = approve_threat_model(run_id, bool(approved))
+    if result is None:
+        return jsonify({"error": "unknown run"}), 404
+    return jsonify(result)
+
+
+@api_bp.get("/mcp_tools")
+def api_mcp_tools():
+    """Return MCP tools with descriptions/schemas; never crash the UI."""
+    try:
+        from tools.mcp_client import list_tools_detailed
+        tools = list_tools_detailed()
+        return jsonify({"tools": tools, "state": "AVAILABLE"})
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"tools": [], "state": "ERROR", "error": str(exc)}), 200
+
+
+@api_bp.get("/artifacts/<trace_id>/<path:filename>")
+def api_artifact_file(trace_id, filename):
+    """Serve an evidence file (png/json/md) with strict path validation."""
+    if "/" in filename or ".." in filename or "\\" in filename:
+        return jsonify({"error": "invalid filename"}), 400
+    if not filename.lower().endswith((".png", ".json", ".md")):
+        return jsonify({"error": "unsupported file type"}), 400
+    if "/" in trace_id or ".." in trace_id:
+        return jsonify({"error": "invalid trace_id"}), 400
+    tdir = (Path.cwd() / ARTIFACT_DIR / trace_id).resolve()
+    base = (Path.cwd() / ARTIFACT_DIR).resolve()
+    if base not in tdir.parents and tdir != base:
+        return jsonify({"error": "invalid path"}), 400
+    if not (tdir / filename).exists():
+        return jsonify({"error": "not found"}), 404
+    return send_from_directory(str(tdir), filename)

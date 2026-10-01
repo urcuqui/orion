@@ -1,0 +1,5 @@
+{% macro finding(f) %}
+<div class="finding sev-{{ (f.severity or 'info')|lower }}">
+  <span class="sev">{{ f.severity or 'info' }}</span>{{ f.title or f.description or f }}
+</div>
+{% endmacro %}

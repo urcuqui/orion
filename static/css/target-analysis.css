@@ -1,0 +1,30 @@
+/* Know Your Target — layout specifics (built on base.css + orion-terminal.css) */
+
+.cap { scroll-margin-top: 70px; }
+
+#capability-menu li { cursor: pointer; }
+#capability-menu li.active { border-color: var(--red); background: rgba(215,25,32,0.06); }
+
+.recon-run-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  border: 1px solid var(--border); background: var(--panel-alt);
+  padding: 0.6rem 0.8rem; margin-bottom: 0.5rem;
+}
+.recon-run-row .meta { font-size: 0.82rem; }
+.recon-run-row .rid { color: var(--red); font-weight: 700; }
+
+.assessment-box { border: 1px solid var(--border-strong); background: var(--bg-deep); padding: 1.1rem; margin-bottom: 1.1rem; }
+.assessment-box .term-title { color: var(--red-bright); }
+
+.kv { display: grid; grid-template-columns: 160px 1fr; gap: 0.2rem 0.75rem; font-size: 0.85rem; }
+.kv .k { color: var(--muted); }
+.kv .v { color: var(--text); }
+
+.observed-list { list-style: none; padding: 0; margin: 0.3rem 0; font-size: 0.85rem; }
+.observed-list li::before { content: "- "; color: var(--muted); }
+
+.next-action { color: var(--warning); font-weight: 700; margin-top: 0.6rem; }
+
+.tm-box { border: 1px solid var(--blue); background: rgba(87,148,214,0.05); padding: 0.9rem; }
+.tm-box .term-title { color: var(--blue); }
+.tm-approve { display: flex; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap; }

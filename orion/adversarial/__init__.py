@@ -16,10 +16,12 @@ from orion.adversarial.image import (
     AdversarialImageResult,
     TORCH_AVAILABLE,
 )
+from orion.adversarial.experiment import run_adversarial_experiment
 
 __all__ = [
     "generate_advimage",
     "generate_adversarial_evidence",
+    "run_adversarial_experiment",
     "AdversarialImageResult",
     "TORCH_AVAILABLE",
 ]

@@ -1,0 +1,7 @@
+{% macro tool_item(t) %}
+<div class="tool-item">
+  <div class="tname">{{ t.name }}</div>
+  {% if t.description %}<div class="tdesc">{{ t.description }}</div>{% endif %}
+  {% if t.input_schema %}<pre>{{ t.input_schema|tojson }}</pre>{% endif %}
+</div>
+{% endmacro %}
