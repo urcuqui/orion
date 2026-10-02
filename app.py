@@ -63,6 +63,10 @@ def index():
     return render_template('index.html')
 
 # --- Orion command-center pages (new UI) ---
+@app.route('/know-yourself')
+def know_yourself_page():
+    return render_template('know-yourself.html')
+
 @app.route('/adversarial')
 def adversarial_page():
     return render_template('adversarial.html')

@@ -141,13 +141,23 @@ def api_adversarial_run():
     tmpdir = None
     try:
         json_body = request.get_json(silent=True) or {}
-        if json_body.get("preset"):
-            weights_path = "weights/vit_teacher.pth"
-            num_outputs = 2
+        if json_body.get("preset") or json_body.get("weights_path"):
+            # Preset / Know-Yourself hand-off: run a local model artifact without
+            # re-upload. Paths are validated to stay inside weights/ and static/.
+            weights_path = json_body.get("weights_path") or "weights/vit_teacher.pth"
+            num_outputs = int(json_body.get("num_outputs") or 2)
             image_path = json_body.get("image") or "static/fake/0001_00_00_01_0.jpg"
-            if not Path(weights_path).exists():
-                return jsonify({"error": f"demo weights not found at {weights_path}",
+            weights_dir = (Path.cwd() / "weights").resolve()
+            static_dir = (Path.cwd() / "static").resolve()
+            wp = (Path.cwd() / weights_path).resolve()
+            ip = (Path.cwd() / image_path).resolve()
+            if weights_dir not in wp.parents or not wp.exists():
+                return jsonify({"error": f"weights must be an existing file under weights/ ({weights_path})",
                                 "status": "ERROR"}), 400
+            if static_dir not in ip.parents or not ip.exists():
+                return jsonify({"error": f"image must be an existing file under static/ ({image_path})",
+                                "status": "ERROR"}), 400
+            weights_path, image_path = str(wp), str(ip)
         else:
             weights = request.files.get("weights")
             image = request.files.get("file")
@@ -281,6 +291,28 @@ def api_threat_model_approve(run_id):
     result = approve_threat_model(run_id, bool(approved))
     if result is None:
         return jsonify({"error": "unknown run"}), 404
+    return jsonify(result)
+
+
+@api_bp.post("/know-yourself/analyze")
+def api_know_yourself():
+    """Profile an AI system (Traditional ML / Generative AI / Hybrid)."""
+    from orion.know_yourself import analyze
+    payload = request.get_json(silent=True) or {}
+    url = (payload.get("url") or "").strip() or None
+    context = (payload.get("context") or "").strip() or None
+    descriptor = payload.get("descriptor") if isinstance(payload.get("descriptor"), dict) else None
+    force_type = payload.get("force_type") or None
+    active = bool(payload.get("active"))
+    if not (url or context or descriptor):
+        return jsonify({"error": "provide url, context, or descriptor"}), 400
+    try:
+        result = analyze(url=url, context=context, descriptor=descriptor,
+                         active=active, force_type=force_type)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"error": f"profile failed: {exc}"}), 500
     return jsonify(result)
 
 

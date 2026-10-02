@@ -1,15 +1,17 @@
 {% extends "base.html" %}
 {% from "components/methodology.html" import methodology_bar %}
-{% set section = 'you' %}
-{% block title %}Adversarial ML — ORION{% endblock %}
+{% set section = 'attack' %}
+{% block title %}Attack · Adversarial ML — ORION{% endblock %}
 
 {% block content %}
 <div class="section-head offensive">
-  <h1>Know Yourself · Adversarial ML</h1>
-  <p class="sub">Understand how the model behaves under a controlled adversarial attack.</p>
+  <h1>Attack · Adversarial ML</h1>
+  <p class="sub">Execute a controlled adversarial experiment. Profile first in Know Yourself.</p>
 </div>
 
 {{ methodology_bar('attack') }}
+
+<div id="ky-handoff" class="term hidden" style="border-color:var(--green-dark);"></div>
 
 <div class="two-col">
   <div>

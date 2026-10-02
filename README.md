@@ -97,6 +97,34 @@ The classic Carlini & Wagner / PGD image flow is preserved and now returns
 A deterministic, dependency-free synthetic backend runs the same methodology
 without a GPU (used by the CLI and tests).
 
+## 6b. Know Yourself — AI security profiling
+
+> What exactly do I have, how does it behave, what assumptions does it make,
+> how fragile is it, and which experiments are actually applicable?
+
+**Know Yourself** (`/know-yourself`) characterizes an AI system *before* any
+attack (profiling only — execution belongs to the Attack phase). It auto-detects
+the branch and never mixes their security assumptions:
+
+- **Traditional ML** (model-centric): model fingerprint (framework, task,
+  input/output, access, gradients, artifact hash/size), input/feature surface,
+  model assumptions (`OBSERVED` / `INFERRED` / `UNKNOWN`), control inventory, and
+  a robustness-oriented security posture.
+- **Generative AI** (system-centric): system fingerprint (provider, RAG, memory,
+  tools, MCP, external actions, human approval), prompt/context surface
+  (`TRUSTED` / `UNTRUSTED` / `MIXED` / `UNKNOWN`), **trust-boundary inventory**,
+  tool/MCP and identity profiles, and a control inventory.
+
+The **security posture** lists each attack as `APPLICABLE` / `CONDITIONAL` /
+`NOT_APPLICABLE` with rationale, evidence and prerequisites, using deterministic
+rules (white-box gradients → PGD/FGSM/C&W/DeepFool applicable; black-box →
+conditional; prompt injection requires an LLM surface; RAG poisoning requires
+retrieval; tool/MCP poisoning requires a tool/MCP surface). It then proposes
+**recommended next experiments** — proposals only, sent to the Attack phase on
+human review, never auto-executed. `UNKNOWN` is a valid answer and never becomes
+`NOT_FOUND`. Results export to `artifacts/<trace_id>/know_yourself.json`.
+`orion/know_yourself/` keeps the two branches in separate modules.
+
 ## 7. AI agents
 
 Agents are **copilots, not oracles**: they plan and explain; metrics and

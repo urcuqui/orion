@@ -5,6 +5,48 @@
   const statusEl = document.getElementById("adv-status");
   const presetBtn = document.getElementById("btn-preset");
 
+  // ---- Know Yourself hand-off: prefill from a profiled model fingerprint ----
+  (async function kyHandoff() {
+    const q = new URLSearchParams(window.location.search);
+    const ky = q.get("ky");
+    const attack = q.get("attack") || "evasion";
+    const banner = document.getElementById("ky-handoff");
+    if (!ky || !banner) return;
+    try {
+      const prof = await Orion.getJSON("/api/artifacts/" + encodeURIComponent(ky) + "/know_yourself.json");
+      const tml = prof.traditional_ml;
+      const fp = tml ? tml.fingerprint : null;
+      if (!fp) { return; }
+      if (fp.num_classes) document.getElementById("f-outputs").value = fp.num_classes;
+      const localArtifact = fp.artifact && /\.(pt|pth)$/i.test(fp.artifact) && fp.access === "white_box";
+      let html = `<div class="term-title" style="color:var(--green);">From Know Yourself · ${Orion.esc(attack)}</div>
+        <div class="statusline">
+          <div><span class="ok">[+]</span> model: ${Orion.esc(fp.model_type || "model")} · framework: ${Orion.esc(fp.framework)} · access: ${Orion.esc(fp.access)}</div>
+          ${fp.num_classes ? `<div><span class="ok">[+]</span> classes prefilled: ${fp.num_classes}</div>` : ""}
+          ${fp.artifact ? `<div><span class="ok">[+]</span> artifact: ${Orion.esc(fp.artifact)}</div>` : ""}
+        </div>`;
+      if (localArtifact) {
+        html += `<div class="btn-row" style="margin-top:0.6rem;">
+          <button class="btn btn-red" id="btn-run-profiled">[ RUN WITH PROFILED MODEL (white-box) ]</button></div>
+          <p class="sub">Runs the real attack against the profiled local artifact — no re-upload needed.</p>`;
+      } else {
+        html += `<p class="sub">Black-box / no local artifact: upload weights + image below, or use the demo preset.</p>`;
+      }
+      banner.innerHTML = html;
+      banner.classList.remove("hidden");
+      if (localArtifact) {
+        document.getElementById("btn-run-profiled").addEventListener("click", async () => {
+          running("running " + attack + " against " + fp.artifact + "…");
+          try {
+            const res = await Orion.postJSON("/api/adversarial/run", {
+              weights_path: fp.artifact, num_outputs: fp.num_classes || 2 });
+            await go(res);
+          } catch (err) { Orion.setState(statusEl, "error", "Run failed: " + err.message); idle(); }
+        });
+      }
+    } catch (e) { /* profile not available; ignore */ }
+  })();
+
   function running(msg) {
     Orion.setState(statusEl, "running", msg || "");
     form.querySelectorAll("button").forEach(b => (b.disabled = true));
