@@ -310,6 +310,42 @@ def api_plans_approve():
         plan = PL.build_plan_from_target_analysis(data)
     else:
         return jsonify({"error": "source_type (know_yourself|know_your_target) and analysis required"}), 400
+    # Analyst edits (EDIT PLAN): remove experiments / tune parameters / add notes.
+    PL.apply_plan_edits(plan, exclude=payload.get("exclude"),
+                        overrides=payload.get("overrides"), notes=payload.get("notes"))
+    PL.approve_plan(plan, scope=payload.get("scope", "all_approved"))
+    PL.save_plan(plan, ARTIFACT_DIR)
+    return jsonify({"plan": plan.to_dict(), "handoff": plan.handoff()})
+
+
+@api_bp.post("/plans/draft")
+def api_plans_draft():
+    """Build a DRAFT plan from an analysis (not approved) for review/editing."""
+    from orion import plans as PL
+    payload = request.get_json(silent=True) or {}
+    source = payload.get("source_type")
+    data = payload.get("analysis")
+    if source == "know_yourself" and isinstance(data, dict):
+        plan = PL.build_plan_from_know_yourself(data)
+    elif source == "know_your_target" and isinstance(data, dict):
+        plan = PL.build_plan_from_target_analysis(data)
+    else:
+        return jsonify({"error": "source_type and analysis required"}), 400
+    plan.status = PL.UNDER_REVIEW
+    PL.save_plan(plan, ARTIFACT_DIR)
+    return jsonify({"plan": plan.to_dict()})
+
+
+@api_bp.post("/plans/<plan_id>/approve")
+def api_plan_approve_by_id(plan_id):
+    """Approve a draft plan with analyst edits (exclude / overrides / notes)."""
+    from orion import plans as PL
+    plan = PL.load_plan(plan_id, ARTIFACT_DIR)
+    if plan is None:
+        return jsonify({"error": "unknown plan"}), 404
+    payload = request.get_json(silent=True) or {}
+    PL.apply_plan_edits(plan, exclude=payload.get("exclude"),
+                        overrides=payload.get("overrides"), notes=payload.get("notes"))
     PL.approve_plan(plan, scope=payload.get("scope", "all_approved"))
     PL.save_plan(plan, ARTIFACT_DIR)
     return jsonify({"plan": plan.to_dict(), "handoff": plan.handoff()})
@@ -322,6 +358,15 @@ def api_plan_get(plan_id):
     if plan is None:
         return jsonify({"error": "unknown plan"}), 404
     return jsonify({"plan": plan.to_dict(), "handoff": plan.handoff()})
+
+
+@api_bp.get("/plans/<plan_id>/handoff")
+def api_plan_handoff(plan_id):
+    from orion import plans as PL
+    h = PL.load_handoff(plan_id, ARTIFACT_DIR)
+    if h is None:
+        return jsonify({"error": "unknown plan"}), 404
+    return jsonify(h)
 
 
 @api_bp.post("/plans/<plan_id>/experiments/<experiment_id>/run")
@@ -360,6 +405,31 @@ def api_know_yourself():
     except Exception as exc:  # noqa: BLE001
         return jsonify({"error": f"profile failed: {exc}"}), 500
     return jsonify(result)
+
+
+@api_bp.post("/compare")
+def api_compare_multi():
+    """Compare metrics across labelled runs (e.g. baseline/attack/hardened/retest)."""
+    payload = request.get_json(silent=True) or {}
+    traces = payload.get("traces") or {}
+    if not isinstance(traces, dict) or not traces:
+        return jsonify({"error": "traces mapping {label: trace_id} required"}), 400
+    store = EvidenceStore(ARTIFACT_DIR)
+    _ORDER = ["BASELINE", "ATTACK", "HARDENED", "RETEST"]
+    columns = sorted(traces.keys(), key=lambda c: (_ORDER.index(c) if c in _ORDER else 99, c))
+    values: Dict[str, Dict[str, Any]] = {}
+    statuses: Dict[str, str] = {}
+    for label, tid in traces.items():
+        try:
+            rec = store.load(tid)
+        except Exception:  # noqa: BLE001
+            continue
+        statuses[label] = rec.status
+        for mkey, m in (rec.metrics or {}).items():
+            if isinstance(m, dict) and "value" in m and isinstance(m["value"], (int, float)):
+                values.setdefault(mkey, {})[label] = m["value"]
+    matrix = [{"metric": k, **{c: v.get(c) for c in columns}} for k, v in values.items()]
+    return jsonify({"columns": columns, "statuses": statuses, "matrix": matrix})
 
 
 @api_bp.get("/mcp_tools")

@@ -52,6 +52,20 @@
     if (card.unknown_controls != null) html += `<div class="k">Unknown controls</div><div class="v">${card.unknown_controls}</div>`;
     html += `</div>${r.detection.rationale ? `<div class="sub" style="margin-top:0.4rem;">${Orion.esc(r.detection.rationale)}</div>`:''}</div>`;
 
+    // Progress state + branch capability menu
+    const ctrlsPartial = (card.unknown_controls || 0) > 0;
+    html += `<div class="term"><div class="term-title">ORION // KNOW YOURSELF — PROGRESS</div><pre class="term-pre">`
+      + `PROFILE ............ COMPLETE\n`
+      + `SURFACE ............ COMPLETE\n`
+      + `CONTROLS ........... ${ctrlsPartial ? "PARTIAL" : "COMPLETE"}\n`
+      + `POSTURE ............ READY\n`
+      + `PLAN ............... PROPOSED</pre>`;
+    const caps = st === "generative_ai"
+      ? ["SYSTEM PROFILE","CONTEXT SURFACE","TRUST BOUNDARIES","RAG / MEMORY","TOOLS / MCP","IDENTITY","CONTROLS","SECURITY POSTURE","EXPERIMENT PLAN"]
+      : ["MODEL PROFILE","BASELINE","INPUT SURFACE","FAILURE EXPLORER","ROBUSTNESS","CONTROLS","SECURITY POSTURE","EXPERIMENT PLAN"];
+    html += `<div class="ttypes" style="margin-top:0.5rem;">`
+      + caps.map(c => `<span class="ttype">${Orion.esc(c)}</span>`).join("") + `</div></div>`;
+
     // Traditional ML
     if (r.traditional_ml) {
       const fp = r.traditional_ml.fingerprint;
@@ -104,9 +118,9 @@
     } else {
       html += `<div class="state">No applicable experiments for this system with current evidence.</div>`;
     }
-    html += `<div class="btn-row" style="margin-top:0.6rem;"><button class="btn btn-red" id="btn-approve-plan">[ APPROVE PLAN ]</button></div>
+    html += `<div class="btn-row" style="margin-top:0.6rem;"><button class="btn btn-red" id="btn-approve-plan">[ REVIEW &amp; EDIT PLAN ]</button></div>
       <div id="plan-handoff" class="hidden" style="margin-top:0.6rem;"></div>
-      <p class="sub" style="color:var(--warning);margin-top:0.4rem;">⚠ Approve Plan prepares execution — it never runs attacks. Execution stays explicit in the Attack workspace.</p></div>`;
+      <p class="sub" style="color:var(--warning);margin-top:0.4rem;">⚠ Review lets you remove experiments and tune parameters. Approving prepares execution — it never runs attacks.</p></div>`;
 
     if (r.trace_id) html += `<div class="sub">Evidence: <a href="/api/artifacts/${encodeURIComponent(r.trace_id)}/know_yourself.json" target="_blank">know_yourself.json</a></div>`;
 
@@ -120,36 +134,8 @@
     resultEl.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  async function approvePlan() {
-    const out = document.getElementById("plan-handoff");
-    const btn = document.getElementById("btn-approve-plan");
-    btn.disabled = true;
-    Orion.setState(out, "running", "approving plan & preparing handoff…");
-    out.classList.remove("hidden");
-    try {
-      const res = await Orion.postJSON("/api/plans/approve",
-        { source_type: "know_yourself", analysis: lastKY });
-      const plan = res.plan, c = plan.counts;
-      out.innerHTML = `<div class="assessment-box"><div class="term-title">ORION // PLAN HANDOFF</div>
-        <div class="statusline">
-          <div>PLAN ID: <strong>${Orion.esc(plan.plan_id)}</strong> · STATUS: <span class="ok">APPROVED</span></div>
-          <div><span class="ok">[+]</span> human approval recorded</div>
-          <div><span class="ok">[+]</span> threat model attached</div>
-          <div><span class="ok">[+]</span> evidence package attached</div>
-          <div><span class="ok">[+]</span> executable experiments: ${c.approved}</div>
-          <div><span class="warn">[!]</span> conditional experiments: ${c.conditional}</div>
-          <div><span class="off">[-]</span> excluded experiments: ${c.excluded}</div>
-        </div>
-        <div class="btn-row" style="margin-top:0.6rem;">
-          <a class="btn btn-red" href="/attack?plan_id=${encodeURIComponent(plan.plan_id)}">[ OPEN ATTACK WORKSPACE ]</a>
-          <a class="btn btn-ghost" href="/api/plans/${encodeURIComponent(plan.plan_id)}" target="_blank">[ VIEW APPROVED PLAN ]</a>
-        </div>
-        <p class="sub" style="color:var(--warning);margin-top:0.4rem;">Approval prepared execution. Nothing has run — open the Attack workspace to execute explicitly.</p>
-        </div>`;
-    } catch (e) {
-      Orion.setState(out, "error", "[x] approval failed: " + e.message);
-      btn.disabled = false;
-    }
+  function approvePlan() {
+    Orion.planReview(document.getElementById("plan-handoff"), "know_yourself", lastKY);
   }
 
   function controlsBlock(title, controls) {

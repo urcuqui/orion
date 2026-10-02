@@ -277,13 +277,17 @@ sections share one design system (`base.html` + `static/css/base.css` +
 
 Navigation (Art of War structure):
 
-- **Dashboard** — command center: system status, dragon, `[01]`–`[05]` menu,
+- **Dashboard** — command center: system status, dragon, `[01]`–`[06]` menu,
   recent activity (real run data), `orion@security:~$`.
-- **Know Yourself** — adversarial ML (model robustness).
-- **Know Your Target** — Recon + Agent Analysis + Threat Model + Guided Analysis.
-- **Know The Environment** — reconnaissance (now in the shared design system).
-- **Attack** — red-team hub.
-- **Evidence** — runs, reports, comparisons.
+- **Know Yourself** — Traditional ML / Generative AI profiling (fingerprint,
+  posture, suggested experiments, **Approve Plan**).
+- **Know Your Target** — Recon + Agent Analysis + Threat Model + Guided Analysis
+  (Know The Environment / reconnaissance lives here, not as a separate top-level).
+- **Attack** — the Attack workspace loads an approved plan and runs experiments
+  explicitly.
+- **Measure** — quantify a run's metrics; bridge to Defend/Evidence.
+- **Defend** — apply controls and **retest the same attack** (replay + compare).
+- **Evidence** — runs, reports, comparisons, provenance.
 
 Conference mode: append `?demo=1` to enlarge type, hide secondary controls and
 decorative CRT, and emphasize target type, AI surface, observations, suggested

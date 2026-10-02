@@ -38,11 +38,19 @@ def new_plan_id() -> str:
     return "ORN-PLAN-" + uuid.uuid4().hex[:8].upper()
 
 
-# Scenario mapping: which attack names map to an executable Orion scenario.
+# Scenario mapping via the shared experiment registry.
 _EVASION = ("evasion", "pgd", "fgsm", "c&w", "deepfool")
 
 
+def _registry_entry(name: str):
+    from orion.experiments.registry import lookup
+    return lookup(name)
+
+
 def _attack_to_scenario(name: str) -> Optional[str]:
+    entry = _registry_entry(name)
+    if entry:
+        return entry.get("scenario")
     low = name.lower()
     if any(k in low for k in _EVASION):
         return "scenarios/pgd_evasion.yaml"
@@ -68,9 +76,11 @@ class ExperimentProposal:
     reason: str = ""
     branch: str = "traditional_ml"
     sensitive: bool = False
+    risk: str = "LOCAL"
     parameters: Dict[str, Any] = field(default_factory=dict)
     evidence_ids: List[str] = field(default_factory=list)
     missing: List[str] = field(default_factory=list)
+    note: str = ""
     run_trace_id: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
@@ -97,6 +107,7 @@ class ExperimentPlan:
     approved_by_human: bool = False
     approved_at: Optional[str] = None
     approval_scope: Optional[str] = None
+    updated_at: Optional[str] = None
 
     # ---- buckets ----
     def approved_experiments(self) -> List[ExperimentProposal]:
@@ -127,9 +138,14 @@ class ExperimentPlan:
         plan.proposals = [ExperimentProposal.from_dict(p) for p in d.get("proposals", [])]
         return plan
 
+    @property
+    def handoff_id(self) -> str:
+        return "ORN-HANDOFF-" + self.plan_id.replace("ORN-PLAN-", "")
+
     def handoff(self) -> Dict[str, Any]:
         """The structured handoff object consumed by the Attack workspace."""
         return {
+            "handoff_id": self.handoff_id,
             "plan_id": self.plan_id,
             "source_analysis_id": self.source_analysis_id,
             "source_type": self.source_type,
@@ -154,7 +170,19 @@ def save_plan(plan: ExperimentPlan, base_dir: str = DEFAULT_DIR) -> Path:
     pdir = Path(base_dir) / plan.plan_id
     pdir.mkdir(parents=True, exist_ok=True)
     (pdir / "plan.json").write_text(json.dumps(plan.to_dict(), indent=2, default=str), encoding="utf-8")
+    # Persist the handoff object separately once the plan is approved.
+    if plan.approved_by_human:
+        (pdir / "handoff.json").write_text(
+            json.dumps(plan.handoff(), indent=2, default=str), encoding="utf-8")
     return pdir
+
+
+def load_handoff(plan_id: str, base_dir: str = DEFAULT_DIR) -> Optional[Dict[str, Any]]:
+    path = Path(base_dir) / plan_id / "handoff.json"
+    if not path.exists():
+        plan = load_plan(plan_id, base_dir)
+        return plan.handoff() if plan else None
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def load_plan(plan_id: str, base_dir: str = DEFAULT_DIR) -> Optional[ExperimentPlan]:
@@ -196,17 +224,19 @@ def build_plan_from_know_yourself(result: Dict[str, Any]) -> ExperimentPlan:
         system_profile=fp,
         threat_model={"system_type": result.get("system_type"),
                       "access": fp.get("access", "unknown")},
+        threat_model_id="TM-" + (result.get("trace_id") or new_plan_id())[-8:],
         evidence_ids=[result.get("trace_id")] if result.get("trace_id") else [],
     )
     # Build proposals from the full security posture (so excluded are recorded too).
     posture = {p["attack"]: p for p in result.get("security_posture", [])}
-    recommended = {r["attack"] for r in result.get("recommended_experiments", [])}
     for idx, (attack, p) in enumerate(posture.items(), 1):
         status = {"APPLICABLE": READY, "CONDITIONAL": NEEDS_INPUT}.get(p["status"], EXCLUDED)
+        entry = _registry_entry(attack)
         scenario = _attack_to_scenario(attack)
-        params: Dict[str, Any] = {}
+        params: Dict[str, Any] = dict(entry["parameters"]) if entry else {}
         if scenario and status == READY:
-            params = {"epsilon": 0.03, "iterations": 40}
+            params.setdefault("epsilon", 0.03)
+            params.setdefault("iterations", 40)
             # White-box local artifact -> runnable directly against the model.
             if fp.get("artifact") and fp.get("access") == "white_box":
                 params["weights_path"] = fp["artifact"]
@@ -214,8 +244,9 @@ def build_plan_from_know_yourself(result: Dict[str, Any]) -> ExperimentPlan:
         plan.proposals.append(ExperimentProposal(
             experiment_id=f"EXP-{idx:02d}", name=attack, applicability=p["status"],
             status=status, scenario=scenario, reason=p.get("rationale", ""),
-            branch=p.get("branch", "traditional_ml"),
+            branch=(entry["domain"] if entry else p.get("branch", "traditional_ml")),
             sensitive=_is_sensitive(attack, target),
+            risk=(entry["risk"] if entry else "LOCAL"),
             parameters=params, evidence_ids=p.get("evidence", []),
             missing=p.get("prerequisites_missing", []),
         ))
@@ -236,20 +267,63 @@ def build_plan_from_target_analysis(assessment: Dict[str, Any]) -> ExperimentPla
         system_profile={"target_types": assessment.get("target_types"),
                         "ai_surface": assessment.get("ai_surface")},
         threat_model=assessment.get("threat_model", {}),
+        threat_model_id="TM-" + (str(assessment.get("recon_run_id") or new_plan_id()))[-8:],
         evidence_ids=[e.get("id") for e in assessment.get("evidence", []) if e.get("id")],
     )
     for idx, e in enumerate(assessment.get("suggested_experiments", []), 1):
         status = {"APPLICABLE": READY, "INSUFFICIENT_EVIDENCE": NEEDS_INPUT}.get(
             e.get("applicability"), EXCLUDED)
+        entry = _registry_entry(e.get("name", ""))
         scenario = e.get("scenario") or _attack_to_scenario(e.get("name", ""))
+        params = dict(entry["parameters"]) if entry else {}
+        if scenario and status == READY:
+            params.setdefault("epsilon", 0.03)
+            params.setdefault("iterations", 40)
         plan.proposals.append(ExperimentProposal(
             experiment_id=f"EXP-{idx:02d}", name=e.get("name", "experiment"),
             applicability=e.get("applicability", ""), status=status, scenario=scenario,
-            reason=e.get("rationale", ""), branch="generative_ai" if e.get("ai_specific") else "traditional_ml",
+            reason=e.get("rationale", ""),
+            branch=(entry["domain"] if entry else ("generative_ai" if e.get("ai_specific") else "traditional_ml")),
             sensitive=_is_sensitive(e.get("name", ""), target),
-            parameters={"epsilon": 0.03, "iterations": 40} if (scenario and status == READY) else {},
+            risk=(entry["risk"] if entry else "LOCAL"),
+            parameters=params if (scenario and status == READY) else params,
             evidence_ids=e.get("evidence", []), missing=e.get("missing", []),
         ))
+    return plan
+
+
+_EDITABLE_PARAMS = {"epsilon", "iterations", "step_size", "confidence", "num_outputs"}
+
+
+def apply_plan_edits(plan: ExperimentPlan, exclude: Optional[List[str]] = None,
+                     overrides: Optional[Dict[str, Dict[str, Any]]] = None,
+                     notes: Optional[Dict[str, str]] = None) -> ExperimentPlan:
+    """Analyst edits before approval: remove experiments, tune parameters, add notes.
+
+    Never adds unsupported experiments and never bypasses applicability — it can
+    only remove, re-parameterize, or annotate what the analysis already proposed.
+    """
+    for eid in (exclude or []):
+        p = plan.get(eid)
+        if p and p.status != EXCLUDED:
+            p.status = EXCLUDED
+            p.reason = (p.reason + " · " if p.reason else "") + "removed by analyst during review"
+    for eid, params in (overrides or {}).items():
+        p = plan.get(eid)
+        if not p:
+            continue
+        for k, v in (params or {}).items():
+            if k in _EDITABLE_PARAMS and v not in (None, ""):
+                try:
+                    p.parameters[k] = float(v) if k in ("epsilon", "confidence") else (
+                        int(v) if k in ("iterations", "num_outputs") else v)
+                except (TypeError, ValueError):
+                    p.parameters[k] = v
+    for eid, note in (notes or {}).items():
+        p = plan.get(eid)
+        if p and note:
+            p.note = str(note)
+    plan.updated_at = _now()
     return plan
 
 

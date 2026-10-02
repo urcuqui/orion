@@ -201,7 +201,7 @@
         <div id="na-exps" class="hidden" style="margin-top:0.5rem;">${naExps.map(expHtml).join("")}</div></div>` : ""}
       <div class="btn-row" style="margin-top:0.6rem;">
         <button class="btn" id="btn-review">[ REVIEW PLAN ]</button>
-        <button class="btn btn-red hidden" id="btn-approve-plan">[ APPROVE PLAN ]</button>
+        <button class="btn btn-red hidden" id="btn-approve-plan">[ REVIEW &amp; EDIT PLAN ]</button>
       </div>
       <div id="plan-note" class="sub" style="margin-top:0.4rem;"></div>
       <div id="plan-handoff" class="hidden" style="margin-top:0.6rem;"></div></div>`;
@@ -263,37 +263,9 @@
     renderThreatOnly();
   }
 
-  async function approvePlan() {
-    const out = document.getElementById("plan-handoff");
-    const btn = document.getElementById("btn-approve-plan");
+  function approvePlan() {
     if (!current) return;
-    btn.disabled = true;
-    Orion.setState(out, "running", "approving plan & preparing handoff…");
-    out.classList.remove("hidden");
-    try {
-      const res = await Orion.postJSON("/api/plans/approve",
-        { source_type: "know_your_target", analysis: current });
-      const plan = res.plan, c = plan.counts;
-      out.innerHTML = `<div class="assessment-box"><div class="term-title">ORION // PLAN HANDOFF</div>
-        <div class="statusline">
-          <div>PLAN ID: <strong>${Orion.esc(plan.plan_id)}</strong> · STATUS: <span class="ok">APPROVED</span></div>
-          <div><span class="ok">[+]</span> human approval recorded</div>
-          <div><span class="ok">[+]</span> threat model attached</div>
-          <div><span class="ok">[+]</span> evidence package attached</div>
-          <div><span class="ok">[+]</span> executable experiments: ${c.approved}</div>
-          <div><span class="warn">[!]</span> conditional experiments: ${c.conditional}</div>
-          <div><span class="off">[-]</span> excluded experiments: ${c.excluded}</div>
-        </div>
-        <div class="btn-row" style="margin-top:0.6rem;">
-          <a class="btn btn-red" href="/attack?plan_id=${encodeURIComponent(plan.plan_id)}">[ OPEN ATTACK WORKSPACE ]</a>
-          <a class="btn btn-ghost" href="/api/plans/${encodeURIComponent(plan.plan_id)}" target="_blank">[ VIEW APPROVED PLAN ]</a>
-        </div>
-        <p class="sub" style="color:var(--warning);margin-top:0.4rem;">Approval prepared execution. Nothing has run — open the Attack workspace to execute explicitly.</p>
-        </div>`;
-    } catch (e) {
-      Orion.setState(out, "error", "[x] approval failed: " + e.message);
-      btn.disabled = false;
-    }
+    Orion.planReview(document.getElementById("plan-handoff"), "know_your_target", current);
   }
 
   async function approveTM(runId, approved) {

@@ -75,6 +75,16 @@ def adversarial_page():
 def attack_workspace_page():
     return render_template('attack.html')
 
+@app.route('/measure')
+@app.route('/measure/<trace_id>')
+def measure_page(trace_id=None):
+    return render_template('measure.html', trace_id=trace_id)
+
+@app.route('/defend')
+@app.route('/defend/<trace_id>')
+def defend_page(trace_id=None):
+    return render_template('defend.html', trace_id=trace_id)
+
 @app.route('/agent')
 def agent_page():
     return render_template('agent.html')
@@ -186,19 +196,39 @@ def chat_phishing():
 
 @app.route("/adverimage", methods=["GET", "POST"])
 def adversarial():
+    """Legacy adversarial endpoint — now a thin wrapper over the shared
+    experiment service (orion.adversarial.run_adversarial_experiment) so there is
+    no duplicate attack logic. Response shape is preserved for backward compat.
+    """
+    import tempfile
+    tmpdir = None
     try:
-        weights = request.files["weights"]
+        weights = request.files.get("weights")
+        file = request.files.get("file")
         if not weights:
             return "No wights uploaded", 400
-        file = request.files["file"]
         if not file:
             return "No file uploaded", 400
-        noutoputs = request.values["numberoutputs"]
-        success = generate_advimage(weights, noutoputs, file)
-        if success:
-            return jsonify(message="Adversarial image created successfully", image_url="/static/adversarial/output_art.png"), 200
+        num_outputs = int(request.values.get("numberoutputs") or 2)
+        Path("weights").mkdir(exist_ok=True)
+        weights_path = str(Path("weights") / Path(weights.filename).name)
+        weights.save(weights_path)
+        tmpdir = tempfile.mkdtemp(prefix="orion_adv_legacy_")
+        image_path = str(Path(tmpdir) / Path(file.filename).name)
+        file.save(image_path)
+
+        from orion.adversarial import run_adversarial_experiment
+        record = run_adversarial_experiment(
+            weights_path=weights_path, num_outputs=num_outputs, image_path=image_path)
+        return jsonify(message="Adversarial image created successfully",
+                       image_url="/static/adversarial/output_art.png",
+                       trace_id=record.trace_id, status=record.status), 200
     except Exception as e:
         return jsonify(error=str(e)), 500
+    finally:
+        if tmpdir:
+            import shutil
+            shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 @app.route('/chat', methods=['POST'])

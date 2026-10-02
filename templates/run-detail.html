@@ -40,6 +40,7 @@
       <div class="btn-row">
         <a class="btn btn-ghost" href="/api/artifacts/{{ trace_id }}/experiment.json" target="_blank">[ VIEW RAW JSON ]</a>
         {% if report_md %}<a class="btn btn-ghost" href="/api/artifacts/{{ trace_id }}/report.md" target="_blank">[ DOWNLOAD REPORT ]</a>{% endif %}
+        <a class="btn btn-blue" href="{{ url_for('defend_page', trace_id=trace_id) }}">[ OPEN DEFEND ]</a>
         {% if record.hardening %}<button class="btn btn-blue" id="btn-replay" data-trace="{{ trace_id }}">[ REPLAY HARDENED ]</button>{% endif %}
         <a class="btn btn-ghost" href="{{ url_for('agent_page') }}?mission={{ ('Explain this ' ~ (record.attack_technique or 'experiment') ~ ' result and the security trade-off.')|urlencode }}&context={{ ('trace=' ~ trace_id)|urlencode }}">[ EXPLAIN RESULT ]</a>
         <a class="btn" href="{{ url_for('adversarial_page') }}">[ NEW EXPERIMENT ]</a>

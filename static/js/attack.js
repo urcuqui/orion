@@ -91,7 +91,7 @@
     act.innerHTML = '<span class="loading-line">ORION IS RUNNING...</span>';
     try {
       const res = await Orion.postJSON(`/api/plans/${encodeURIComponent(pid)}/experiments/${encodeURIComponent(eid)}/run`, {});
-      act.innerHTML = `<span class="ok">[+] ${Orion.esc(res.status)}</span> — <a href="/runs/${encodeURIComponent(res.trace_id)}">view results (Measure)</a>`;
+      act.innerHTML = `<span class="ok">[+] ${Orion.esc(res.status)}</span> — <a href="/measure/${encodeURIComponent(res.trace_id)}">[ VIEW RESULTS → MEASURE ]</a>`;
     } catch (e) {
       act.innerHTML = `<span class="err" style="color:var(--red-bright)">[x] ${Orion.esc(e.message)}</span>`;
     }

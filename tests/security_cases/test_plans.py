@@ -138,3 +138,86 @@ def test_defend_and_retest_carry_provenance(tmp_path):
     # Provenance links run -> plan -> analysis for Defend/Retest traceability.
     assert rec.provenance.get("plan_id") == plan.plan_id
     assert rec.provenance.get("experiment_id") == ready.experiment_id
+
+
+def test_know_yourself_generates_experiment_plan():
+    plan, _ = _ky_plan()
+    assert isinstance(plan, PL.ExperimentPlan)
+    assert plan.source_type == "know_yourself"
+    assert plan.proposals
+
+
+def test_know_your_target_generates_experiment_plan():
+    plan, _ = _kyt_plan()
+    assert isinstance(plan, PL.ExperimentPlan)
+    assert plan.source_type == "know_your_target"
+    assert plan.proposals
+
+
+def test_shared_plan_schema_used_by_both_sources():
+    ky, _ = _ky_plan()
+    kyt, _ = _kyt_plan()
+    # Same object type and same top-level keys => one shared schema.
+    assert set(ky.to_dict().keys()) == set(kyt.to_dict().keys())
+
+
+def test_plan_handoff_created(tmp_path):
+    plan, _ = _ky_plan()
+    PL.approve_plan(plan)
+    PL.save_plan(plan, base_dir=str(tmp_path))
+    # handoff.json persisted with a handoff_id and bucketed experiments.
+    hf = PL.load_handoff(plan.plan_id, base_dir=str(tmp_path))
+    assert hf["handoff_id"].startswith("ORN-HANDOFF-")
+    assert hf["plan_id"] == plan.plan_id
+    assert hf["status"] == "READY_FOR_ATTACK_WORKSPACE"
+    assert "approved_experiments" in hf and "excluded_experiments" in hf
+
+
+def test_plan_uses_registry_parameters():
+    plan, _ = _ky_plan()
+    pgd = next(p for p in plan.proposals if "PGD" in p.name)
+    # Parameters come from the shared experiment registry.
+    assert "epsilon" in pgd.parameters and "iterations" in pgd.parameters
+    assert pgd.risk == "LOCAL"
+
+
+def test_edit_plan_excludes_and_overrides(tmp_path):
+    plan, _ = _ky_plan()
+    ready = plan.approved_experiments()
+    e1, e2 = ready[0].experiment_id, ready[1].experiment_id
+    PL.apply_plan_edits(plan, exclude=[e2],
+                        overrides={e1: {"epsilon": 0.1, "iterations": 10}},
+                        notes={e1: "tuned"})
+    assert plan.get(e2).status == PL.EXCLUDED
+    assert "removed by analyst" in plan.get(e2).reason
+    assert plan.get(e1).parameters["epsilon"] == 0.1
+    assert plan.get(e1).parameters["iterations"] == 10
+    assert plan.get(e1).note == "tuned"
+    assert plan.updated_at is not None
+
+
+def test_edit_plan_cannot_add_unsupported_experiment():
+    plan, _ = _ky_plan()
+    before = {p.experiment_id for p in plan.proposals}
+    # Overrides/notes for an unknown experiment id are ignored (no silent add).
+    PL.apply_plan_edits(plan, overrides={"EXP-999": {"epsilon": 9}}, notes={"EXP-999": "x"})
+    assert {p.experiment_id for p in plan.proposals} == before
+
+
+def test_four_column_comparison(tmp_path):
+    import app as orion_app
+    c = orion_app.app.test_client()
+    # Build a synthetic attack + baseline + hardened and compare across postures.
+    kyt = c.post("/api/agent/analyze-context",
+                 json={"context": "/v1/predict pytorch model inference classifier"}).get_json()
+    ap = c.post("/api/plans/approve", json={"source_type": "know_your_target", "analysis": kyt}).get_json()
+    pid = ap["plan"]["plan_id"]
+    eid = next(p["experiment_id"] for p in ap["plan"]["proposals"] if p["status"] == "READY" and p["scenario"])
+    atk = c.post(f"/api/plans/{pid}/experiments/{eid}/run", json={}).get_json()["trace_id"]
+    base = c.post(f"/api/replay/{atk}", json={"mode": "baseline"}).get_json()["trace_id"]
+    hard = c.post(f"/api/replay/{atk}", json={"mode": "hardened"}).get_json()["trace_id"]
+    cmp = c.post("/api/compare", json={"traces": {
+        "BASELINE": base, "ATTACK": atk, "HARDENED": hard, "RETEST": hard}}).get_json()
+    assert cmp["columns"] == ["BASELINE", "ATTACK", "HARDENED", "RETEST"]  # canonical order
+    ra = next((m for m in cmp["matrix"] if m["metric"] == "robust_accuracy"), None)
+    assert ra and ra["BASELINE"] >= ra["ATTACK"]  # baseline no worse than under attack

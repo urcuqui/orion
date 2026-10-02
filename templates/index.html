@@ -36,11 +36,14 @@
       <li onclick="location.href='{{ url_for('adversarial_page') }}'">
         <span class="code">[03]</span><span class="name">Attack</span>
         <div class="hint">Adversarial Experiments</div></li>
-      <li onclick="location.href='{{ url_for('runs_page') }}'">
-        <span class="code">[04]</span><span class="name">Defend</span>
+      <li onclick="location.href='{{ url_for('measure_page') }}'">
+        <span class="code">[04]</span><span class="name">Measure</span>
+        <div class="hint">Metrics / Degradation</div></li>
+      <li onclick="location.href='{{ url_for('defend_page') }}'">
+        <span class="code">[05]</span><span class="name">Defend</span>
         <div class="hint">Controls / Harden / Retest</div></li>
       <li onclick="location.href='{{ url_for('runs_page') }}'">
-        <span class="code">[05]</span><span class="name">Evidence</span>
+        <span class="code">[06]</span><span class="name">Evidence</span>
         <div class="hint">Runs / Reports / Comparisons</div></li>
     </ul>
     <div class="prompt">orion@security:~$ <span class="caret">_</span></div>

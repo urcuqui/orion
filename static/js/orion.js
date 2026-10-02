@@ -129,5 +129,97 @@
     }
   };
 
+  // ---- shared plan review / edit / approve flow (EDIT PLAN) ----
+  Orion.planReview = async function (container, sourceType, analysis) {
+    Orion.setState(container, "running", "building draft plan for review…");
+    container.classList.remove("hidden");
+    let plan;
+    try {
+      const d = await Orion.postJSON("/api/plans/draft", { source_type: sourceType, analysis: analysis });
+      plan = d.plan;
+    } catch (e) { Orion.setState(container, "error", "[x] " + e.message); return; }
+
+    const editable = plan.proposals.filter(p => ["READY", "NEEDS_INPUT"].includes(p.status));
+    const excluded = plan.proposals.filter(p => p.status === "EXCLUDED");
+
+    function paramInputs(p) {
+      if (p.status !== "READY" || !p.scenario) return "";
+      let h = "";
+      ["epsilon", "iterations"].forEach(k => {
+        if (k in (p.parameters || {}))
+          h += `<label class="sub" style="margin-right:0.6rem;">${k} <input type="number" step="any" style="width:90px;" data-eid="${Orion.esc(p.experiment_id)}" data-param="${k}" value="${Orion.esc(p.parameters[k])}"></label>`;
+      });
+      return `<div style="margin-top:0.3rem;">${h}</div>`;
+    }
+    function row(p) {
+      const removable = `<label class="toggle" style="margin:0;"><input type="checkbox" class="keep" data-eid="${Orion.esc(p.experiment_id)}" checked> keep</label>`;
+      return `<div class="exp"><span class="eid">${Orion.esc(p.experiment_id)}</span><span class="ename">${Orion.esc(p.name)}</span>
+        <span class="risk ${p.status === "READY" ? "LOW" : "MEDIUM"}">${Orion.esc(p.status)}</span>
+        <span class="risk ${Orion.esc(p.risk || "LOCAL")}" style="margin-left:0.3rem;">${Orion.esc(p.risk || "LOCAL")}</span>
+        <div class="sub">${Orion.esc(p.reason || "")}${p.missing && p.missing.length ? " · missing: " + Orion.esc(p.missing.join(", ")) : ""}</div>
+        ${paramInputs(p)}
+        <div style="margin-top:0.3rem;">${removable}
+          <input type="text" class="note" data-eid="${Orion.esc(p.experiment_id)}" placeholder="analyst note (optional)" style="width:60%;margin-left:0.6rem;"></div>
+      </div>`;
+    }
+
+    let html = `<div class="assessment-box"><div class="term-title">ORION // PLAN REVIEW — ${Orion.esc(plan.plan_id)}</div>
+      <div class="sub">STATUS: UNDER_REVIEW · remove experiments, tune parameters, add notes, then approve.</div>
+      ${editable.map(row).join("") || '<div class="state">No editable experiments.</div>'}`;
+    if (excluded.length) {
+      html += `<button class="btn btn-ghost" id="pr-excluded">[ SHOW EXCLUDED (${excluded.length}) ]</button>
+        <div id="pr-excluded-list" class="hidden" style="margin-top:0.4rem;">`
+        + excluded.map(p => `<div class="exp na"><span class="ename">${Orion.esc(p.name)}</span> <span class="appl NOT_APPLICABLE">NOT_APPLICABLE</span><div class="sub">${Orion.esc(p.reason || "")}</div></div>`).join("")
+        + `</div>`;
+    }
+    html += `<div class="btn-row" style="margin-top:0.6rem;">
+        <button class="btn btn-red" id="pr-approve">[ APPROVE PLAN ]</button></div>
+      <div id="pr-handoff" class="hidden" style="margin-top:0.6rem;"></div></div>`;
+    container.innerHTML = html;
+
+    const exBtn = document.getElementById("pr-excluded");
+    if (exBtn) exBtn.addEventListener("click", () => document.getElementById("pr-excluded-list").classList.toggle("hidden"));
+
+    document.getElementById("pr-approve").addEventListener("click", async function () {
+      this.disabled = true;
+      const exclude = [];
+      container.querySelectorAll(".keep").forEach(cb => { if (!cb.checked) exclude.push(cb.dataset.eid); });
+      const overrides = {};
+      container.querySelectorAll("input[data-param]").forEach(inp => {
+        if (inp.value !== "") { (overrides[inp.dataset.eid] = overrides[inp.dataset.eid] || {})[inp.dataset.param] = inp.value; }
+      });
+      const notes = {};
+      container.querySelectorAll(".note").forEach(inp => { if (inp.value.trim()) notes[inp.dataset.eid] = inp.value.trim(); });
+      const out = document.getElementById("pr-handoff");
+      Orion.setState(out, "running", "approving plan & preparing handoff…");
+      out.classList.remove("hidden");
+      try {
+        const res = await Orion.postJSON("/api/plans/" + encodeURIComponent(plan.plan_id) + "/approve",
+          { exclude: exclude, overrides: overrides, notes: notes });
+        out.innerHTML = Orion.handoffSummary(res.plan);
+      } catch (e) { Orion.setState(out, "error", "[x] approval failed: " + e.message); this.disabled = false; }
+    });
+  };
+
+  Orion.handoffSummary = function (plan) {
+    const c = plan.counts || {};
+    return `<div class="assessment-box"><div class="term-title">ORION // PLAN HANDOFF</div>
+      <div class="statusline">
+        <div>PLAN ID: <strong>${Orion.esc(plan.plan_id)}</strong> · STATUS: <span class="ok">APPROVED</span></div>
+        <div><span class="ok">[+]</span> human approval recorded</div>
+        <div><span class="ok">[+]</span> threat model attached</div>
+        <div><span class="ok">[+]</span> evidence package attached</div>
+        <div><span class="ok">[+]</span> executable experiments: ${c.approved || 0}</div>
+        <div><span class="warn">[!]</span> conditional experiments: ${c.conditional || 0}</div>
+        <div><span class="off">[-]</span> excluded experiments: ${c.excluded || 0}</div>
+      </div>
+      <div class="btn-row" style="margin-top:0.6rem;">
+        <a class="btn btn-red" href="/attack?plan_id=${encodeURIComponent(plan.plan_id)}">[ OPEN ATTACK WORKSPACE ]</a>
+        <a class="btn btn-ghost" href="/api/plans/${encodeURIComponent(plan.plan_id)}" target="_blank">[ VIEW APPROVED PLAN ]</a>
+      </div>
+      <p class="sub" style="color:var(--warning);margin-top:0.4rem;">Approval prepared execution. Nothing has run — open the Attack workspace to execute explicitly.</p>
+      </div>`;
+  };
+
   window.Orion = Orion;
 })();
