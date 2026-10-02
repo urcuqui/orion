@@ -49,6 +49,10 @@
     <input type="text" id="probe-url" placeholder="http://127.0.0.1:5001" style="flex:1;min-width:220px;">
     <button class="btn btn-red" id="btn-probe">[ PROBE &amp; ANALYZE ]</button>
   </div>
+  <label class="toggle" style="margin-top:0.5rem;">
+    <input type="checkbox" id="probe-active">
+    <span>Active probe <em>(sends a harmless test image via POST to confirm model inference — real request, authorised targets only)</em></span>
+  </label>
 </div>
 
 <!-- AGENT capability (no recon) -->

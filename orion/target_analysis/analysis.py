@@ -154,7 +154,13 @@ _AGENT_KW = ["agent", "tool-calling", "tool calling", "function calling"]
 _MCP_KW = ["mcp", "model context protocol"]
 _ML_KW = ["predict", "inference", "classifier", "ml model", "machine learning", "neural",
           ".pth", ".onnx", ".h5", ".safetensors", "pytorch", "tensorflow", "huggingface",
-          "model artifact", "model api"]
+          "model artifact", "model api",
+          # Computer-vision tasks / libs (an image classifier/detector is ML)
+          "face detection", "object detection", "image classification",
+          "face recognition", "classification model", "computer vision",
+          "yolo", "opencv", "mediapipe", "keras", "sklearn", "scikit-learn", "onnxruntime",
+          # Behavioural confirmation (observed a prediction/inference response)
+          "ml_inference_response", "ml_prediction_response", "model_version_status"]
 _WEB_KW = ["html", "wordpress", "cms", "login", "form", "javascript", "cookie", "session",
            "drupal", "joomla", "nginx", "apache", "php"]
 _API_KW = ["/api", "json", "rest", "/v1/", "endpoint", "swagger", "openapi", "graphql"]
@@ -173,17 +179,34 @@ _STRONG_AI = [
     "langchain", "langgraph", "llamaindex", "tensorflow", "text-generation-inference",
     # Specific model names/versions (imply a real deployed model)
     "deepseek", "whiterabbitneo", "gpt-4", "gpt-3",
+    # ML model-serving stacks / deep-learning frameworks
+    "kserve", "seldon", "bentoml", "mlflow", "sagemaker", "keras",
+    "scikit-learn", "sklearn", "xgboost", "lightgbm", "model-server",
+    "signature_name", "model_version_status", "ml_prediction_response",
+    # Computer-vision models / libraries (specific = strong)
+    "yolo", "yolov", "ultralytics", "mediapipe", "mtcnn", "facenet", "dlib",
+    "opencv", "detectron", "retinaface", "haar cascade",
+    # Behavioural signals observed in a response
+    "softmax", "logits", "ml_inference_response",
     # Model artifacts
     ".pt", ".pth", ".onnx", ".safetensors", ".gguf", ".ckpt", ".h5",
+    ".joblib", ".pkl",
 ]
 _MEDIUM_AI = [
     # AI-ish routes (need corroboration)
     "/predict", "/inference", "/generate", "/rag", "/embedding", "/vector",
     "/agent", "/api/agent", "/chat_stream", "/completions",
+    "/classify", "/score", "/predictions", "/api/predict", "/infer",
     # Terminology without confirmed implementation
     "llm", "large language model", "language model", "foundation model",
     "generative ai", "adversarial machine learning", "machine learning",
-    "neural network", "transformer", "classifier",
+    "deep learning", "neural network", "transformer", "classifier",
+    "classification model", "model inference", "inference endpoint",
+    "probabilities", "class probabilities", "feature vector",
+    # Computer-vision tasks
+    "face detection", "object detection", "image classification",
+    "face recognition", "image recognition", "computer vision",
+    "segmentation", "bounding box", "upload image",
     "chatbot", "assistant interface", "inference", "retrieval-augmented",
     "rag pipeline", "vector database", "vector store", "prompt template",
     "prompt injection", "completion api", "model api",
@@ -332,18 +355,22 @@ def _derive_capabilities(summary: Dict[str, Any], evidence: List[Dict[str, str]]
     caps: Dict[str, List[str]] = {}
     ai_confirmed = ai_surface["status"] == "CONFIRMED"
     endpoint_ids = [e["id"] for e in evidence if e["kind"] == "endpoint"]
+    # A CONFIRMED surface is itself the evidence; fall back to a marker when the
+    # confirming signals were behavioural/text (no discrete evidence id) so the
+    # capability is not wrongly treated as missing.
+    surf_ev = ai_surface.get("evidence") or (["ai_surface:confirmed"] if ai_confirmed else [])
     if "ml_inference_service" in types and ai_confirmed:
-        caps["inference_input"] = ai_surface["evidence"]
-        caps["model_behavior_observable"] = ai_surface["evidence"]
-        caps["inference_api"] = ai_surface["evidence"]
-        caps["query_access"] = endpoint_ids
+        caps["inference_input"] = surf_ev
+        caps["model_behavior_observable"] = surf_ev
+        caps["inference_api"] = surf_ev
+        caps["query_access"] = endpoint_ids or surf_ev
     if ("llm_application" in types or "agentic_application" in types) and ai_confirmed:
-        caps["llm_interface"] = ai_surface["evidence"]
+        caps["llm_interface"] = surf_ev
     if "rag_application" in types and ai_confirmed:
-        caps["retrieval"] = ai_surface["evidence"]
-        caps["knowledge_source"] = ai_surface["evidence"]
+        caps["retrieval"] = surf_ev
+        caps["knowledge_source"] = surf_ev
     if ("agentic_application" in types or "mcp_enabled_system" in types) and ai_confirmed:
-        caps["agent_tool"] = ai_surface["evidence"]
+        caps["agent_tool"] = surf_ev
     if endpoint_ids:
         caps["http_endpoint"] = endpoint_ids
     return caps

@@ -238,10 +238,13 @@ def api_probe_url():
     from orion.target_analysis import probe_url, build_assessment_from_summary
     payload = request.get_json(silent=True) or {}
     url = (payload.get("url") or "").strip()
+    # Active mode sends a harmless test image via POST (a sensitive action):
+    # only when the caller explicitly opts in (the UI checkbox = human approval).
+    active = bool(payload.get("active"))
     if not url:
         return jsonify({"error": "url is required (e.g. http://127.0.0.1:5001)"}), 400
     try:
-        summary = probe_url(url)
+        summary = probe_url(url, active=active)
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
     except Exception as exc:  # noqa: BLE001

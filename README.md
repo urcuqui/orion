@@ -134,10 +134,13 @@ of a vulnerability.
 AI-specific threats are only surfaced when recon actually observed an AI/ML
 surface. Detection is deterministic and strength-scored:
 
-- **STRONG signals** (confirm on their own): `/v1/chat/completions`,
-  `/v1/embeddings`, model-serving stacks (TorchServe, Triton, TF Serving, vLLM,
-  Ollama), SDKs (OpenAI/Anthropic/LangChain), and model artifacts (`.pt`,
-  `.pth`, `.onnx`, `.safetensors`, `.gguf`), MCP server metadata.
+- **STRONG signals** (confirm on their own): classic ML model-serving routes
+  (`/v1/models`, `/v2/models`, `/invocations`) and stacks (TensorFlow Serving,
+  TorchServe, Triton, KServe, BentoML, MLflow, scikit-learn/XGBoost); LLM routes
+  (`/v1/chat/completions`, `/v1/embeddings`); SDKs (OpenAI/Anthropic/LangChain);
+  MCP server metadata; model artifacts (`.pt`, `.pth`, `.onnx`, `.safetensors`,
+  `.joblib`); and prediction-shaped JSON responses (`predictions` /
+  `probabilities` / `logits` / `softmax` / `signature_name`).
 - **MEDIUM signals** (need corroboration): `/predict`, `/inference`, `rag`,
   `embedding`, `vector database`, `machine learning`, chatbot/assistant UIs.
 - **WEAK signals** (never confirm alone): generic `/chat`, `/model`, `/tool`,

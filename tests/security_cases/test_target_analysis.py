@@ -273,3 +273,50 @@ def test_probe_url_rejects_bad_url():
         probe_url("ftp://example.com")   # non-http scheme
     with pytest.raises(ValueError):
         probe_url("")                     # no host
+
+
+def test_ml_classifier_service_is_detected_without_llm():
+    # A plain model-serving service (no MCP/LLM) must be detected as ML/AI.
+    obs = [
+        {"path": "/", "status": 200, "content_type": "text/html",
+         "snippet": "image classifier. deep learning classification model (tensorflow)."},
+        {"path": "/predict", "status": 405},                       # POST-only, exists
+        {"path": "/v1/models", "status": 200, "content_type": "application/json",
+         "server": "TensorFlow Serving/2.11",
+         "snippet": '{"model_version_status":[{"version":"1","state":"AVAILABLE"}]}'},
+    ]
+    a = build_assessment_from_summary(build_probe_summary("http://127.0.0.1:5001", obs))
+    assert a["ai_surface"]["status"] == "CONFIRMED"
+    assert "ml_inference_service" in [t["type"] for t in a["target_types"]]
+    assert any(e["key"] == "adversarial_evasion" and e["applicability"] == "APPLICABLE"
+               for e in a["suggested_experiments"])
+
+
+def test_prediction_json_shape_is_strong_signal():
+    obs = [
+        {"path": "/", "status": 200, "content_type": "text/html", "snippet": "api"},
+        {"path": "/classify", "status": 200, "content_type": "application/json",
+         "snippet": '{"predictions":[{"label":"cat","probabilities":[0.1,0.9]}]}'},
+    ]
+    s = build_probe_summary("http://x", obs)
+    a = build_assessment_from_summary(s)
+    assert a["ai_surface"]["status"] in ("CONFIRMED", "POSSIBLE")
+    assert a["ai_surface"]["signal_strength"]["strong"] >= 1
+
+
+def test_active_probe_behavioural_signal_enables_adversarial():
+    # An image-upload classifier (e.g. face detection) confirmed via active POST.
+    obs = [
+        {"path": "/", "status": 200, "content_type": "text/html",
+         "snippet": "Face Detection. upload image."},
+        {"path": "POST /", "status": 200, "content_type": "text/html",
+         "snippet": "faces detected: 1, confidence 0.98",
+         "tokens": ["ml_inference_response"]},
+    ]
+    summary = build_probe_summary("http://127.0.0.1:5001", obs)
+    assert any(f["title"] == "ml_inference_response" for f in summary["findings"])
+    a = build_assessment_from_summary(summary)
+    assert a["ai_surface"]["status"] == "CONFIRMED"
+    assert "ml_inference_service" in [t["type"] for t in a["target_types"]]
+    assert any(e["key"] == "adversarial_evasion" and e["applicability"] == "APPLICABLE"
+               for e in a["suggested_experiments"])

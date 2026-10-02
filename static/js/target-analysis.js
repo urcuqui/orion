@@ -53,10 +53,12 @@
   async function probeUrl() {
     const url = (document.getElementById("probe-url").value || "").trim();
     if (!url) { Orion.setState(assessmentEl, "error", "Enter a URL, e.g. http://127.0.0.1:5001"); assessmentEl.classList.remove("hidden"); return; }
-    Orion.setState(assessmentEl, "running", "probing " + url + " (GET-only)…");
+    const activeEl = document.getElementById("probe-active");
+    const active = activeEl ? activeEl.checked : false;
+    Orion.setState(assessmentEl, "running", "probing " + url + (active ? " (GET + active POST)…" : " (GET-only)…"));
     assessmentEl.classList.remove("hidden");
     try {
-      current = await Orion.postJSON("/api/target-analysis/probe", { url: url });
+      current = await Orion.postJSON("/api/target-analysis/probe", { url: url, active: active });
       renderAssessment(current);
       assessmentEl.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (e) {
