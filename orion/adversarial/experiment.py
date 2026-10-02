@@ -24,6 +24,7 @@ def run_adversarial_experiment(
     scenario_name: str = "adversarial-image",
     base_dir: str = "artifacts",
     output_dir: str = "static/adversarial",
+    provenance: Optional[Dict[str, Any]] = None,
 ) -> ExperimentRecord:
     """Execute the real (torch + ART) adversarial-image attack and save evidence.
 
@@ -85,6 +86,7 @@ def run_adversarial_experiment(
             "Results are specific to this model artifact and image.",
         ],
         notes=f"Real torch+ART {attack} attack against {weights_name}.",
+        provenance=provenance or {},
     )
 
     EvidenceStore(base_dir).save(record, images={

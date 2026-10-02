@@ -201,9 +201,10 @@
         <div id="na-exps" class="hidden" style="margin-top:0.5rem;">${naExps.map(expHtml).join("")}</div></div>` : ""}
       <div class="btn-row" style="margin-top:0.6rem;">
         <button class="btn" id="btn-review">[ REVIEW PLAN ]</button>
-        <button class="btn btn-red hidden" id="btn-approve-exp">[ APPROVE EXPERIMENT ]</button>
+        <button class="btn btn-red hidden" id="btn-approve-plan">[ APPROVE PLAN ]</button>
       </div>
-      <div id="plan-note" class="sub" style="margin-top:0.4rem;"></div></div>`;
+      <div id="plan-note" class="sub" style="margin-top:0.4rem;"></div>
+      <div id="plan-handoff" class="hidden" style="margin-top:0.6rem;"></div></div>`;
 
     // --- Threat model (honest: OBSERVED / UNKNOWN / UNDEFINED) ---
     const tmStatus = tm.status || "PROPOSED";
@@ -254,15 +255,45 @@
       document.getElementById("plan-note").textContent = "Edit mode: adjust the scenario YAML before running (threat model editing is manual in this build).";
     });
     document.getElementById("btn-review").addEventListener("click", () => {
-      document.getElementById("btn-approve-exp").classList.remove("hidden");
-      document.getElementById("plan-note").textContent = "[!] Review complete. Approving reveals launch actions for APPLICABLE experiments only. Orion never auto-executes offensive tests.";
+      document.getElementById("btn-approve-plan").classList.remove("hidden");
+      document.getElementById("plan-note").textContent = "[!] Review complete. Approving the plan prepares the handoff — it never auto-executes offensive tests.";
     });
-    document.getElementById("btn-approve-exp").addEventListener("click", () => {
-      assessmentEl.querySelectorAll(".exp-launch").forEach(x => x.classList.remove("hidden"));
-      document.getElementById("plan-note").innerHTML = '<span style="color:var(--green)">[+] Experiment plan approved by human. Launch individual tests explicitly.</span>';
-    });
+    document.getElementById("btn-approve-plan").addEventListener("click", approvePlan);
 
     renderThreatOnly();
+  }
+
+  async function approvePlan() {
+    const out = document.getElementById("plan-handoff");
+    const btn = document.getElementById("btn-approve-plan");
+    if (!current) return;
+    btn.disabled = true;
+    Orion.setState(out, "running", "approving plan & preparing handoff…");
+    out.classList.remove("hidden");
+    try {
+      const res = await Orion.postJSON("/api/plans/approve",
+        { source_type: "know_your_target", analysis: current });
+      const plan = res.plan, c = plan.counts;
+      out.innerHTML = `<div class="assessment-box"><div class="term-title">ORION // PLAN HANDOFF</div>
+        <div class="statusline">
+          <div>PLAN ID: <strong>${Orion.esc(plan.plan_id)}</strong> · STATUS: <span class="ok">APPROVED</span></div>
+          <div><span class="ok">[+]</span> human approval recorded</div>
+          <div><span class="ok">[+]</span> threat model attached</div>
+          <div><span class="ok">[+]</span> evidence package attached</div>
+          <div><span class="ok">[+]</span> executable experiments: ${c.approved}</div>
+          <div><span class="warn">[!]</span> conditional experiments: ${c.conditional}</div>
+          <div><span class="off">[-]</span> excluded experiments: ${c.excluded}</div>
+        </div>
+        <div class="btn-row" style="margin-top:0.6rem;">
+          <a class="btn btn-red" href="/attack?plan_id=${encodeURIComponent(plan.plan_id)}">[ OPEN ATTACK WORKSPACE ]</a>
+          <a class="btn btn-ghost" href="/api/plans/${encodeURIComponent(plan.plan_id)}" target="_blank">[ VIEW APPROVED PLAN ]</a>
+        </div>
+        <p class="sub" style="color:var(--warning);margin-top:0.4rem;">Approval prepared execution. Nothing has run — open the Attack workspace to execute explicitly.</p>
+        </div>`;
+    } catch (e) {
+      Orion.setState(out, "error", "[x] approval failed: " + e.message);
+      btn.disabled = false;
+    }
   }
 
   async function approveTM(runId, approved) {

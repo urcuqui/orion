@@ -71,6 +71,10 @@ def know_yourself_page():
 def adversarial_page():
     return render_template('adversarial.html')
 
+@app.route('/attack')
+def attack_workspace_page():
+    return render_template('attack.html')
+
 @app.route('/agent')
 def agent_page():
     return render_template('agent.html')

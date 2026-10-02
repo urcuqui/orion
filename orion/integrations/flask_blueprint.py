@@ -294,6 +294,52 @@ def api_threat_model_approve(run_id):
     return jsonify(result)
 
 
+# --------------------------------------------------------------------------- #
+# Experiment plans: approve (prepare) -> handoff -> explicit run
+# --------------------------------------------------------------------------- #
+@api_bp.post("/plans/approve")
+def api_plans_approve():
+    """Build + human-approve a plan from an analysis. Prepares execution; never runs."""
+    from orion import plans as PL
+    payload = request.get_json(silent=True) or {}
+    source = payload.get("source_type")
+    data = payload.get("analysis")
+    if source == "know_yourself" and isinstance(data, dict):
+        plan = PL.build_plan_from_know_yourself(data)
+    elif source == "know_your_target" and isinstance(data, dict):
+        plan = PL.build_plan_from_target_analysis(data)
+    else:
+        return jsonify({"error": "source_type (know_yourself|know_your_target) and analysis required"}), 400
+    PL.approve_plan(plan, scope=payload.get("scope", "all_approved"))
+    PL.save_plan(plan, ARTIFACT_DIR)
+    return jsonify({"plan": plan.to_dict(), "handoff": plan.handoff()})
+
+
+@api_bp.get("/plans/<plan_id>")
+def api_plan_get(plan_id):
+    from orion import plans as PL
+    plan = PL.load_plan(plan_id, ARTIFACT_DIR)
+    if plan is None:
+        return jsonify({"error": "unknown plan"}), 404
+    return jsonify({"plan": plan.to_dict(), "handoff": plan.handoff()})
+
+
+@api_bp.post("/plans/<plan_id>/experiments/<experiment_id>/run")
+def api_plan_run_experiment(plan_id, experiment_id):
+    """Explicitly run one approved experiment (the human pressed RUN)."""
+    from orion import plans as PL
+    plan = PL.load_plan(plan_id, ARTIFACT_DIR)
+    if plan is None:
+        return jsonify({"error": "unknown plan"}), 404
+    try:
+        result = PL.run_experiment(plan, experiment_id, base_dir=ARTIFACT_DIR)
+    except PL.ExperimentNotRunnable as exc:
+        return jsonify({"error": str(exc), "status": "NOT_RUNNABLE"}), 400
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"error": str(exc), "status": "ERROR"}), 500
+    return jsonify(result)
+
+
 @api_bp.post("/know-yourself/analyze")
 def api_know_yourself():
     """Profile an AI system (Traditional ML / Generative AI / Hybrid)."""

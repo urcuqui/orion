@@ -125,6 +125,31 @@ human review, never auto-executed. `UNKNOWN` is a valid answer and never becomes
 `NOT_FOUND`. Results export to `artifacts/<trace_id>/know_yourself.json`.
 `orion/know_yourself/` keeps the two branches in separate modules.
 
+## 6c. Analysis → Attack handoff
+
+> **Analysis proposes. Humans approve. Attack prepares. Humans execute.
+> Approve Plan ≠ Run Attack.**
+
+Both Know Yourself and Know Your Target end with **[ APPROVE PLAN ]**, which
+builds a shared `ExperimentPlan` (`orion/plans/`), records human approval, and
+produces a structured **handoff** — *without executing anything*. The plan is
+persisted to `artifacts/<plan_id>/plan.json` and buckets experiments into
+approved (`READY`), conditional (`NEEDS_INPUT`) and excluded (`NOT_APPLICABLE`).
+
+**[ OPEN ATTACK WORKSPACE ]** (`/attack?plan_id=…`) loads the handoff preloaded
+with target, system fingerprint, threat model, evidence, selected scenarios and
+suggested parameters — no re-entry. Each experiment is executed **explicitly**
+with **[ RUN EXPERIMENT ]** (sensitive/remote experiments require a second
+**[ CONFIRM & RUN ]**). Execution links provenance back through
+`analysis_id → plan_id → experiment_id → run_id`, and the result opens in the
+Measure view (`/runs/<trace>`), from which Defend/Retest (replay + compare) are
+one click away. The final end-to-end flow:
+
+```
+Know Yourself / Know Your Target → Understand → Threat Model → Suggest Experiments
+→ Human Review → Approve Plan → Handoff → Attack Workspace → Run → Measure → Evidence → Defend → Retest
+```
+
 ## 7. AI agents
 
 Agents are **copilots, not oracles**: they plan and explain; metrics and

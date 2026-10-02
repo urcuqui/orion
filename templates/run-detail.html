@@ -22,6 +22,18 @@
 
   {{ methodology_bar(phase) }}
 
+  {% if record.provenance %}
+  <div class="panel">
+    <div class="panel-title">Provenance</div>
+    <p class="sub" style="margin:0;">
+      {% if record.provenance.source_type %}source: {{ record.provenance.source_type }} · {% endif %}
+      {% if record.provenance.plan_id %}plan: {{ record.provenance.plan_id }} · {% endif %}
+      {% if record.provenance.experiment_id %}experiment: {{ record.provenance.experiment_id }} · {% endif %}
+      run: {{ trace_id[:8] }}
+    </p>
+  </div>
+  {% endif %}
+
   <div class="panel">
     <div class="btn-row" style="justify-content:space-between; align-items:center;">
       <div>Final status: {{ status_badge(record.status) }}</div>

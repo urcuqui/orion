@@ -130,6 +130,7 @@ def run_scenario(
     mode: "str | ExperimentMode" = ExperimentMode.ATTACK,
     base_dir: str = "artifacts",
     persist: bool = True,
+    provenance: Optional[dict] = None,
 ) -> ExperimentRecord:
     """Run a scenario in a given mode and (optionally) persist evidence."""
     sc = scenario if isinstance(scenario, Scenario) else load_scenario(scenario)
@@ -156,6 +157,7 @@ def run_scenario(
         status=status.value,
         limitations=outcome.limitations,
         notes=outcome.notes,
+        provenance=provenance or {},
     )
 
     if persist:

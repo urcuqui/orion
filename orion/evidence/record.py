@@ -54,6 +54,8 @@ class ExperimentRecord:
     limitations: List[str] = field(default_factory=list)
     artifacts: Dict[str, str] = field(default_factory=dict)  # label -> relative path
     notes: str = ""
+    # Traceability: analysis_id -> threat_model_id -> plan_id -> experiment_id -> run_id.
+    provenance: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -62,6 +64,7 @@ class ExperimentRecord:
             "scenario_name": self.scenario_name,
             "phase": self.phase,
             "mode": self.mode,
+            "provenance": self.provenance,
             "target": self.target,
             "model_version": self.model_version,
             "threat_model": self.threat_model,
