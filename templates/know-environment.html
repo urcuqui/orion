@@ -1,116 +1,91 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Know The Environment &mdash; ORION</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='recon/style.css') }}">
-</head>
-<body>
-  <header class="orion-topbar">
-    <a class="orion-brand" href="{{ url_for('index') }}">ORION</a>
-    <nav class="orion-nav">
-      <a href="{{ url_for('index') }}">Dashboard</a>
-      <a href="{{ url_for('adversarial_page') }}">Know Yourself</a>
-      <a href="{{ url_for('red_team_page') }}">Know Your Enemy</a>
-      <a href="{{ url_for('know_environment') }}" class="active">Know The Environment</a>
-      <a href="{{ url_for('agent_page') }}">Agent</a>
-      <a href="{{ url_for('runs_page') }}">Evidence</a>
-    </nav>
-  </header>
-  <div style="max-width:960px;margin:1.25rem auto 0;padding:0 1.5rem;">
-    <div class="recon-methodology">
-      <div class="phase active">Understand</div><div class="phase">Threat Model</div>
-      <div class="phase">Attack</div><div class="phase">Measure</div>
-      <div class="phase">Harden</div><div class="phase">Retest</div>
+{% extends "base.html" %}
+{% set section = 'env' %}
+{% block title %}Reconnaissance — ORION{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='recon/style.css') }}">{% endblock %}
+
+{% block content %}
+<div class="term">
+  <div class="term-title">ORION // RECONNAISSANCE</div>
+  <p class="sub" style="margin:0;">Know the environment: map the target's assets, endpoints and attack surface.
+    Plan &rarr; execute &rarr; evaluate &rarr; replan, live. Recon collects — Orion interprets later.</p>
+</div>
+
+<div class="recon-methodology">
+  <div class="phase active">Understand</div><div class="phase">Threat Model</div>
+  <div class="phase">Attack</div><div class="phase">Measure</div>
+  <div class="phase">Harden</div><div class="phase">Retest</div>
+</div>
+
+<section class="panel launch-panel">
+  <h1 class="panel-title">&gt; Configure run</h1>
+  <p class="panel-sub">Mock mode is simulated and safe. Real tools are opt-in and only ever target hosts you own or are explicitly authorised to test.</p>
+
+  <form id="launch-form" class="launch-form">
+    <label class="field">
+      <span class="field-label">Objective</span>
+      <input type="text" name="objective" placeholder="Map the attack surface" required>
+    </label>
+
+    <label class="field">
+      <span class="field-label">Target</span>
+      <input type="text" name="target" placeholder="demo.thm.local" required>
+    </label>
+
+    <label class="field field-inline">
+      <span class="field-label">Max iterations</span>
+      <input type="number" name="max_iterations" value="12" min="1" max="100">
+    </label>
+
+    <div class="toggles">
+      <label class="toggle">
+        <input type="checkbox" name="mock" checked>
+        <span>--mock <em>(no real network requests; deterministic simulated tools)</em></span>
+      </label>
+      <label class="toggle" id="playwright-toggle">
+        <input type="checkbox" name="enable_playwright" id="playwright-checkbox">
+        <span>--enable-playwright <em>(real Playwright/Chromium browser exploration)</em></span>
+      </label>
+      <label class="toggle" id="nuclei-toggle">
+        <input type="checkbox" name="enable_nuclei">
+        <span>--enable-nuclei <em>(safe-default template scan; candidates only, validated via http_get)</em></span>
+      </label>
+      <label class="toggle">
+        <input type="checkbox" name="human_approval">
+        <span>--human-approval <em>(pause for review before the final report)</em></span>
+      </label>
+      <label class="toggle">
+        <input type="checkbox" name="require_sensitive_approval">
+        <span>--require-sensitive-approval <em>(pause before http_post / browser_login / an escalated nuclei_scan_url call)</em></span>
+      </label>
     </div>
-  </div>
-  <main class="page">
-    <section class="panel launch-panel">
-      <h1 class="panel-title">&gt; Know The Environment</h1>
-      <p class="panel-sub">
-        Point the recon agent at a target and watch the plan &rarr; execute &rarr; evaluate &rarr; replan
-        loop run live. Ported from
-        <a href="https://github.com/urcuqui/HexAgent" target="_blank" rel="noopener">HexAgent</a>.
-        Mock mode is simulated and safe; real tools below only ever target hosts you own or are
-        explicitly authorised to test.
+
+    <p id="nuclei-warning" class="warning hidden">
+      &#9888; nuclei_scan_url performs a real template-based scan (safe-default profile only, unless approved).
+      Only ever target hosts you own or are explicitly authorised to test. Requires the
+      <code class="inline-code">nuclei</code> binary on PATH.
+    </p>
+
+    <div id="playwright-section" class="playwright-section hidden">
+      <p class="warning">
+        &#9888; Playwright opens a real browser. Only target hosts you own or are explicitly authorised to test.
+        Requires: <code class="inline-code">pip install playwright &amp;&amp; playwright install chromium</code>
       </p>
-
-      <form id="launch-form" class="launch-form">
+      <div class="credentials-grid">
         <label class="field">
-          <span class="field-label">Objective</span>
-          <input type="text" name="objective" placeholder="Map the attack surface" required>
+          <span class="field-label">Lab username <em>(optional &mdash; for browser_login)</em></span>
+          <input type="text" name="browser_username" placeholder="admin" autocomplete="off">
         </label>
-
         <label class="field">
-          <span class="field-label">Target</span>
-          <input type="text" name="target" placeholder="demo.thm.local" required>
+          <span class="field-label">Lab password <em>(stored in-memory; never in the report)</em></span>
+          <input type="password" name="browser_password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;" autocomplete="new-password">
         </label>
+      </div>
+    </div>
 
-        <label class="field field-inline">
-          <span class="field-label">Max iterations</span>
-          <input type="number" name="max_iterations" value="12" min="1" max="100">
-        </label>
+    <button type="submit" class="btn-launch">Launch run</button>
+    <p id="launch-error" class="error hidden"></p>
+  </form>
+</section>
+{% endblock %}
 
-        <div class="toggles">
-          <label class="toggle">
-            <input type="checkbox" name="mock" checked>
-            <span>--mock <em>(no real network requests; deterministic simulated tools)</em></span>
-          </label>
-
-          <label class="toggle" id="playwright-toggle">
-            <input type="checkbox" name="enable_playwright" id="playwright-checkbox">
-            <span>--enable-playwright <em>(real Playwright/Chromium browser exploration)</em></span>
-          </label>
-
-          <label class="toggle" id="nuclei-toggle">
-            <input type="checkbox" name="enable_nuclei">
-            <span>--enable-nuclei <em>(safe-default template scan; candidates only, validated via http_get)</em></span>
-          </label>
-
-          <label class="toggle">
-            <input type="checkbox" name="human_approval">
-            <span>--human-approval <em>(pause for review before the final report)</em></span>
-          </label>
-
-          <label class="toggle">
-            <input type="checkbox" name="require_sensitive_approval">
-            <span>--require-sensitive-approval <em>(pause before http_post / browser_login / an escalated nuclei_scan_url call)</em></span>
-          </label>
-        </div>
-
-        <p id="nuclei-warning" class="warning hidden">
-          &#9888; nuclei_scan_url performs a real template-based scan (safe-default profile only, unless approved).
-          Only ever target hosts you own or are explicitly authorised to test. Requires the
-          <code class="inline-code">nuclei</code> binary on PATH.
-        </p>
-
-        <div id="playwright-section" class="playwright-section hidden">
-          <p class="warning">
-            &#9888; Playwright opens a real browser. Only target hosts you own or are explicitly authorised to test.
-            Requires: <code class="inline-code">pip install playwright &amp;&amp; playwright install chromium</code>
-          </p>
-          <div class="credentials-grid">
-            <label class="field">
-              <span class="field-label">Lab username <em>(optional &mdash; for browser_login)</em></span>
-              <input type="text" name="browser_username" placeholder="admin" autocomplete="off">
-            </label>
-            <label class="field">
-              <span class="field-label">Lab password <em>(stored in-memory; never in the report)</em></span>
-              <input type="password" name="browser_password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;" autocomplete="new-password">
-            </label>
-          </div>
-        </div>
-
-        <button type="submit" class="btn-launch">Launch run</button>
-        <p id="launch-error" class="error hidden"></p>
-      </form>
-    </section>
-  </main>
-  <footer class="footer">
-    Educational proof-of-concept. Real tools (Playwright, Nuclei, live HTTP) are opt-in and off by default &mdash;
-    only ever target hosts you own or are explicitly authorised to test.
-  </footer>
-  <script src="{{ url_for('static', filename='recon/app.js') }}"></script>
-</body>
-</html>
+{% block scripts %}<script src="{{ url_for('static', filename='recon/app.js') }}"></script>{% endblock %}

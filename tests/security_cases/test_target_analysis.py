@@ -65,8 +65,8 @@ def test_no_ai_surface_disables_atlas_mapping():
 
 
 def test_ai_hypothesis_without_evidence_is_low_confidence():
-    # Context mentions AI only as a weak textual signal (POSSIBLE, not CONFIRMED).
-    a = build_assessment_from_summary({"target": "t", "report_markdown": "we might add an llm chatbot later"})
+    # Only a weak generic signal ("chat" support) — must not confirm AI.
+    a = build_assessment_from_summary({"target": "t", "report_markdown": "contact support via live chat"})
     assert a["ai_surface"]["status"] in ("POSSIBLE", "NOT_OBSERVED")
     for h in a["threat_hypotheses"]:
         if h.get("ai_specific"):
@@ -136,3 +136,140 @@ def test_target_type_classification_is_evidence_based():
     web_types = {t["type"] for t in classify_target_types(WEB, build_evidence(WEB))}
     assert "ml_inference_service" not in web_types
     assert "traditional_web_app" in web_types
+
+
+# ---- AI-surface signal-strength regression tests (spec §4–6, §20) ----
+from orion.target_analysis import detect_ai_surface, build_evidence  # noqa: E402
+
+
+def _surface(summary):
+    s = {"endpoints": [], "auth_indicators": [], "findings": [], "report_markdown": "",
+         "target": "t", "objective": "", **summary}
+    return detect_ai_surface(s, build_evidence(s))
+
+
+def test_generic_chat_route_does_not_confirm_llm():
+    s = _surface({"endpoints": ["/chat"]})
+    assert s["status"] != "CONFIRMED"
+
+
+def test_model_route_does_not_confirm_ml():
+    s = _surface({"endpoints": ["/model"]})
+    assert s["status"] != "CONFIRMED"
+
+
+def test_tool_route_does_not_confirm_agent():
+    s = _surface({"endpoints": ["/tool"]})
+    assert s["status"] != "CONFIRMED"
+
+
+def test_assistant_route_is_weak_signal_only():
+    s = _surface({"endpoints": ["/assistant"]})
+    strengths = {sig["strength"] for sig in s["signals"]}
+    assert strengths == {"WEAK"}
+    assert s["status"] != "CONFIRMED"
+
+
+def test_single_weak_signal_returns_possible_or_not_observed():
+    s = _surface({"endpoints": ["/chat"]})
+    assert s["status"] in ("POSSIBLE", "NOT_OBSERVED")
+
+
+def test_strong_signal_confirms_ai_surface():
+    s = _surface({"endpoints": ["/v1/chat/completions"]})
+    assert s["status"] == "CONFIRMED"
+    assert s["signal_strength"]["strong"] >= 1
+
+
+def test_multiple_medium_signals_can_confirm_ai_surface():
+    # Two independent MEDIUM signals corroborate -> CONFIRMED.
+    s = _surface({"endpoints": ["/predict"], "report_markdown": "uses a vector database for retrieval"})
+    assert s["signal_strength"]["medium"] >= 2
+    assert s["status"] == "CONFIRMED"
+
+
+def test_wordpress_target_has_no_ai_specific_findings():
+    a = build_assessment_from_summary(WORDPRESS)
+    assert all(not h.get("ai_specific") for h in a["threat_hypotheses"])
+    assert all(not f.get("ai_specific") for f in a["validated_findings"])
+
+
+def test_traditional_site_has_no_atlas_mapping():
+    a = build_assessment_from_summary(WEB)
+    assert a["mitre_atlas"]["applicable"] is False
+
+
+def test_non_ai_target_hides_ai_experiments_by_default():
+    a = build_assessment_from_summary(WEB)
+    ai_exps = [e for e in a["suggested_experiments"] if e["ai_specific"]]
+    assert ai_exps  # they exist in the catalog
+    assert all(e["applicability"] == "NOT_APPLICABLE" for e in ai_exps)
+
+
+def test_adversary_properties_are_not_invented():
+    a = build_assessment_from_summary(WEB)
+    adv = a["threat_model"]["adversary"]
+    assert adv["goal"] == "UNDEFINED"
+    assert adv["knowledge"] == "UNKNOWN"
+    assert adv["budget"] == "UNKNOWN"
+    # Network reachability IS observable from recon endpoints.
+    assert adv["access"] == "REMOTE_PUBLIC"
+    assert a["threat_model"]["provenance"]["access"] == "OBSERVED"
+    assert a["threat_model"]["access_detail"]["credential_access"] == "NOT_OBSERVED"
+
+
+# ---- AI application detection (spec: an AI service must be detected) ----
+ORION_LIKE_APP = {
+    "target": "127.0.0.1:5001",
+    "endpoints": ["/chat", "/chat_stream", "/mcp_tools", "/adverimage", "/api/agent/analyze-recon"],
+    "report_markdown": ("ORION adversarial intelligence system. LLM chat via DeepSeek and "
+                        "WhiteRabbitNeo. MCP tools registry. Adversarial machine learning. "
+                        "MITRE ATLAS mappings. LangGraph supervisor agent."),
+}
+
+
+def test_ai_application_is_detected_as_confirmed():
+    a = build_assessment_from_summary(ORION_LIKE_APP)
+    assert a["ai_surface"]["status"] == "CONFIRMED", a["ai_surface"]
+    assert a["ai_surface"]["signal_strength"]["strong"] >= 1
+    # An LLM/agent app should enable at least one AI experiment hypothesis.
+    assert any(e["ai_specific"] and e["applicability"] == "APPLICABLE"
+               for e in a["suggested_experiments"])
+
+
+def test_mcp_endpoint_alone_is_strong():
+    s = _surface({"endpoints": ["/mcp_tools"]})
+    assert s["status"] == "CONFIRMED"
+
+
+def test_model_name_in_page_is_strong():
+    s = _surface({"report_markdown": "powered by DeepSeek-R1 and Ollama"})
+    assert s["status"] == "CONFIRMED"
+
+
+# ---- direct URL probe ----
+from orion.target_analysis import build_probe_summary, probe_url  # noqa: E402
+
+
+def test_probe_summary_detects_ai_endpoints():
+    obs = [
+        {"path": "/", "status": 200, "content_type": "text/html", "snippet": "ORION dashboard"},
+        {"path": "/mcp_tools", "status": 200, "content_type": "application/json"},
+        {"path": "/chat", "status": 405},               # exists (POST-only)
+        {"path": "/v1/models", "status": 200},
+        {"path": "/nope", "status": 404},               # does not exist
+    ]
+    summary = build_probe_summary("http://127.0.0.1:5001", summary_obs := obs)
+    assert "/mcp_tools" in summary["endpoints"]
+    assert "/v1/models" in summary["endpoints"]
+    assert "/nope" not in summary["endpoints"]
+    a = build_assessment_from_summary(summary)
+    assert a["ai_surface"]["status"] == "CONFIRMED"
+
+
+def test_probe_url_rejects_bad_url():
+    import pytest
+    with pytest.raises(ValueError):
+        probe_url("ftp://example.com")   # non-http scheme
+    with pytest.raises(ValueError):
+        probe_url("")                     # no host

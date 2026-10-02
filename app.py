@@ -58,10 +58,6 @@ def get_deepseek_response(prompt):
 def enemey():
     return render_template('know-your-enemy.html')
 
-# @app.route('/know-yourself.html')
-# def enemey():
-#     return render_template('know-your-self.html')
-
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -174,9 +170,6 @@ def know_environment_approve(run_id):
     result = recon_web.submit_approval(run_id, bool(payload.get('approved')))
     status_code = result.pop('status_code')
     return jsonify(result), status_code
-
-def red_pill():
-    return render_template('red-pill.html')
 
 @app.route('/chat_phishing', methods=['POST'])
 def chat_phishing():    

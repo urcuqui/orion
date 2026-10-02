@@ -107,7 +107,64 @@ experiments decide the result. Boundaries are enforced in code. See
 
 The reconnaissance workflow is the *Understand* phase. It takes an objective,
 target, iteration limit and approval settings, and can use Playwright, Nuclei
-and MCP tools — always requiring human approval for sensitive actions.
+and MCP tools — always requiring human approval for sensitive actions. Its UI
+extends the shared Orion terminal design system (`base.html`).
+
+## 8b. Know Your Target — evidence-grounded Target Analysis
+
+> **Recon collects. Orion interprets. Humans decide.**
+
+The **Know Your Target** workflow (`/target-analysis`) turns recon evidence into
+an interpretation, following the core principle:
+
+> **Evidence → applicability → hypothesis → test → finding** (never
+> *generic knowledge → finding*).
+
+Preferred flow: **Recon → Analyze with Orion → Threat Model → Experiment Plan →
+Human review** (also available standalone, or as a one-click *Guided Analysis*).
+
+Every conclusion is classified `OBSERVED` / `INFERRED` / `HYPOTHESIS` /
+`NOT_APPLICABLE`, carries evidence references + confidence + rationale, and is
+checked by a deterministic validation layer (`orion.target_analysis`). A
+hypothesis is never promoted to a finding; a suggested experiment is not evidence
+of a vulnerability.
+
+### AI Surface Detection
+
+AI-specific threats are only surfaced when recon actually observed an AI/ML
+surface. Detection is deterministic and strength-scored:
+
+- **STRONG signals** (confirm on their own): `/v1/chat/completions`,
+  `/v1/embeddings`, model-serving stacks (TorchServe, Triton, TF Serving, vLLM,
+  Ollama), SDKs (OpenAI/Anthropic/LangChain), and model artifacts (`.pt`,
+  `.pth`, `.onnx`, `.safetensors`, `.gguf`), MCP server metadata.
+- **MEDIUM signals** (need corroboration): `/predict`, `/inference`, `rag`,
+  `embedding`, `vector database`, `machine learning`, chatbot/assistant UIs.
+- **WEAK signals** (never confirm alone): generic `/chat`, `/model`, `/tool`,
+  `/assistant`, bare "ai"/"chat" text.
+
+Classification: `CONFIRMED` = ≥1 strong **or** ≥2 medium; `POSSIBLE` = 1 medium
+or ≥2 weak; `NOT_OBSERVED` otherwise. A lone weak route (`/chat`, `/model`, …)
+can **never** confirm AI. For a traditional web app, Orion reports
+`AI SURFACE: NOT_OBSERVED`, maps **no** ATLAS techniques, and **abstains** —
+"insufficient evidence to determine whether this target exposes an AI/ML attack
+surface" — which is a useful result, not a failure. Generic web findings
+(WordPress, login forms, APIs) are **never** converted into prompt injection,
+model extraction, adversarial ML or RAG poisoning without AI-specific evidence.
+
+> **Mock recon never reaches the target.** It returns deterministic fixtures, so
+> analyzing a real app in mock mode yields `NOT_OBSERVED`. To analyze a *running*
+> service, either run recon with real tools (uncheck `--mock`) or use **Analyze a
+> running URL directly** in Know Your Target (`POST /api/target-analysis/probe`),
+> a bounded, GET-only probe that collects real evidence (e.g. an exposed
+> `/mcp_tools` or `/v1/chat/completions` endpoint) and feeds the same analyzer.
+
+### Honest threat model
+
+Orion does not invent adversary properties. Only what recon can establish is
+marked `[OBSERVED]` (e.g. network reachability → `REMOTE_PUBLIC`); goal,
+knowledge and budget default to `UNDEFINED` / `UNKNOWN` and require analyst
+input.
 
 ## 9. MITRE ATLAS
 
@@ -156,10 +213,31 @@ Scenarios are declarative YAML that bind the whole methodology together
 
 ## 14. Web UI
 
+A retro **adversarial-intelligence console**: black background, crimson borders,
+phosphor-green status, amber warnings, monospace type, subtle CRT scanlines
+(toggle in the top bar), an ASCII Orion dragon, and a command prompt. All
+sections share one design system (`base.html` + `static/css/base.css` +
+`orion-terminal.css`).
+
+Navigation (Art of War structure):
+
+- **Dashboard** — command center: system status, dragon, `[01]`–`[05]` menu,
+  recent activity (real run data), `orion@security:~$`.
+- **Know Yourself** — adversarial ML (model robustness).
+- **Know Your Target** — Recon + Agent Analysis + Threat Model + Guided Analysis.
+- **Know The Environment** — reconnaissance (now in the shared design system).
+- **Attack** — red-team hub.
+- **Evidence** — runs, reports, comparisons.
+
+Conference mode: append `?demo=1` to enlarge type, hide secondary controls and
+decorative CRT, and emphasize target type, AI surface, observations, suggested
+experiments, threat model and results.
+
 The Flask app is preserved: adversarial image generation, AI chat, streaming
-(SSE), and the "Know the Environment" reconnaissance workflow with human
-approval. The methodology is additionally exposed under `/orion/*`
-(`/orion/methodology`, `/orion/scenarios`, `/orion/run`, `/orion/compare`).
+(SSE), and the reconnaissance workflow with human approval. The methodology is
+also exposed under `/orion/*` and a JSON API under `/api/*` (`/api/runs`,
+`/api/agent/analyze-recon`, `/api/recon/runs`, …). Legacy URLs such as
+`/red-pill.html` redirect to the current Red Team landing page.
 
 ## 15. CLI
 

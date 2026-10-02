@@ -1,16 +1,18 @@
 :root {
-  --bg: #0a0e14;
-  --panel-bg: #10161f;
-  --panel-bg-alt: #0d1219;
-  --border: #1e2a38;
-  --text: #c7d3e0;
-  --text-dim: #7c8ba1;
-  --green: #00ff00;
-  --green-dim: #0a7a0a;
-  --red: #ff5c6c;
-  --yellow: #ffcc66;
-  --blue: #5aa9e6;
-  --mono: "Courier New", "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  /* Aligned with the shared Orion palette (static/css/base.css) so Recon is
+     visually part of the same design system, not a separate application. */
+  --bg: #050505;
+  --panel-bg: #0a0a0a;
+  --panel-bg-alt: #0c0707;
+  --border: #3b0e0e;
+  --text: #e6e6e6;
+  --text-dim: #8a8a8a;
+  --green: #5cff8a;
+  --green-dim: #35c866;
+  --red: #ff3b3b;
+  --yellow: #ffb347;
+  --blue: #5794d6;
+  --mono: "Courier New", "IBM Plex Mono", "Source Code Pro", ui-monospace, Menlo, Consolas, monospace;
 }
 
 * { box-sizing: border-box; }

@@ -71,3 +71,15 @@
 .exp .appl.APPLICABLE { color: var(--green); }
 .exp .appl.INSUFFICIENT_EVIDENCE { color: var(--warning); }
 .exp .appl.NOT_APPLICABLE { color: var(--muted); }
+
+/* --- AI signal strength + provenance badges --- */
+.signals { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.5rem; }
+.sig { font-size: 0.68rem; padding: 0.1rem 0.45rem; border: 1px solid currentColor; }
+.sig-STRONG { color: var(--red-bright); }
+.sig-MEDIUM { color: var(--warning); }
+.sig-WEAK { color: var(--muted); }
+.sig .evref { color: var(--blue); }
+
+.prov { font-size: 0.6rem; letter-spacing: 0.06em; padding: 0.02rem 0.3rem; border: 1px solid currentColor; }
+.prov.obs { color: var(--green); }
+.prov.unk { color: var(--muted); }

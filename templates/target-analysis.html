@@ -40,6 +40,15 @@
     <button class="btn btn-ghost" id="refresh-recon">[ REFRESH ]</button>
   </div>
   <div id="recon-runs"><div class="state">Loading recon runs…</div></div>
+
+  <hr class="term-rule">
+  <div class="panel-title" style="margin-top:0.5rem;">Analyze a running URL directly</div>
+  <p class="sub">Reaches the live service with real GET requests (not mock). Authorised targets only —
+    use this to analyze your own app, e.g. <code>http://127.0.0.1:5001</code>.</p>
+  <div class="btn-row">
+    <input type="text" id="probe-url" placeholder="http://127.0.0.1:5001" style="flex:1;min-width:220px;">
+    <button class="btn btn-red" id="btn-probe">[ PROBE &amp; ANALYZE ]</button>
+  </div>
 </div>
 
 <!-- AGENT capability (no recon) -->

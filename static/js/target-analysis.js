@@ -49,6 +49,23 @@
   const refresh = document.getElementById("refresh-recon");
   if (refresh) refresh.addEventListener("click", loadReconRuns);
 
+  // ---- direct URL probe (real GET requests to a running service) ----
+  async function probeUrl() {
+    const url = (document.getElementById("probe-url").value || "").trim();
+    if (!url) { Orion.setState(assessmentEl, "error", "Enter a URL, e.g. http://127.0.0.1:5001"); assessmentEl.classList.remove("hidden"); return; }
+    Orion.setState(assessmentEl, "running", "probing " + url + " (GET-only)…");
+    assessmentEl.classList.remove("hidden");
+    try {
+      current = await Orion.postJSON("/api/target-analysis/probe", { url: url });
+      renderAssessment(current);
+      assessmentEl.scrollIntoView({ behavior: "smooth", block: "start" });
+    } catch (e) {
+      Orion.setState(assessmentEl, "error", "[x] probe failed: " + e.message);
+    }
+  }
+  const probeBtn = document.getElementById("btn-probe");
+  if (probeBtn) probeBtn.addEventListener("click", probeUrl);
+
   // ---- analysis actions ----
   async function analyzeRecon(runId) {
     Orion.setState(assessmentEl, "running", "interpreting recon evidence…");
@@ -97,78 +114,118 @@
     if (targetStatus) targetStatus.outerHTML = '<span class="ok" id="target-status">[+] TARGET STATUS: ANALYZED</span>';
     const tm = a.threat_model || {};
     const adv = tm.adversary || {};
+    const prov = tm.provenance || {};
+    const acc = tm.access_detail || {};
     const ais = a.ai_surface || {};
     const types = a.target_types || [];
     const key = a.recon_run_id || ("ctx:" + a.target);
+    const reconHref = "/know-environment.html";
+    const primary = types[0] ? types[0].type : "unknown";
+    const secondary = types.slice(1).map(t => t.type);
+    const scope = ais.status === "CONFIRMED" ? "ESTABLISHED" :
+                  (ais.status === "POSSIBLE" ? "POSSIBLE — REQUIRES CORROBORATION" : "NOT ESTABLISHED");
+    const focus = ais.status === "CONFIRMED" ? "AI/ML security analysis" :
+                  (ais.status === "POSSIBLE" ? "Confirm AI surface, then AI analysis" : "Web/application analysis");
 
+    // --- Target classification / scope summary ---
     let html = `<div class="assessment-box">
-      <div class="term-title">ORION TARGET ASSESSMENT</div>
+      <div class="term-title">TARGET CLASSIFICATION</div>
       <div class="kv">
         <div class="k">Target</div><div class="v">${Orion.esc(a.target)}</div>
-        <div class="k">Source</div><div class="v">${Orion.esc(a.source)}${a.recon_run ? " · " + Orion.esc(a.recon_run) : ""}</div>
+        <div class="k">Primary type</div><div class="v">${Orion.esc(primary)}</div>
+        <div class="k">Secondary types</div><div class="v">${Orion.esc(secondary.join(", ") || "—")}</div>
+        <div class="k">AI surface</div><div class="v">${Orion.esc(ais.status || "N/A")}</div>
+        <div class="k">AI security scope</div><div class="v">${Orion.esc(scope)}</div>
+        <div class="k">Recommended focus</div><div class="v">${Orion.esc(focus)}</div>
       </div>
       <div class="ttypes">${types.map(t => `<span class="ttype">${Orion.esc(t.type)} <span class="c">(${Orion.esc(t.confidence)})</span></span>`).join("")}</div>
       <div class="ai-surface ${Orion.esc(ais.status)}">
-        <div class="st">AI SURFACE: ${Orion.esc(ais.status)} · confidence ${Orion.esc(ais.confidence)}</div>
-        <div class="sub">${Orion.esc(ais.rationale||"")}</div>
-      </div>`;
+        <div class="st">AI SURFACE: ${Orion.esc(ais.status)} · confidence ${Orion.esc(ais.confidence)} · score ${ais.score != null ? ais.score : "?"}</div>
+        <div class="sub">${Orion.esc(ais.rationale || "")}</div>
+        ${(ais.signals && ais.signals.length) ? `<div class="signals">${ais.signals.map(s =>
+          `<span class="sig sig-${Orion.esc(s.strength)}">${Orion.esc(s.strength)}: ${Orion.esc(s.value)}${s.evidence_id ? " <span class=\"evref\">(" + Orion.esc(s.evidence_id) + ")</span>" : ""}</span>`).join("")}</div>`
+          : `<div class="sub">No AI signals matched.</div>`}
+      </div>
+      <div class="next-action">NEXT ACTION: ${Orion.esc(a.next_action || "Human review required")}</div></div>`;
 
+    // --- Abstention UX (useful result, not an empty screen) ---
     if (a.abstention) {
-      html += `<div class="statusline" style="margin:0.5rem 0;"><span class="off">[-] AI SECURITY: ${Orion.esc(a.abstention)}</span></div>`;
+      html += `<div class="term"><div class="term-title">INSUFFICIENT AI EVIDENCE</div>
+        <div class="statusline"><span class="off">[-] ${Orion.esc(a.abstention)}</span></div>
+        <div class="btn-row" style="margin-top:0.6rem;">
+          <a class="btn btn-red" href="${reconHref}">[ RUN DEEPER RECON ]</a>
+          <button class="btn" data-cap="agent">[ PROVIDE TARGET CONTEXT ]</button>
+          <a class="btn btn-ghost" href="${reconHref}">[ SELECT AN AI APPLICATION ]</a>
+        </div></div>`;
     }
-    html += `<div class="next-action">NEXT ACTION: ${Orion.esc(a.next_action || "Human review required")}</div></div>`;
 
-    // Sections (never mixed)
-    function section(title, items, extraFn) {
+    // --- Classified sections (never mixed) ---
+    function section(title, items) {
       if (!items || !items.length) return `<div class="term"><div class="term-title">${title}</div><div class="state">None.</div></div>`;
-      return `<div class="term"><div class="term-title">${title}</div>${items.map(i => renderItem(i, extraFn ? extraFn(i) : "")).join("")}</div>`;
+      return `<div class="term"><div class="term-title">${title}</div>${items.map(i => renderItem(i)).join("")}</div>`;
     }
     html += section("OBSERVATIONS", a.observations);
     html += section("INFERENCES", a.inferences);
     html += section("THREAT HYPOTHESES", a.threat_hypotheses);
     html += section("VALIDATED FINDINGS", a.validated_findings);
 
-    // MITRE ATLAS (gated)
+    // --- MITRE ATLAS (gated) ---
     const atlas = a.mitre_atlas || { applicable: false, mappings: [], message: "" };
     html += `<div class="term"><div class="term-title">MITRE ATLAS</div>`;
-    if (atlas.applicable && atlas.mappings.length) {
-      html += atlas.mappings.map(m => Orion.atlasItem(m)).join("");
-    } else {
-      html += `<div class="state">${Orion.esc(atlas.message || "Not applicable with current evidence.")}</div>`;
-    }
+    html += (atlas.applicable && atlas.mappings.length)
+      ? atlas.mappings.map(m => Orion.atlasItem(m)).join("")
+      : `<div class="state">${Orion.esc(atlas.message || "Not applicable with current evidence.")}</div>`;
     html += `</div>`;
 
-    // Suggested experiments (applicability-gated, no auto-exec)
+    // --- Suggested experiments (APPLICABLE first; NOT_APPLICABLE hidden) ---
     const exps = a.suggested_experiments || [];
-    html += `<div class="term"><div class="term-title">SUGGESTED EXPERIMENTS <span class="proposed">PROPOSED</span></div>
-      ${exps.map(e => `<div class="exp ${e.applicability === "APPLICABLE" ? "" : "na"}">
+    const primaryExps = exps.filter(e => e.applicability !== "NOT_APPLICABLE");
+    const naExps = exps.filter(e => e.applicability === "NOT_APPLICABLE");
+    function expHtml(e) {
+      return `<div class="exp ${e.applicability === "APPLICABLE" ? "" : "na"}">
         <span class="eid">${Orion.esc(e.id)}</span><span class="ename">${Orion.esc(e.name)}</span>
         <span class="risk ${Orion.esc(e.risk)}">${Orion.esc(e.risk)}</span>
-        <span class="appl ${Orion.esc(e.applicability)}">${Orion.esc(e.applicability)}</span>
+        <span class="appl ${Orion.esc(e.applicability)}">${Orion.esc(e.applicability.replace("_"," "))}</span>
         <button class="why-btn">[ WHY? ]</button>
-        <div class="why-box">${Orion.esc(e.rationale || "")}${e.missing && e.missing.length ? " · missing: " + Orion.esc(e.missing.join(", ")) : ""}${e.atlas && e.atlas.length ? " · ATLAS: " + e.atlas.map(m=>Orion.esc(m.technique_id)).join(", ") : ""}</div>
+        <div class="why-box">${Orion.esc(e.rationale || "")}${e.missing && e.missing.length ? " · missing prerequisites: " + Orion.esc(e.missing.join(", ")) : ""}${e.atlas && e.atlas.length ? " · ATLAS: " + e.atlas.map(m=>Orion.esc(m.technique_id)).join(", ") : ""}</div>
         <div class="exp-launch hidden" style="margin-top:0.4rem;">
           ${(e.scenario && e.applicability === "APPLICABLE") ? `<a class="btn btn-red" href="/adversarial">[ LAUNCH EXPERIMENT ]</a>` : `<span class="sub">${e.applicability === "APPLICABLE" ? "Manual experiment — review required." : "Not applicable to this target with current evidence."}</span>`}
-        </div></div>`).join("")}
+        </div></div>`;
+    }
+    html += `<div class="term"><div class="term-title">SUGGESTED EXPERIMENTS <span class="proposed">PROPOSED</span></div>
+      ${primaryExps.length ? primaryExps.map(expHtml).join("") : '<div class="state">No applicable experiments for this target with current evidence.</div>'}
+      ${naExps.length ? `<div style="margin-top:0.6rem;">
+        <button class="btn btn-ghost" id="btn-show-na">[ SHOW NON-APPLICABLE EXPERIMENTS (${naExps.length}) ]</button>
+        <div id="na-exps" class="hidden" style="margin-top:0.5rem;">${naExps.map(expHtml).join("")}</div></div>` : ""}
       <div class="btn-row" style="margin-top:0.6rem;">
         <button class="btn" id="btn-review">[ REVIEW PLAN ]</button>
         <button class="btn btn-red hidden" id="btn-approve-exp">[ APPROVE EXPERIMENT ]</button>
       </div>
       <div id="plan-note" class="sub" style="margin-top:0.4rem;"></div></div>`;
 
-    // Threat model (PROPOSED → approve)
+    // --- Threat model (honest: OBSERVED / UNKNOWN / UNDEFINED) ---
     const tmStatus = tm.status || "PROPOSED";
     const tagClass = tmStatus === "APPROVED" ? "approved-tag" : (tmStatus === "REJECTED" ? "rejected-tag" : "");
+    function field(label, value, p) {
+      const badge = p === "OBSERVED" ? '<span class="prov obs">[OBSERVED]</span>'
+        : (p === "UNKNOWN" ? '<span class="prov unk">[UNKNOWN]</span>'
+        : (p === "UNDEFINED" ? '<span class="prov unk">[UNDEFINED]</span>' : ""));
+      return `<div class="k">${label}</div><div class="v">${Orion.esc(value || "N/A")} ${badge}</div>`;
+    }
     html += `<div class="tm-box">
       <div class="term-title">THREAT MODEL <span class="proposed ${tagClass}" id="tm-status">${Orion.esc(tmStatus)}</span></div>
       <div class="kv">
-        <div class="k">Goal</div><div class="v">${Orion.esc(adv.goal||"N/A")}</div>
-        <div class="k">Knowledge</div><div class="v">${Orion.esc(adv.knowledge||"N/A")}</div>
-        <div class="k">Access</div><div class="v">${Orion.esc(adv.access||"N/A")}</div>
+        ${field("Goal", adv.goal, prov.goal)}
+        ${field("Knowledge", adv.knowledge, prov.knowledge)}
+        ${field("Network access", acc.network_access || adv.access, prov.network_access)}
+        ${field("Model knowledge", acc.model_knowledge, prov.model_knowledge)}
+        ${field("Credential access", acc.credential_access, prov.credential_access)}
+        ${field("Budget", adv.budget, prov.budget)}
         <div class="k">Assets</div><div class="v">${Orion.esc((tm.assets||[]).join(", ")||"N/A")}</div>
         <div class="k">Surfaces</div><div class="v">${Orion.esc((tm.surfaces||[]).join(", ")||"N/A")}</div>
       </div>
-      <div class="sub" style="margin-top:0.4rem;">${Orion.esc(tm.rationale||"")}</div>
+      ${tm.note ? `<div class="sub" style="color:var(--warning);margin-top:0.4rem;">${Orion.esc(tm.note)}</div>` : ""}
+      <div class="sub" style="margin-top:0.3rem;">${Orion.esc(tm.rationale||"")}</div>
       <div class="tm-approve">
         <button class="btn" id="tm-accept">[ ACCEPT ]</button>
         <button class="btn btn-ghost" id="tm-edit">[ EDIT ]</button>
@@ -177,13 +234,18 @@
 
     assessmentEl.innerHTML = html;
 
-    // WHY? delegation
+    // delegation + wiring
     assessmentEl.querySelectorAll(".why-btn").forEach(b =>
       b.addEventListener("click", () => {
         const box = b.parentElement.querySelector(".why-box");
         if (box) box.classList.toggle("open");
       }));
-
+    assessmentEl.querySelectorAll("[data-cap]").forEach(b =>
+      b.addEventListener("click", () => showCap(b.dataset.cap)));
+    const naBtn = document.getElementById("btn-show-na");
+    if (naBtn) naBtn.addEventListener("click", () => {
+      document.getElementById("na-exps").classList.toggle("hidden");
+    });
     document.getElementById("tm-accept").addEventListener("click", () => approveTM(key, true));
     document.getElementById("tm-reject").addEventListener("click", () => approveTM(key, false));
     document.getElementById("tm-edit").addEventListener("click", () => {

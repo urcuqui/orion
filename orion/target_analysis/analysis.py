@@ -131,8 +131,10 @@ def build_evidence(summary: Dict[str, Any]) -> List[Dict[str, str]]:
 _TECH_PATTERNS = [
     "wordpress", "drupal", "joomla", "nginx", "apache", "php", "node.js", "express",
     "django", "flask", "react", "vue", "angular", "mysql", "postgres", "cloudflare",
-    "openai", "anthropic", "langchain", "langgraph", "huggingface", "pytorch",
-    "tensorflow", "chromadb", "pinecone", "weaviate", "ollama",
+    "openai", "anthropic", "langchain", "langgraph", "llamaindex", "huggingface",
+    "pytorch", "tensorflow", "chromadb", "pinecone", "weaviate", "ollama", "vllm",
+    "triton", "torchserve", "onnx", "deepseek", "llama", "mistral", "whiterabbitneo",
+    "mcp",
 ]
 
 
@@ -144,9 +146,6 @@ def _extract_technologies(text: str) -> List[str]:
 # --------------------------------------------------------------------------- #
 # Signal keywords
 # --------------------------------------------------------------------------- #
-_AI_ENDPOINT_KW = ["/predict", "/inference", "/infer", "/chat", "/completion", "/v1/chat",
-                   "/embedding", "/embed", "/generate", "/llm", "/model", "/rag", "/ml",
-                   "/ai/", "/vector", "/agent", "/mcp", "/tool", "/assistant"]
 _LLM_KW = ["llm", "gpt", "openai", "anthropic", "claude", "chat model", "chatbot",
            "completion", "prompt", "langchain", "langgraph", "assistant"]
 _RAG_KW = ["rag", "retrieval", "embedding", "vector db", "vector store", "knowledge base",
@@ -159,6 +158,53 @@ _ML_KW = ["predict", "inference", "classifier", "ml model", "machine learning", 
 _WEB_KW = ["html", "wordpress", "cms", "login", "form", "javascript", "cookie", "session",
            "drupal", "joomla", "nginx", "apache", "php"]
 _API_KW = ["/api", "json", "rest", "/v1/", "endpoint", "swagger", "openapi", "graphql"]
+
+# --- AI-surface signal tiers (strength-scored, inspectable) ---------------- #
+# STRONG: unambiguous AI/ML inference surfaces, serving stacks or model artifacts.
+_STRONG_AI = [
+    # Inference / serving endpoints (direct evidence of an AI service)
+    "/v1/chat/completions", "/chat/completions", "/v1/completions", "/v1/embeddings",
+    "/embeddings", "/invocations", "/predictions", "/v2/models", "/v1/models",
+    # Model Context Protocol (unambiguous AI/agent tooling)
+    "model context protocol", "mcp server", "mcp", "/mcp", "/mcp_tools",
+    # SDKs / serving stacks / frameworks
+    "openai", "anthropic", "ollama", "huggingface", "hugging face", "pytorch",
+    "tensorflow serving", "torchserve", "triton", "onnx runtime", "vllm",
+    "langchain", "langgraph", "llamaindex", "tensorflow", "text-generation-inference",
+    # Specific model names/versions (imply a real deployed model)
+    "deepseek", "whiterabbitneo", "gpt-4", "gpt-3",
+    # Model artifacts
+    ".pt", ".pth", ".onnx", ".safetensors", ".gguf", ".ckpt", ".h5",
+]
+_MEDIUM_AI = [
+    # AI-ish routes (need corroboration)
+    "/predict", "/inference", "/generate", "/rag", "/embedding", "/vector",
+    "/agent", "/api/agent", "/chat_stream", "/completions",
+    # Terminology without confirmed implementation
+    "llm", "large language model", "language model", "foundation model",
+    "generative ai", "adversarial machine learning", "machine learning",
+    "neural network", "transformer", "classifier",
+    "chatbot", "assistant interface", "inference", "retrieval-augmented",
+    "rag pipeline", "vector database", "vector store", "prompt template",
+    "prompt injection", "completion api", "model api",
+    # Generic model families
+    "gpt", "claude", "gemini", "llama", "mistral", "qwen", "gemma",
+]
+_WEAK_AI = ["/chat", "/model", "/tool", "/assistant", "/ai", "assistant", "chat"]
+
+_STRONG, _MEDIUM, _WEAK = "STRONG", "MEDIUM", "WEAK"
+
+
+def _signal_strength(value: str) -> Optional[str]:
+    """Classify a single value into STRONG/MEDIUM/WEAK, strongest first."""
+    v = (value or "").lower()
+    if any(_kw_in(v, k) for k in _STRONG_AI):
+        return _STRONG
+    if any(_kw_in(v, k) for k in _MEDIUM_AI):
+        return _MEDIUM
+    if any(_kw_in(v, k) for k in _WEAK_AI):
+        return _WEAK
+    return None
 
 
 def _haystack(summary: Dict[str, Any]) -> str:
@@ -221,30 +267,63 @@ def classify_target_types(summary: Dict[str, Any], evidence: List[Dict[str, str]
 
 
 def detect_ai_surface(summary: Dict[str, Any], evidence: List[Dict[str, str]]) -> Dict[str, Any]:
-    """CONFIRMED when an AI-specific endpoint/artifact is directly observed;
-    POSSIBLE when only indirect text signals exist; NOT_OBSERVED otherwise."""
-    endpoint_ids = [e["id"] for e in evidence if e["kind"] == "endpoint"
-                    and any(k in e["value"].lower() for k in _AI_ENDPOINT_KW)]
-    artifact_ids = _match_evidence(
-        [e for e in evidence if e["kind"] in ("technology", "finding", "endpoint")],
-        _ML_KW + _LLM_KW + _RAG_KW + _MCP_KW)
-    strong = sorted(set(endpoint_ids) | set(artifact_ids))
+    """Deterministic, strength-scored AI-surface detection.
 
+    Each matched signal is STRONG / MEDIUM / WEAK and references the evidence it
+    came from. Classification (inspectable, not a black box):
+
+      CONFIRMED : >=1 STRONG signal, or >=2 MEDIUM signals
+      POSSIBLE  : exactly 1 MEDIUM, or >=2 WEAK signals
+      NOT_OBSERVED : otherwise (a lone WEAK signal never confirms AI)
+
+    A WEAK generic route (/chat, /model, /tool, /assistant) on its own can never
+    produce CONFIRMED — it requires corroborating strong/medium evidence.
+    """
+    signals: List[Dict[str, Any]] = []
+    seen: set = set()
+
+    # Evidence-backed signals (endpoints, technologies, findings).
+    for e in evidence:
+        strength = _signal_strength(e["value"])
+        if strength:
+            key = e["value"].lower()
+            if key not in seen:
+                seen.add(key)
+                signals.append({"value": e["value"], "strength": strength, "evidence_id": e["id"]})
+
+    # Strong/medium textual signals not already captured as discrete evidence.
     hay = _haystack(summary)
-    text_signal = any(_kw_in(hay, k) for k in (_LLM_KW + _RAG_KW + _ML_KW + _MCP_KW + _AGENT_KW))
+    for kw in _STRONG_AI + _MEDIUM_AI:
+        if kw in seen:
+            continue
+        if _kw_in(hay, kw):
+            strength = _STRONG if kw in _STRONG_AI else _MEDIUM
+            signals.append({"value": kw, "strength": strength, "evidence_id": None})
+            seen.add(kw)
 
-    if strong:
-        status, conf, ev = "CONFIRMED", _confidence_for(len(strong)), strong
-    elif text_signal:
-        status, conf, ev = "POSSIBLE", LOW, []
+    strong = [s for s in signals if s["strength"] == _STRONG]
+    medium = [s for s in signals if s["strength"] == _MEDIUM]
+    weak = [s for s in signals if s["strength"] == _WEAK]
+    score = len(strong) * 4 + len(medium) * 2 + len(weak) * 1
+
+    if strong or len(medium) >= 2:
+        status, conf = "CONFIRMED", HIGH
+    elif len(medium) == 1 or len(weak) >= 2:
+        status, conf = "POSSIBLE", (MEDIUM if medium else LOW)
     else:
-        status, conf, ev = "NOT_OBSERVED", NONE, []
-    return {"status": status, "confidence": conf, "evidence": ev,
-            "rationale": {
-                "CONFIRMED": "An AI/ML-specific endpoint or artifact was directly observed.",
-                "POSSIBLE": "Only indirect textual signals suggest an AI/ML component; not confirmed.",
-                "NOT_OBSERVED": "No AI/ML attack surface was observed in the reconnaissance evidence.",
-            }[status]}
+        status, conf = "NOT_OBSERVED", NONE
+
+    ev_ids = sorted({s["evidence_id"] for s in (strong + medium) if s["evidence_id"]})
+    rationale = {
+        "CONFIRMED": ("Confirmed by " + (f"{len(strong)} strong" if strong else f"{len(medium)} medium")
+                      + " AI signal(s)."),
+        "POSSIBLE": "Indirect AI signal(s) only; corroboration required before treating as confirmed.",
+        "NOT_OBSERVED": "No AI/ML attack surface was observed in the reconnaissance evidence.",
+    }[status]
+    return {"status": status, "confidence": conf, "evidence": ev_ids,
+            "signals": signals, "score": score,
+            "signal_strength": {"strong": len(strong), "medium": len(medium), "weak": len(weak)},
+            "rationale": rationale}
 
 
 def _derive_capabilities(summary: Dict[str, Any], evidence: List[Dict[str, str]],
@@ -492,16 +571,45 @@ def propose_threat_model(summary: Dict[str, Any]) -> Dict[str, Any]:
         assets += ["model_integrity", "prediction_reliability"]
         surfaces.append("model_artifact")
 
-    goal = "evasion" if ai_surface["status"] == "CONFIRMED" else "unauthorized_access"
+    # Honesty: Orion does not invent adversary properties. Only what recon can
+    # establish is marked OBSERVED; everything else is UNKNOWN/UNDEFINED and
+    # requires analyst input.
+    has_endpoint = any(e["kind"] == "endpoint" for e in evidence)
+    network_access = "REMOTE_PUBLIC" if has_endpoint else "UNKNOWN"
+    adversary = {
+        "goal": "UNDEFINED",
+        "knowledge": "UNKNOWN",          # model/system knowledge is not observable from recon
+        "access": network_access,        # network reachability only
+        "budget": "UNKNOWN",
+    }
+    access_detail = {
+        "network_access": network_access,
+        "model_knowledge": "UNKNOWN",
+        "credential_access": "NOT_OBSERVED",
+    }
+    # Per-field provenance so the UI can label OBSERVED vs UNKNOWN/UNDEFINED.
+    provenance = {
+        "goal": "UNDEFINED",
+        "knowledge": "UNKNOWN",
+        "access": "OBSERVED" if has_endpoint else "UNKNOWN",
+        "budget": "UNKNOWN",
+        "network_access": "OBSERVED" if has_endpoint else "UNKNOWN",
+        "model_knowledge": "UNKNOWN",
+        "credential_access": "OBSERVED",  # we observed its ABSENCE (not present)
+    }
     return {
         "status": "PROPOSED",
-        "target": {"task": tnames[0] if tnames else "unknown", "access": "black_box",
+        "target": {"task": tnames[0] if tnames else "unknown", "access": network_access,
                    "model_name": summary.get("target", "unknown")},
-        "adversary": {"goal": goal, "knowledge": "limited", "access": "black_box", "budget": "medium"},
+        "adversary": adversary,
+        "access_detail": access_detail,
+        "provenance": provenance,
         "assets": sorted(set(assets)),
         "surfaces": sorted(set(surfaces)),
+        "note": "Adversary properties require analyst input.",
         "rationale": (f"Derived from recon of {summary.get('target','the target')}: "
-                      f"target type(s) {', '.join(tnames)}; AI surface {ai_surface['status']}."),
+                      f"target type(s) {', '.join(tnames)}; AI surface {ai_surface['status']}. "
+                      f"Adversary knowledge/goal/budget are not observable from recon alone."),
     }
 
 

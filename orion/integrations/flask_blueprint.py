@@ -228,6 +228,27 @@ def api_agent_analyze_recon():
     return jsonify(assessment)
 
 
+@api_bp.post("/target-analysis/probe")
+def api_probe_url():
+    """Directly probe a running URL (GET-only) and analyze the real evidence.
+
+    Authorized use only. Returns an evidence-grounded assessment built from the
+    target's actual responses — unlike mock recon, this reaches the service.
+    """
+    from orion.target_analysis import probe_url, build_assessment_from_summary
+    payload = request.get_json(silent=True) or {}
+    url = (payload.get("url") or "").strip()
+    if not url:
+        return jsonify({"error": "url is required (e.g. http://127.0.0.1:5001)"}), 400
+    try:
+        summary = probe_url(url)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"error": f"probe failed: {exc}"}), 502
+    return jsonify(build_assessment_from_summary(summary))
+
+
 @api_bp.post("/agent/analyze-context")
 def api_agent_analyze_context():
     """Interpret user-provided context (no recon) into a PROPOSED assessment."""
