@@ -585,6 +585,24 @@ def api_experiment_attack_blackbox(ws_id):
     return _experiment_stage(ws_id, lambda ws: run_blackbox_attack(ws, payload, ARTIFACT_DIR))
 
 
+@api_bp.get("/experiment/<ws_id>/attack-options")
+def api_experiment_attack_options(ws_id):
+    """Derived access level (white/black-box) + the attack catalog with base tuning."""
+    from orion.experiments import load_workspace, attack_options
+    ws = load_workspace(ws_id, ARTIFACT_DIR)
+    if ws is None:
+        return jsonify({"error": "unknown workspace"}), 404
+    return jsonify(attack_options(ws, ARTIFACT_DIR))
+
+
+@api_bp.post("/experiment/<ws_id>/attack-whitebox")
+def api_experiment_attack_whitebox(ws_id):
+    """Run a real white-box (torch + ART) adversarial-image attack on the weights."""
+    from orion.experiments import run_whitebox_attack
+    payload = request.get_json(silent=True) or {}
+    return _experiment_stage(ws_id, lambda ws: run_whitebox_attack(ws, payload, ARTIFACT_DIR))
+
+
 @api_bp.post("/experiment/<ws_id>/measure")
 def api_experiment_measure(ws_id):
     from orion.experiments import measure

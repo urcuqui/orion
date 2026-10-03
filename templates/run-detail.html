@@ -3,6 +3,7 @@
 {% from "components/status.html" import status_badge %}
 {% from "components/metric.html" import metric_card %}
 {% from "components/atlas.html" import atlas_item %}
+{% from "components/image_attack_comparison.html" import image_attack_comparison %}
 {% set section = 'evidence' %}
 {% block title %}Run {{ trace_id[:8] }} — ORION{% endblock %}
 {% block head %}<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>{% endblock %}
@@ -55,20 +56,8 @@
     <div id="replay-status" class="hidden" style="margin-top:0.75rem;"></div>
   </div>
 
-  {# ---- Image triptych (adversarial experiments) ---- #}
-  {% if record.artifacts %}
-  <div class="panel">
-    <div class="panel-title">Original · Adversarial · Difference</div>
-    <div class="img-triptych">
-      {% if record.artifacts.original %}
-      <div class="img-panel"><h4>Original</h4><img src="/api/artifacts/{{ trace_id }}/{{ record.artifacts.original }}" alt="original"></div>{% endif %}
-      {% if record.artifacts.adversarial %}
-      <div class="img-panel adv"><h4>Adversarial</h4><img src="/api/artifacts/{{ trace_id }}/{{ record.artifacts.adversarial }}" alt="adversarial"></div>{% endif %}
-      {% if record.artifacts.difference %}
-      <div class="img-panel"><h4>Difference / Perturbation</h4><img src="/api/artifacts/{{ trace_id }}/{{ record.artifacts.difference }}" alt="difference"></div>{% endif %}
-    </div>
-  </div>
-  {% endif %}
+  {# ---- Image attack comparison (type-aware: renders only for image attacks) ---- #}
+  {{ image_attack_comparison(record, trace_id, demo=(request.args.get('demo') == '1')) }}
 
   {# ---- Baseline vs Adversarial ---- #}
   {% if record.baseline_result or record.adversarial_result %}
@@ -172,6 +161,7 @@
 
 {% block scripts %}
 <script>
+Orion.wireImageAmplify(document);
 (function () {
   const btn = document.getElementById("btn-replay");
   if (!btn) return;

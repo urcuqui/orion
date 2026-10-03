@@ -8,6 +8,7 @@
   const compatStage = root.dataset.compatStage || "";
   const traceId = root.dataset.traceId || q.get("trace_id") || "";
   const planId = q.get("plan_id") || "";
+  const DEMO = q.get("demo") === "1";   // conference mode: make comparison prominent
 
   const STAGES = ["plan", "attack", "measure", "defend", "retest"];
   const BAR = { COMPLETE: "[████████]", APPROVED: "[████████]", APPLIED: "[████████]",
@@ -79,6 +80,19 @@
     renderStage(ws, plan, stage);
   }
 
+  // Fetch a run's evidence and render the reusable image-attack comparison into
+  // `host`. Type-aware: non-image runs leave the host empty and return false.
+  async function injectComparison(host, runId, opts) {
+    if (!host || !runId) return false;
+    try {
+      const rec = await Orion.getJSON("/api/runs/" + encodeURIComponent(runId));
+      const html = Orion.imageComparison(rec, runId, opts || {});
+      host.innerHTML = html || "";
+      if (html) Orion.wireImageAmplify(host);
+      return !!html;
+    } catch (e) { host.innerHTML = ""; return false; }
+  }
+
   async function renderStage(ws, plan, stage) {
     const el = document.getElementById("stage-detail");
     const wsid = ws.experiment_workspace_id;
@@ -118,56 +132,22 @@
     }
 
     if (stage === "attack") {
-      const params = prop.parameters || {};
-      const plines = Object.keys(params).filter(k => k !== "weights_path" && k !== "num_outputs")
-        .map(k => `  ${k} ${".".repeat(Math.max(2, 14 - k.length))} ${Orion.esc(params[k])}`).join("\n");
-      const label = prop.sensitive ? "[ CONFIRM &amp; RUN ]" : "[ RUN EXPERIMENT ]";
       const done = ws.stages.attack === "COMPLETE";
-      const tgt = (plan.target || {});
-      const liveUrl = (tgt.target && /^https?:\/\//.test(tgt.target)) ? tgt.target : "";
-      const bbox = (!done && liveUrl) ? `
-        <hr class="term-rule">
-        <div class="term-title" style="color:var(--red)">BLACK-BOX ATTACK (live, real queries)</div>
-        <p class="sub">Sends perturbed inputs to the live endpoint and measures decision change. Authorised targets only.</p>
-        <div class="kv">
-          <div class="k">Target URL</div><div class="v"><input type="text" id="bb-url" value="${Orion.esc(liveUrl)}" style="width:100%"></div>
-          <div class="k">Endpoint path</div><div class="v"><input type="text" id="bb-path" value="/" style="width:100%"></div>
-          <div class="k">File field</div><div class="v"><input type="text" id="bb-field" value="image" style="width:120px"></div>
-          <div class="k">epsilon</div><div class="v"><input type="number" step="any" id="bb-eps" value="0.05" style="width:120px"></div>
-          <div class="k">max queries</div><div class="v"><input type="number" id="bb-q" value="20" style="width:120px"></div>
-        </div>
-        <div class="btn-row" style="margin-top:0.4rem;"><button class="btn btn-red" id="run-bbox">[ CONFIRM & RUN BLACK-BOX ATTACK ]</button></div>` : "";
-      wrap("ATTACK", `<div class="kv">
-        <div class="k">Experiment</div><div class="v">${Orion.esc(prop.name || "—")}</div>
-        <div class="k">Scenario</div><div class="v">${Orion.esc(prop.scenario || "manual")}</div>
-        <div class="k">Status</div><div class="v">${Orion.esc(ws.stages.attack)}</div></div>
-        ${plines ? `<pre class="term-pre">PARAMETERS\n${plines}</pre>` : ""}
-        <div class="btn-row">${done ? `<button class="btn" id="to-measure">[ VIEW MEASUREMENTS ]</button>`
-          : `<button class="btn btn-red" id="run-attack" data-sensitive="${!!prop.sensitive}">${label}</button>
-             <span class="sub" style="align-self:center">demo runner (synthetic robustness)</span>`}</div>
-        ${bbox}
-        <div id="attack-out" class="sub" style="margin-top:0.4rem;"></div>`);
-      const bb = document.getElementById("run-bbox");
-      if (bb) bb.addEventListener("click", async () => {
-        if (!bb.dataset.ok) { bb.dataset.ok = "1"; bb.innerHTML = "[ CONFIRM: real queries to " + Orion.esc(document.getElementById("bb-url").value) + " ]"; return; }
-        Orion.setState(document.getElementById("attack-out"), "running", "running live black-box evasion…");
-        try {
-          await Orion.postJSON(`/api/experiment/${wsid}/attack-blackbox`, {
-            url: document.getElementById("bb-url").value, path: document.getElementById("bb-path").value,
-            field: document.getElementById("bb-field").value,
-            epsilon: document.getElementById("bb-eps").value, max_queries: document.getElementById("bb-q").value });
-          loadWorkspace(wsid);
-        } catch (e) { Orion.setState(document.getElementById("attack-out"), "error", "[x] " + e.message); }
-      });
-      const rb = document.getElementById("run-attack");
-      if (rb) rb.addEventListener("click", async () => {
-        if (rb.dataset.sensitive === "true" && !rb.dataset.ok) { rb.dataset.ok = "1"; rb.innerHTML = "[ CONFIRM: RUN SENSITIVE ]"; return; }
-        Orion.setState(document.getElementById("attack-out"), "running", "executing attack…");
-        try { await Orion.postJSON(`/api/experiment/${wsid}/attack`, {}); loadWorkspace(wsid); }
-        catch (e) { Orion.setState(document.getElementById("attack-out"), "error", "[x] " + e.message); }
-      });
-      const tm = document.getElementById("to-measure");
-      if (tm) tm.addEventListener("click", () => renderStage(ws, plan, "measure"));
+      if (done) {
+        wrap("ATTACK", `<div class="kv">
+          <div class="k">Experiment</div><div class="v">${Orion.esc(prop.name || "—")}</div>
+          <div class="k">Status</div><div class="v">${Orion.statusBadge(ws.stages.attack)}</div>
+          <div class="k">Run</div><div class="v">${Orion.esc(ws.attack_run_id || "—")}</div></div>
+          <div class="btn-row"><button class="btn" id="to-measure">[ VIEW MEASUREMENTS ]</button>
+            <a class="btn btn-ghost" href="/runs/${encodeURIComponent(ws.attack_run_id)}">[ VIEW EVIDENCE ]</a></div>
+          <div id="attack-compare" style="margin-top:0.6rem;"></div>`);
+        injectComparison(document.getElementById("attack-compare"), ws.attack_run_id, { demo: DEMO });
+        const tm = document.getElementById("to-measure");
+        if (tm) tm.addEventListener("click", () => renderStage(ws, plan, "measure"));
+        return;
+      }
+      // Not run yet: derive access level, then offer the matching attack catalog.
+      await renderAttackChooser(el, ws, plan, prop);
       return;
     }
 
@@ -185,7 +165,9 @@
             <button class="btn btn-blue" id="to-defend">[ OPEN DEFEND ]</button>
             <a class="btn btn-ghost" href="/runs/${encodeURIComponent(ws.attack_run_id)}">[ VIEW EVIDENCE ]</a>
             <a class="btn btn-ghost" href="/agent?mission=${encodeURIComponent('Explain these measurement results and the trade-off.')}&context=${encodeURIComponent('trace=' + ws.attack_run_id)}">[ EXPLAIN RESULTS ]</a>
-          </div>`);
+          </div>
+          <div id="measure-compare" style="margin-top:0.6rem;"></div>`);
+        injectComparison(document.getElementById("measure-compare"), ws.attack_run_id, { demo: DEMO });
         document.getElementById("to-defend").addEventListener("click", () => { loadWorkspace(wsid); });
       } catch (e) { Orion.setState(el, "error", "[x] " + e.message); }
       return;
@@ -217,21 +199,125 @@ ATTACK CONFIG ... UNCHANGED
 STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
         <div class="btn-row">${done ? "" : `<button class="btn btn-red" id="run-retest">[ RUN RETEST ]</button>`}
           <a class="btn btn-ghost" href="/agent?mission=${encodeURIComponent('Analyze the defense trade-off from this retest.')}">[ ANALYZE TRADE-OFF ]</a></div>
-        <div id="retest-out" style="margin-top:0.4rem;"></div>`);
+        <div id="retest-out" style="margin-top:0.4rem;"></div>
+        <div id="retest-images" style="margin-top:0.6rem;"></div>`);
+      // Before/after visual comparison: the original adversarial example, and the
+      // hardened replay's example if it produced a new image artifact.
+      async function renderRetestImages(afterId) {
+        const host = document.getElementById("retest-images");
+        if (!host) return;
+        host.innerHTML = `<div class="term-title">BEFORE DEFENSE (original adversarial)</div><div id="rt-before"></div>
+          <div class="term-title" style="margin-top:0.5rem;">AFTER DEFENSE (hardened retest)</div><div id="rt-after"></div>`;
+        const hadBefore = await injectComparison(document.getElementById("rt-before"), ws.attack_run_id, { demo: DEMO });
+        const hadAfter = afterId ? await injectComparison(document.getElementById("rt-after"), afterId, { demo: DEMO }) : false;
+        if (!hadBefore && !hadAfter) { host.innerHTML = ""; return; }   // non-image experiment
+        if (!hadAfter) document.getElementById("rt-after").innerHTML = '<div class="state">NO NEW IMAGE ARTIFACT — hardened retest reports metrics only.</div>';
+      }
       const rb = document.getElementById("run-retest");
       if (rb) rb.addEventListener("click", async () => {
         Orion.setState(document.getElementById("retest-out"), "running", "replaying same attack with new posture…");
         try {
           const r = await Orion.postJSON(`/api/experiment/${wsid}/retest`, {});
           document.getElementById("retest-out").innerHTML = comparison(r.comparison, ws.attack_run_id, r.retest_run_id);
+          renderRetestImages(r.retest_run_id);
         } catch (e) { Orion.setState(document.getElementById("retest-out"), "error", "[x] " + e.message); }
       });
       if (done) { try {
         const cmp = await Orion.getJSON(`/orion/compare?before=${encodeURIComponent(ws.attack_run_id)}&after=${encodeURIComponent(ws.retest_run_id)}`);
         document.getElementById("retest-out").innerHTML = comparison(cmp, ws.attack_run_id, ws.retest_run_id);
+        renderRetestImages(ws.retest_run_id);
       } catch (e) {} }
       return;
     }
+  }
+
+  // ATTACK stage: derive access level, then offer the matching attack catalog
+  // with base tuning. White-box runs the real torch+ART attack on the weights;
+  // black-box runs the decision-based query evasion against the live endpoint.
+  async function renderAttackChooser(el, ws, plan, prop) {
+    const wsid = ws.experiment_workspace_id;
+    el.innerHTML = `<div class="term-title">EXPERIMENT / ATTACK</div><div class="state">deriving access level…</div>`;
+    let opt;
+    try { opt = await Orion.getJSON(`/api/experiment/${wsid}/attack-options`); }
+    catch (e) { Orion.setState(el, "error", "[x] " + e.message); return; }
+    const derived = opt.derived || {};
+    const access = el._accessOverride || derived.access_level || "white_box";
+    const cat = opt.catalog || {};
+    const liveUrl = opt.live_url || "";
+    const wbOn = access === "white_box";
+
+    function tuningInputs(a) {
+      const bp = a.base_params || {};
+      return Object.keys(bp).map(k =>
+        `<label class="atk-tune">${k} <input type="number" step="any" data-atk="${Orion.esc(a.id)}" data-param="${Orion.esc(k)}" value="${Orion.esc(bp[k])}"></label>`).join("");
+    }
+    function attackList(level) {
+      const list = cat[level] || [];
+      if (!list.length) return `<div class="state">No ${level.replace("_", "-")} attacks catalogued for this modality.</div>`;
+      return list.map((a, i) => `<label class="atk-opt">
+        <div><input type="radio" name="atk-sel" value="${Orion.esc(a.id)}" data-backend="${Orion.esc(a.backend)}" ${i === 0 ? "checked" : ""}>
+          <strong>${Orion.esc(a.name)}</strong></div>
+        <div class="sub">${Orion.esc(a.about)}</div>
+        <div class="atk-tuning">${tuningInputs(a)}</div></label>`).join("");
+    }
+    const wbInputs = `<div class="kv">
+        <div class="k">Weights path</div><div class="v"><input type="text" id="wb-weights" value="weights/vit_teacher.pth" style="width:100%"></div>
+        <div class="k">Input image</div><div class="v"><input type="text" id="wb-image" value="static/fake/0001_00_00_01_0.jpg" style="width:100%"></div>
+        <div class="k">num_outputs</div><div class="v"><input type="number" id="wb-num" placeholder="(inferred from weights)" style="width:180px"></div></div>`;
+    const bbInputs = `<div class="kv">
+        <div class="k">Target URL</div><div class="v"><input type="text" id="bb-url" value="${Orion.esc(liveUrl)}" style="width:100%"></div>
+        <div class="k">Endpoint path</div><div class="v"><input type="text" id="bb-path" value="/" style="width:100%"></div>
+        <div class="k">File field</div><div class="v"><input type="text" id="bb-field" value="image" style="width:120px"></div>
+        <div class="k">Input image</div><div class="v"><input type="text" id="bb-image" value="static/fake/0001_00_00_01_0.jpg" style="width:100%"></div></div>`;
+
+    el.innerHTML = `<div class="term-title">EXPERIMENT / ATTACK</div>
+      <div class="kv"><div class="k">Experiment</div><div class="v">${Orion.esc(prop.name || "—")}</div></div>
+      <div class="term-title" style="margin-top:0.5rem;">ATTACKER ACCESS LEVEL</div>
+      <div class="btn-row">
+        <button class="btn ${wbOn ? "btn-red" : "btn-ghost"}" id="acc-wb">WHITE-BOX (weights)</button>
+        <button class="btn ${!wbOn ? "btn-red" : "btn-ghost"}" id="acc-bb">BLACK-BOX (query-only)</button></div>
+      <p class="sub">Derived: <strong>${Orion.esc((derived.access_level || "—").replace("_", "-"))}</strong> — ${Orion.esc(derived.reason || "")}</p>
+      <hr class="term-rule">
+      <div class="term-title">${wbOn ? "WHITE-BOX" : "BLACK-BOX"} ATTACKS — base tuning applied, override as needed</div>
+      <div class="atk-catalog">${attackList(access)}</div>
+      ${wbOn ? wbInputs : bbInputs}
+      <div class="btn-row" style="margin-top:0.4rem;"><button class="btn btn-red" id="run-atk">[ RUN ATTACK ]</button>
+        <span class="sub" style="align-self:center">${wbOn ? "real torch+ART attack on the weights (local)" : "real queries to the live endpoint — authorised targets only"}</span></div>
+      <div id="attack-out" class="sub" style="margin-top:0.4rem;"></div>`;
+
+    document.getElementById("acc-wb").addEventListener("click", () => { el._accessOverride = "white_box"; renderAttackChooser(el, ws, plan, prop); });
+    document.getElementById("acc-bb").addEventListener("click", () => { el._accessOverride = "black_box"; renderAttackChooser(el, ws, plan, prop); });
+
+    const run = document.getElementById("run-atk");
+    run.addEventListener("click", async () => {
+      const sel = el.querySelector('input[name="atk-sel"]:checked');
+      if (!sel) return;
+      const id = sel.value, backend = sel.dataset.backend;
+      const params = {};
+      el.querySelectorAll(`.atk-tuning input[data-atk="${id}"]`).forEach(i => { params[i.dataset.param] = i.value; });
+      const out = document.getElementById("attack-out");
+      if (backend === "whitebox_image") {
+        Orion.setState(out, "running", `running white-box ${id} …`);
+        try {
+          await Orion.postJSON(`/api/experiment/${wsid}/attack-whitebox`, {
+            weights_path: document.getElementById("wb-weights").value,
+            image: document.getElementById("wb-image").value,
+            num_outputs: document.getElementById("wb-num").value || null,
+            attack: id, params });
+          loadWorkspace(wsid);
+        } catch (e) { Orion.setState(out, "error", "[x] " + e.message); }
+      } else {
+        if (!run.dataset.ok) { run.dataset.ok = "1"; run.textContent = "[ CONFIRM: real queries to " + (document.getElementById("bb-url").value || "endpoint") + " ]"; return; }
+        Orion.setState(out, "running", `running black-box ${id} …`);
+        try {
+          await Orion.postJSON(`/api/experiment/${wsid}/attack-blackbox`, {
+            url: document.getElementById("bb-url").value, path: document.getElementById("bb-path").value,
+            field: document.getElementById("bb-field").value, image: document.getElementById("bb-image").value,
+            epsilon: params.epsilon, max_queries: params.max_queries });
+          loadWorkspace(wsid);
+        } catch (e) { Orion.setState(out, "error", "[x] " + e.message); }
+      }
+    });
   }
 
   function comparison(cmp, beforeId, afterId) {
@@ -256,6 +342,7 @@ STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
         const rows = Object.keys(met).filter(k => met[k] && typeof met[k].value !== "undefined")
           .map(k => `<tr><td>${k.replace(/_/g, " ")}</td><td>${Orion.esc(met[k].value)}</td></tr>`).join("");
         html += `<table class="orion"><tbody>${rows || '<tr><td class=sub>no metrics</td></tr>'}</tbody></table>
+          ${Orion.imageComparison(rec, trace, { demo: DEMO })}
           <div class="btn-row"><a class="btn btn-blue" href="/defend/${encodeURIComponent(trace)}">[ OPEN DEFEND ]</a>
           <a class="btn btn-ghost" href="/runs/${encodeURIComponent(trace)}">[ VIEW EVIDENCE ]</a></div>`;
       } else {
@@ -266,6 +353,7 @@ STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
       }
       html += `</div>`;
       root.innerHTML = html;
+      Orion.wireImageAmplify(root);
       const cr = document.getElementById("compat-retest");
       if (cr) cr.addEventListener("click", async () => {
         Orion.setState(document.getElementById("cr-out"), "running", "retesting…");

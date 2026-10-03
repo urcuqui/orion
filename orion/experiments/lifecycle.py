@@ -206,6 +206,69 @@ def run_blackbox_attack(ws: ExperimentLifecycle, params: Dict[str, Any],
     return {"trace_id": rec.trace_id, "status": rec.status, "mode": "blackbox"}
 
 
+def attack_options(ws: ExperimentLifecycle, base_dir: str = DEFAULT_DIR) -> Dict[str, Any]:
+    """Derive the default access level and the attack catalog for the console.
+
+    White-box vs black-box is *derived* from the plan's origin (Know Yourself →
+    weights; external live service → query-only) and offered for confirm/override.
+    """
+    from orion import plans as PL
+    from orion.adversarial.catalog import catalog, derive_access_level
+    plan = PL.load_plan(ws.plan_id, base_dir)
+    target = (getattr(plan, "target", {}) or {}) if plan else {}
+    url = target.get("target") if isinstance(target, dict) else None
+    live = bool(url and str(url).startswith("http"))
+    derived = derive_access_level(self_profile_id=ws.self_profile_id,
+                                  target_url=url if live else None)
+    return {"derived": derived, "catalog": catalog("image"),
+            "live_url": url if live else None}
+
+
+def run_whitebox_attack(ws: ExperimentLifecycle, params: Dict[str, Any],
+                        base_dir: str = DEFAULT_DIR) -> Dict[str, Any]:
+    """Run a real white-box (torch + ART) adversarial-image attack on the weights."""
+    from orion import plans as PL
+    plan = PL.load_plan(ws.plan_id, base_dir)
+    if plan is None or not plan.approved_by_human:
+        raise StageError("white-box attack requires an approved plan")
+    params = params or {}
+    weights = params.get("weights_path")
+    image = params.get("image")
+    if not weights:
+        raise StageError("white-box attack requires a model weights path")
+    if not image:
+        raise StageError("white-box attack requires an input image")
+    attack = params.get("attack", "CarliniL2")
+    provenance = {
+        "source_type": "whitebox_attack", "plan_id": ws.plan_id,
+        "experiment_id": ws.active_experiment_id, "analysis_context_id": ws.analysis_context_id,
+        "self_profile_id": ws.self_profile_id, "target_profile_id": ws.target_profile_id,
+        "environment_profile_id": ws.environment_profile_id, "threat_model_id": ws.threat_model_id,
+        "experiment_workspace_id": ws.experiment_workspace_id,
+    }
+    ws.stages["attack"] = RUNNING
+    save(ws, base_dir)
+    try:
+        from orion.adversarial import infer_num_outputs, run_adversarial_experiment
+        num_outputs = params.get("num_outputs") or infer_num_outputs(weights)
+        rec = run_adversarial_experiment(
+            weights_path=weights, num_outputs=int(num_outputs), image_path=image,
+            attack=attack, params=params.get("params") or {},
+            base_dir=base_dir, provenance=provenance)
+    except Exception:
+        ws.stages["attack"] = FAILED
+        save(ws, base_dir)
+        raise
+    ws.attack_run_id = rec.trace_id
+    ws.measurement_id = rec.trace_id
+    ws.stages["attack"] = COMPLETE
+    ws.stages["measure"] = READY
+    ws.current_stage = "measure"
+    save(ws, base_dir)
+    return {"trace_id": rec.trace_id, "status": rec.status, "mode": "whitebox",
+            "attack": attack, "num_outputs": int(num_outputs)}
+
+
 def measure(ws: ExperimentLifecycle, base_dir: str = DEFAULT_DIR) -> Dict[str, Any]:
     if ws.stages.get("attack") != COMPLETE or not ws.attack_run_id:
         raise StageError("measure requires a completed attack")

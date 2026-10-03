@@ -268,7 +268,22 @@ table.compare td.col-hardened { color: var(--green); }
 .img-panel { border: 1px solid var(--border); background: var(--panel-alt); padding: 0.6rem; text-align: center; }
 .img-panel h4 { margin: 0 0 0.5rem; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
 .img-panel.adv h4 { color: var(--red); }
-.img-panel img { width: 100%; height: auto; border: 1px solid var(--border); image-rendering: auto; background: #000; }
+.img-panel img, .img-panel canvas { width: 100%; height: auto; border: 1px solid var(--border); image-rendering: auto; background: #000; cursor: zoom-in; }
+.img-panel .sub { margin-top: 0.4rem; font-size: 0.72rem; line-height: 1.3; }
+.btn-link { background: none; border: none; color: var(--green); font: inherit; cursor: pointer; padding: 0; text-decoration: underline; }
+.btn-link:hover { color: var(--amber); }
+.img-compare .term-pre { margin: 0 0 0.7rem; }
+.img-compare.demo { border: 1px solid var(--green); box-shadow: 0 0 14px rgba(92,255,138,0.25); }
+.img-compare.demo .img-panel img, .img-compare.demo .img-panel canvas { min-height: 180px; object-fit: contain; }
+
+/* ---------------- Attack catalog (access level + base tuning) ------------- */
+.atk-catalog { display: flex; flex-direction: column; gap: 0.5rem; margin: 0.5rem 0; }
+.atk-opt { display: block; border: 1px solid var(--border); background: var(--panel-alt); padding: 0.55rem 0.7rem; cursor: pointer; }
+.atk-opt:has(input:checked) { border-color: var(--red); box-shadow: inset 0 0 0 1px var(--red-dark); }
+.atk-opt strong { margin-left: 0.3rem; }
+.atk-tuning { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.45rem; }
+.atk-tune { font-size: 0.72rem; color: var(--muted); display: inline-flex; align-items: center; gap: 0.3rem; }
+.atk-tune input { width: 90px; }
 
 /* ---------------- States (idle/loading/empty/error) ---------------- */
 .state { padding: 1.5rem; text-align: center; color: var(--muted); font-size: 0.9rem; border: 1px dashed var(--border); }

@@ -20,6 +20,7 @@ def run_adversarial_experiment(
     image_path: str,
     labels: Optional[Dict[int, str]] = None,
     attack: str = "CarliniL2",
+    params: Optional[Dict[str, Any]] = None,
     threat_model: Optional[Dict[str, Any]] = None,
     scenario_name: str = "adversarial-image",
     base_dir: str = "artifacts",
@@ -31,12 +32,14 @@ def run_adversarial_experiment(
     Returns the persisted :class:`ExperimentRecord`. Raises ``RuntimeError`` if
     torch/ART are unavailable so the caller can surface a clean error.
     """
+    params = params or {}
     res = generate_adversarial_evidence(
         weights_path=weights_path,
         num_outputs=int(num_outputs),
         image_path=image_path,
         labels=labels or {0: "fake", 1: "real"},
         attack=attack,
+        params=params,
         output_dir=output_dir,
     )
 
@@ -61,7 +64,8 @@ def run_adversarial_experiment(
         model_version=weights_name,
         threat_model=tm,
         attack_technique=f"{attack} (white-box)",
-        parameters={"nb_classes": int(num_outputs), "input_shape": "3x224x224"},
+        parameters={"nb_classes": int(num_outputs), "input_shape": "3x224x224",
+                    "tuning": {k: v for k, v in params.items()}},
         baseline_result={
             "prediction": res.baseline_prediction,
             "confidence": res.baseline_confidence,

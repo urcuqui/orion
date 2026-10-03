@@ -221,5 +221,73 @@
       </div>`;
   };
 
+  // ---- reusable image-attack comparison (Original / Adversarial / Perturbation) ----
+  // Type-aware: returns "" when the run has no image artifacts (non-image attacks).
+  Orion.imageComparison = function (rec, traceId, opts) {
+    opts = opts || {};
+    const art = (rec && rec.artifacts) || {};
+    if (!art.original && !art.adversarial) return "";
+    const base = "/api/artifacts/" + encodeURIComponent(traceId) + "/";
+    const br = rec.baseline_result || {}, ar = rec.adversarial_result || {};
+    const met = rec.metrics || {};
+    const mv = (k) => (met[k] && typeof met[k].value !== "undefined") ? met[k].value : null;
+    const linf = mv("perturbation_linf"), l2 = mv("perturbation_l2");
+    const origPred = br.prediction || br.decision || "—";
+    const advPred = ar.prediction || ar.decision || "—";
+    const changed = String(origPred) !== String(advPred);
+    const success = (met.attack_success && met.attack_success.value) || rec.status === "ATTACK_SUCCESS";
+
+    function panel(cls, title, file, sub) {
+      const img = file ? `<a href="${base + encodeURIComponent(file)}" target="_blank" title="click to inspect">
+        <img src="${base + encodeURIComponent(file)}" alt="${Orion.esc(title)}"></a>` :
+        '<div class="state">NO IMAGE ARTIFACT</div>';
+      return `<div class="img-panel ${cls}"><h4>${Orion.esc(title)}</h4>${img}<div class="sub">${sub}</div></div>`;
+    }
+
+    const summary = `<pre class="term-pre">ATTACK: ${Orion.esc(rec.attack_technique || rec.scenario_name || "—")}
+STATUS: ${Orion.esc(rec.status || "—")}
+ORIGINAL:    ${Orion.esc(origPred)}${br.confidence != null ? " / " + br.confidence : ""}
+ADVERSARIAL: ${Orion.esc(advPred)}${ar.confidence != null ? " / " + ar.confidence : ""}
+RESULT: ${changed ? "CLASSIFICATION CHANGED" : (success ? "ATTACK SUCCESS" : "ATTACK FAILED / UNCHANGED")}${linf != null ? "\nPERTURBATION: L∞ = " + linf + (l2 != null ? " · L2 = " + l2 : "") : ""}</pre>`;
+
+    const pertSub = (linf != null ? `L∞: ${linf}` : "") + (l2 != null ? ` · L2: ${l2}` : "") +
+      `<br><span class="sub">absolute difference</span> <button class="btn-link img-amp" data-img="${base + encodeURIComponent(art.difference || "")}">[ amplify ]</button>`;
+
+    return `<div class="term"><div class="term-title">IMAGE ATTACK RESULT ${success ? '<span class="badge badge-attack_success">ATTACK_SUCCESS</span>' : ''}</div>
+      ${summary}
+      <div class="img-triptych">
+        ${panel("", "Original", art.original, "Prediction: " + Orion.esc(origPred) + (br.confidence != null ? "<br>Confidence: " + br.confidence : ""))}
+        ${panel("adv", "Adversarial", art.adversarial, "Prediction: " + Orion.esc(advPred) + (ar.confidence != null ? "<br>Confidence: " + ar.confidence : ""))}
+        ${panel("", "Perturbation / Difference map", art.difference, pertSub)}
+      </div></div>`;
+  };
+
+  // Amplify a difference image in-place (canvas) — display-only, never metrics.
+  Orion.wireImageAmplify = function (container) {
+    (container || document).querySelectorAll(".img-amp").forEach(function (btn) {
+      if (btn.dataset.wired) return; btn.dataset.wired = "1";
+      btn.addEventListener("click", function () {
+        const panel = btn.closest(".img-panel");
+        const imgEl = panel && panel.querySelector("img");
+        if (!imgEl) return;
+        if (btn.dataset.on === "1") { imgEl.style.display = ""; const cv = panel.querySelector("canvas"); if (cv) cv.remove(); btn.textContent = "[ amplify ]"; btn.dataset.on = "0"; return; }
+        const im = new Image(); im.crossOrigin = "anonymous";
+        im.onload = function () {
+          const cv = document.createElement("canvas"); cv.width = im.naturalWidth; cv.height = im.naturalHeight;
+          cv.style.cssText = imgEl.style.cssText; cv.className = "amp-canvas";
+          const ctx = cv.getContext("2d"); ctx.drawImage(im, 0, 0);
+          try {
+            const d = ctx.getImageData(0, 0, cv.width, cv.height); const f = 8;
+            for (let i = 0; i < d.data.length; i += 4) { d.data[i] = Math.min(255, d.data[i]*f); d.data[i+1] = Math.min(255, d.data[i+1]*f); d.data[i+2] = Math.min(255, d.data[i+2]*f); }
+            ctx.putImageData(d, 0, 0);
+          } catch (e) { /* cross-origin taint — leave as-is */ }
+          imgEl.style.display = "none"; imgEl.parentNode.appendChild(cv);
+          btn.textContent = "[ amplified ×8 · display only ]"; btn.dataset.on = "1";
+        };
+        im.src = btn.dataset.img;
+      });
+    });
+  };
+
   window.Orion = Orion;
 })();

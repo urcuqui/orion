@@ -187,18 +187,70 @@ experiment (queue), and `attack_run_id / measurement_id / defense_id /
 retest_run_id`. Transitions are **deterministic and fail-closed** (no attack
 before an approved plan; no measure before attack; no retest before an applied
 defense), and a deterministic next-action engine drives the UI — never the LLM.
-The ATTACK stage offers **two runners**: a **demo runner** (synthetic/white-box
-robustness via `scenarios/pgd_evasion.yaml`, reproducible without a GPU) and,
-when the target is a live URL, a **real black-box evasion** runner
-(`orion.adversarial.run_blackbox_evasion`) that sends L∞-bounded perturbed inputs
-to the detected endpoint and measures the decision change (decision-based, bounded
-query budget, real evidence). Attack execution stays **explicit**
-(`[ RUN EXPERIMENT ]` / `[ CONFIRM & RUN BLACK-BOX ATTACK ]` for the live one). Retest replays the **same attack**
+The ATTACK stage starts from the **attacker's access level**, which is the
+operational form of the threat model's `adversary.knowledge` and is **derived**
+from the plan's origin — Know Yourself (you own the model) → **white-box** weights;
+an external live service → **black-box** query-only — then shown for the analyst to
+**confirm or override** (never a silent decision). The chosen level drives an
+**attack catalog** (`orion/adversarial/catalog.py`), each entry shipping **base
+tuning** so a run is one click away while every parameter stays editable:
+
+* **White-box** → real gradient attacks (torch + ART) on the weights:
+  **C&W (L2)**, **PGD (L∞)**, **FGSM** — `orion.adversarial.run_adversarial_experiment`.
+  The class count is **inferred from the checkpoint** (`infer_num_outputs`), not
+  demanded from the user.
+* **Black-box** → **decision-based query evasion**
+  (`orion.adversarial.run_blackbox_evasion`): L∞-bounded perturbed inputs to the
+  live endpoint, measuring the decision change under a bounded query budget.
+
+A **demo runner** (synthetic robustness via `scenarios/pgd_evasion.yaml`,
+reproducible without a GPU) remains for the no-weights/no-GPU path. Attack
+execution stays **explicit** (`[ RUN ATTACK ]`, with a confirm step before any
+real queries to a live endpoint). Image attacks then render the
+[Image Attack Comparison](#image-attack-comparison) immediately. Retest replays the **same attack**
 under the new posture and the BEFORE/AFTER comparison is a *result* of retest.
 Provenance links the whole chain
 (`self → target → environment → context → threat_model → plan → experiment →
 run → defense → retest`). Legacy `/attack`, `/measure`, `/defend` reuse this one
 workspace (no parallel UX); **Evidence** stays globally accessible.
+
+## Image Attack Comparison
+
+When an attack operates on images, Orion shows the attack the way an analyst
+reasons about it — **side by side**:
+
+```
+ORIGINAL            ADVERSARIAL          PERTURBATION / DIFFERENCE MAP
+prediction: cat     prediction: dog      L∞ = 0.0312  ·  L2 = 1.456
+confidence: 0.98    confidence: 0.71     absolute difference  [ amplify ]
+```
+
+The third panel is the **perturbation / difference map** (`|adversarial −
+original|`), never a "mask" unless a real segmentation mask exists. The
+comparison is a **reusable, type-aware artifact**, not a one-off view:
+
+* **One source of truth.** A single Jinja component
+  (`templates/components/image_attack_comparison.html`) renders it server-side on
+  **Evidence** (`/runs/<id>`), and the matching client renderer
+  (`Orion.imageComparison`) renders the *identical* markup inside the Experiment
+  console at the **Attack**, **Measure** and **Retest** stages — so it appears
+  **immediately after an image attack runs**, not only in Evidence.
+* **Type-aware.** Tabular, text, agentic and network experiments carry no image
+  artifacts, so the component renders **nothing** for them — no empty panels.
+* **Honest semantics.** The prediction change is explicit (**CLASSIFICATION
+  CHANGED** vs **ATTACK FAILED / UNCHANGED**), and attack success comes from the
+  experiment's own metric (`attack_success`), **not** from how different the
+  images look.
+* **Display vs measurement.** Images are denormalized/clipped **for display
+  only**; the reported `perturbation_linf` / `perturbation_l2` are the **raw**
+  metric values, shown verbatim. The **[ amplify ]** control scales the
+  difference image ×8 **for visibility only** (labelled display-only) and never
+  touches the numbers. Click any panel to inspect the raw artifact.
+* **Retest before/after.** Retest shows the original adversarial example
+  *before* defense and the hardened replay *after*; if the hardened replay
+  produced no new image, it says **NO NEW IMAGE ARTIFACT** rather than
+  fabricating one.
+* **Conference mode.** Append `?demo=1` to make the comparison prominent.
 
 ## 7. AI agents
 

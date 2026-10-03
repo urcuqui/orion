@@ -1,0 +1,68 @@
+{#
+  Reusable image-attack comparison: Original · Adversarial · Perturbation/Difference.
+
+  Type-aware by design: when the run carries no image artifacts (tabular / text /
+  agentic / network evidence), the macro renders NOTHING — no empty panels. The
+  identical markup is driven client-side by Orion.imageComparison() so the Attack,
+  Measure and Retest stages of the Experiment console stay in sync with Evidence.
+
+  Args:
+    record   : ExperimentRecord (or dict) with .artifacts, .baseline_result,
+               .adversarial_result, .metrics, .status, .attack_technique
+    trace_id : run id used to resolve /api/artifacts/<trace_id>/<file>
+    title    : panel heading (default "Image Attack Result")
+    demo     : when true, add the `demo` class for conference-mode prominence
+#}
+{% macro image_attack_comparison(record, trace_id, title='Image Attack Result', demo=false) %}
+{% set art = record.artifacts or {} %}
+{% if art.get('original') or art.get('adversarial') %}
+  {% set br = record.baseline_result or {} %}
+  {% set ar = record.adversarial_result or {} %}
+  {% set met = record.metrics or {} %}
+  {% set orig_pred = br.get('prediction', br.get('decision', '—')) %}
+  {% set adv_pred = ar.get('prediction', ar.get('decision', '—')) %}
+  {% set changed = (orig_pred|string) != (adv_pred|string) %}
+  {% set success = (met.get('attack_success', {}).get('value')) or (record.status == 'ATTACK_SUCCESS') %}
+  {% set linf = met.get('perturbation_linf', {}).get('value') %}
+  {% set l2 = met.get('perturbation_l2', {}).get('value') %}
+  <div class="panel img-compare {{ 'demo' if demo else '' }}">
+    <div class="panel-title">{{ title }}
+      {% if success %}<span class="badge badge-attack_success">ATTACK_SUCCESS</span>{% endif %}
+    </div>
+    <pre class="term-pre">ATTACK: {{ record.attack_technique or record.scenario_name or '—' }}
+STATUS: {{ record.status or '—' }}
+ORIGINAL:    {{ orig_pred }}{% if br.get('confidence') is not none %} / {{ br.confidence }}{% endif %}
+
+ADVERSARIAL: {{ adv_pred }}{% if ar.get('confidence') is not none %} / {{ ar.confidence }}{% endif %}
+
+RESULT: {% if changed %}CLASSIFICATION CHANGED{% elif success %}ATTACK SUCCESS{% else %}ATTACK FAILED / UNCHANGED{% endif %}{% if linf is not none %}
+PERTURBATION: L∞ = {{ linf }}{% if l2 is not none %} · L2 = {{ l2 }}{% endif %}{% endif %}</pre>
+    <div class="img-triptych">
+      {% if art.get('original') %}
+      <div class="img-panel">
+        <h4>Original</h4>
+        <a href="/api/artifacts/{{ trace_id }}/{{ art.original }}" target="_blank" title="click to inspect">
+          <img src="/api/artifacts/{{ trace_id }}/{{ art.original }}" alt="original"></a>
+        <div class="sub">Prediction: {{ orig_pred }}{% if br.get('confidence') is not none %}<br>Confidence: {{ br.confidence }}{% endif %}</div>
+      </div>{% endif %}
+      {% if art.get('adversarial') %}
+      <div class="img-panel adv">
+        <h4>Adversarial</h4>
+        <a href="/api/artifacts/{{ trace_id }}/{{ art.adversarial }}" target="_blank" title="click to inspect">
+          <img src="/api/artifacts/{{ trace_id }}/{{ art.adversarial }}" alt="adversarial"></a>
+        <div class="sub">Prediction: {{ adv_pred }}{% if ar.get('confidence') is not none %}<br>Confidence: {{ ar.confidence }}{% endif %}</div>
+      </div>{% endif %}
+      {% if art.get('difference') %}
+      <div class="img-panel">
+        <h4>Perturbation / Difference map</h4>
+        <a href="/api/artifacts/{{ trace_id }}/{{ art.difference }}" target="_blank" title="click to inspect">
+          <img src="/api/artifacts/{{ trace_id }}/{{ art.difference }}" alt="difference"></a>
+        <div class="sub">{% if linf is not none %}L∞: {{ linf }}{% endif %}{% if l2 is not none %} · L2: {{ l2 }}{% endif %}<br>
+          <span class="sub">absolute difference</span>
+          <button class="btn-link img-amp" data-img="/api/artifacts/{{ trace_id }}/{{ art.difference }}">[ amplify ]</button>
+        </div>
+      </div>{% endif %}
+    </div>
+  </div>
+{% endif %}
+{% endmacro %}

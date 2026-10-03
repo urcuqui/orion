@@ -55,12 +55,49 @@ class AdversarialImageResult:
         }
 
 
+def infer_num_outputs(weights_path: str, default: int = 2) -> int:
+    """Read the classifier-head size straight from the checkpoint.
+
+    Lets the console offer white-box attacks without asking the analyst for the
+    class count — it is a property of the weights, not a tuning choice.
+    """
+    if not TORCH_AVAILABLE:
+        return default
+    import torch
+    sd = torch.load(weights_path, map_location="cpu")
+    if isinstance(sd, dict):
+        sd = sd.get("state_dict", sd)
+    for suffix in ("head.bias", "head.weight"):
+        for k, v in getattr(sd, "items", lambda: [])():
+            if k.endswith(suffix) and hasattr(v, "shape"):
+                return int(v.shape[0])
+    return default
+
+
+def _build_attack(name: str, classifier, params: Dict[str, Any]):
+    """Construct the real ART attack for a catalog id, applying base tuning."""
+    from art.attacks.evasion import CarliniL2Method, FastGradientMethod, ProjectedGradientDescent
+    key = (name or "").strip().lower()
+    if key in ("fgsm", "fastgradient", "fast_gradient"):
+        return FastGradientMethod(classifier, eps=float(params.get("eps", 0.03)))
+    if key in ("pgd", "projectedgradientdescent", "projected_gradient"):
+        return ProjectedGradientDescent(
+            classifier, eps=float(params.get("eps", 0.03)),
+            eps_step=float(params.get("eps_step", 0.005)),
+            max_iter=int(params.get("max_iter", 20)))
+    # Default: Carlini & Wagner L2.
+    return CarliniL2Method(
+        classifier, max_iter=int(params.get("max_iter", 10)),
+        confidence=float(params.get("confidence", 0.0)))
+
+
 def generate_adversarial_evidence(
     weights_path: str,
     num_outputs: int,
     image_path: str,
     labels: Optional[Dict[int, str]] = None,
     attack: str = "CarliniL2",
+    params: Optional[Dict[str, Any]] = None,
     output_dir: str = "static/adversarial",
 ) -> AdversarialImageResult:
     """Run a structured adversarial-image experiment.
@@ -79,7 +116,6 @@ def generate_adversarial_evidence(
     import timm
     from PIL import Image
     from torchvision import transforms
-    from art.attacks.evasion import CarliniL2Method
     from art.estimators.classification import PyTorchClassifier
 
     labels = labels or {0: "fake", 1: "real"}
@@ -121,7 +157,7 @@ def generate_adversarial_evidence(
 
     base_idx, base_conf = _predict(x)
 
-    atk = CarliniL2Method(classifier)
+    atk = _build_attack(attack, classifier, params or {})
     adv = atk.generate(x.numpy())
     adv_t = torch.from_numpy(adv)
     adv_idx, adv_conf = _predict(adv_t)
