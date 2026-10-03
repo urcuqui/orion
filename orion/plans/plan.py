@@ -96,6 +96,10 @@ class ExperimentPlan:
     plan_id: str = field(default_factory=new_plan_id)
     source_type: str = "know_yourself"     # know_yourself | know_your_target
     source_analysis_id: Optional[str] = None
+    analysis_context_id: Optional[str] = None
+    self_profile_id: Optional[str] = None
+    target_profile_id: Optional[str] = None
+    environment_profile_id: Optional[str] = None
     threat_model_id: Optional[str] = None
     created_at: str = field(default_factory=_now)
     target: Dict[str, Any] = field(default_factory=dict)
@@ -149,6 +153,10 @@ class ExperimentPlan:
             "plan_id": self.plan_id,
             "source_analysis_id": self.source_analysis_id,
             "source_type": self.source_type,
+            "analysis_context_id": self.analysis_context_id,
+            "self_profile_id": self.self_profile_id,
+            "target_profile_id": self.target_profile_id,
+            "environment_profile_id": self.environment_profile_id,
             "target": self.target,
             "system_profile": self.system_profile,
             "threat_model_id": self.threat_model_id,
@@ -263,6 +271,7 @@ def build_plan_from_target_analysis(assessment: Dict[str, Any]) -> ExperimentPla
     plan = ExperimentPlan(
         source_type="know_your_target",
         source_analysis_id=assessment.get("recon_run_id") or assessment.get("recon_run"),
+        environment_profile_id=assessment.get("environment_profile_id"),
         target=target,
         system_profile={"target_types": assessment.get("target_types"),
                         "ai_surface": assessment.get("ai_surface")},

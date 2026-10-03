@@ -75,6 +75,11 @@ def adversarial_page():
 def attack_workspace_page():
     return render_template('attack.html')
 
+@app.route('/environment')
+@app.route('/environment/<env_id>')
+def environment_page(env_id=None):
+    return render_template('environment.html', env_id=env_id)
+
 @app.route('/measure')
 @app.route('/measure/<trace_id>')
 def measure_page(trace_id=None):

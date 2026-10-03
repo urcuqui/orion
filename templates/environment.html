@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% from "components/methodology.html" import methodology_bar %}
+{% set section = 'env' %}
+{% block title %}Know The Environment — ORION{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/target-analysis.css') }}">{% endblock %}
+
+{% block content %}
+<div class="term">
+  <div class="term-title">ORION // KNOW THE ENVIRONMENT</div>
+  <p class="sub" style="margin:0;">Map the terrain around the target: assets, technologies, external &amp; AI
+    dependencies, MCP/tools, identity and trust relationships. Recon is one data source here —
+    it populates the <strong>Environment Profile</strong>.</p>
+</div>
+{{ methodology_bar('understand') }}
+<div id="env-root" data-env-id="{{ env_id or '' }}"><div class="state">Loading…</div></div>
+{% endblock %}
+
+{% block scripts %}
+<script>document.body.dataset.targetUrl = "{{ url_for('target_analysis_page') }}";
+document.body.dataset.reconUrl = "{{ url_for('know_environment') }}";</script>
+<script src="{{ url_for('static', filename='js/environment.js') }}"></script>
+{% endblock %}

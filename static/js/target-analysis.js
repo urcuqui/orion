@@ -377,11 +377,38 @@ ${(tm.surfaces||[]).map(s=>"[+] "+s).join("\n") || "  (none)"}</pre>`;
   const gbtn = document.getElementById("btn-guided");
   if (gbtn) gbtn.addEventListener("click", startGuided);
 
+  // ---- analysis context from an Environment Profile ----
+  async function analyzeEnvironment(envId) {
+    showCap("agent");
+    Orion.setState(assessmentEl, "running", "loading environment profile & interpreting…");
+    assessmentEl.classList.remove("hidden");
+    try {
+      current = await Orion.postJSON("/api/environment/" + encodeURIComponent(envId) + "/analyze", {});
+      // Prepend an Analysis Context summary (which profiles are loaded).
+      renderAssessment(current);
+      const banner = document.createElement("div");
+      banner.className = "assessment-box";
+      banner.innerHTML = `<div class="term-title">ORION // ANALYSIS CONTEXT</div>
+        <div class="statusline">
+          <div><span class="off">[-]</span> SELF PROFILE: NOT_AVAILABLE</div>
+          <div><span class="warn">[!]</span> TARGET PROFILE: PARTIAL (define objective below)</div>
+          <div><span class="ok">[+]</span> ENVIRONMENT PROFILE: ${Orion.esc(envId)} [ LOADED ]</div>
+          <div>STATUS: PARTIAL CONTEXT</div>
+        </div>
+        <div class="sub">Coverage: SELF NOT_AVAILABLE · TARGET PARTIAL · ENVIRONMENT COMPLETE. Orion does not invent missing context.</div>`;
+      assessmentEl.prepend(banner);
+    } catch (e) {
+      Orion.setState(assessmentEl, "error", "[x] " + e.message);
+    }
+  }
+
   // ---- deep links ----
   const p = new URLSearchParams(window.location.search);
   const cap = p.get("cap");
   const reconId = p.get("recon");
-  if (reconId) { showCap("recon"); analyzeRecon(reconId); }
+  const envProfileId = p.get("environment_profile_id");
+  if (envProfileId) { analyzeEnvironment(envProfileId); }
+  else if (reconId) { showCap("recon"); analyzeRecon(reconId); }
   else if (cap && caps.includes(cap)) showCap(cap);
   else showCap("recon");
 })();

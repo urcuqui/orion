@@ -190,6 +190,96 @@ def api_adversarial_run():
 
 
 # --------------------------------------------------------------------------- #
+# Know the Environment: Environment Profile (normalized from recon), Target
+# Profile, and the shared Analysis Context.
+# --------------------------------------------------------------------------- #
+@api_bp.post("/environment/from-recon/<run_id>")
+def api_env_from_recon(run_id):
+    """Normalize a completed recon run into a persistent Environment Profile."""
+    from orion.target_analysis import summarize_recon
+    from orion.context import build_environment_profile, save_profile
+    summary = summarize_recon(run_id)
+    if summary is None:
+        return jsonify({"error": "unknown recon run"}), 404
+    profile = build_environment_profile(summary, target_reference=summary.get("target", ""),
+                                        recon_run_id=run_id)
+    save_profile(profile.environment_profile_id, profile.to_dict(), ARTIFACT_DIR)
+    return jsonify(profile.to_dict())
+
+
+@api_bp.post("/environment/from-url")
+def api_env_from_url():
+    """Build an Environment Profile from a direct URL probe (GET-only / active)."""
+    from orion.target_analysis import probe_url
+    from orion.context import build_environment_profile, save_profile
+    payload = request.get_json(silent=True) or {}
+    url = (payload.get("url") or "").strip()
+    if not url:
+        return jsonify({"error": "url required"}), 400
+    try:
+        summary = probe_url(url, active=bool(payload.get("active")))
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    profile = build_environment_profile(summary, target_reference=url)
+    save_profile(profile.environment_profile_id, profile.to_dict(), ARTIFACT_DIR)
+    return jsonify(profile.to_dict())
+
+
+@api_bp.get("/environment/<env_id>")
+def api_env_get(env_id):
+    from orion.context import load_profile
+    data = load_profile(env_id, ARTIFACT_DIR)
+    if data is None:
+        return jsonify({"error": "unknown environment profile"}), 404
+    return jsonify(data)
+
+
+@api_bp.post("/environment/<env_id>/analyze")
+def api_env_analyze(env_id):
+    """Interpret an Environment Profile (lets the environment change applicability)."""
+    from orion.context import load_profile, EnvironmentProfile, environment_to_summary
+    from orion.target_analysis import build_assessment_from_summary
+    data = load_profile(env_id, ARTIFACT_DIR)
+    if data is None:
+        return jsonify({"error": "unknown environment profile"}), 404
+    summary = environment_to_summary(EnvironmentProfile.from_dict(data))
+    assessment = build_assessment_from_summary(summary)
+    assessment["environment_profile_id"] = env_id
+    return jsonify(assessment)
+
+
+@api_bp.post("/target-profile")
+def api_target_profile():
+    from orion.context import build_target_profile, save_profile
+    payload = request.get_json(silent=True) or {}
+    profile = build_target_profile(payload)
+    save_profile(profile.target_profile_id, profile.to_dict(), ARTIFACT_DIR)
+    return jsonify(profile.to_dict())
+
+
+@api_bp.post("/context")
+def api_context_create():
+    from orion.context import build_analysis_context, save_profile
+    payload = request.get_json(silent=True) or {}
+    ctx = build_analysis_context(
+        self_id=payload.get("self_profile_id"),
+        target_id=payload.get("target_profile_id"),
+        environment_id=payload.get("environment_profile_id"),
+        scope=payload.get("scope"))
+    save_profile(ctx.analysis_context_id, ctx.to_dict(), ARTIFACT_DIR)
+    return jsonify(ctx.to_dict())
+
+
+@api_bp.get("/context/<ctx_id>")
+def api_context_get(ctx_id):
+    from orion.context import load_profile
+    data = load_profile(ctx_id, ARTIFACT_DIR)
+    if data is None:
+        return jsonify({"error": "unknown analysis context"}), 404
+    return jsonify(data)
+
+
+# --------------------------------------------------------------------------- #
 # Know Your Target: recon listing + agent interpretation (deterministic)
 # --------------------------------------------------------------------------- #
 @api_bp.get("/recon/runs")

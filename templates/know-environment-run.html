@@ -59,7 +59,7 @@
     <div class="report-panel-header">
       <h2 class="panel-heading">&gt; final report</h2>
       <span>
-        <a class="btn-link" href="{{ url_for('target_analysis_page') }}?recon={{ run_id }}">[ analyze with orion ]</a>
+        <a class="btn-link" id="btn-build-env" href="#" data-run="{{ run_id }}">[ build environment profile ]</a>
         &nbsp;
         <button class="btn-link" id="btn-toggle-raw" type="button">view raw markdown</button>
       </span>
@@ -70,4 +70,18 @@
 </section>
 {% endblock %}
 
-{% block scripts %}<script src="{{ url_for('static', filename='recon/app.js') }}"></script>{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='recon/app.js') }}"></script>
+<script>
+document.getElementById("btn-build-env").addEventListener("click", async function (e) {
+  e.preventDefault();
+  this.textContent = "[ building environment profile… ]";
+  try {
+    const r = await fetch("/api/environment/from-recon/" + encodeURIComponent(this.dataset.run), { method: "POST" });
+    const p = await r.json();
+    if (!r.ok) throw new Error(p.error || "failed");
+    window.location.href = "/environment/" + encodeURIComponent(p.environment_profile_id);
+  } catch (err) { this.textContent = "[ error: " + err.message + " ]"; }
+});
+</script>
+{% endblock %}

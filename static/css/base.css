@@ -325,3 +325,5 @@ body.demo .orion-main { max-width: 1400px; }
 }
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; align-items: start; }
 .ascii-mini { color: var(--dim); font-size: 0.6rem; line-height: 1.1; white-space: pre; }
+
+.orion-nav .nav-sep { color: var(--dim); align-self: center; padding: 0 0.1rem; }

@@ -15,10 +15,13 @@
       {% set sec = section|default('') %}
       <a href="{{ url_for('index') }}" class="{{ 'active' if sec == 'dashboard' }}">Dashboard</a>
       <a href="{{ url_for('know_yourself_page') }}" class="{{ 'active' if sec == 'you' }}">Know Yourself</a>
-      <a href="{{ url_for('target_analysis_page') }}" class="{{ 'active' if sec in ['target','env'] }}">Know Your Target</a>
+      <a href="{{ url_for('target_analysis_page') }}" class="{{ 'active' if sec == 'target' }}">Know Your Target</a>
+      <a href="{{ url_for('environment_page') }}" class="{{ 'active' if sec == 'env' }}">Know The Environment</a>
+      <span class="nav-sep">·</span>
       <a href="{{ url_for('adversarial_page') }}" class="{{ 'active' if sec == 'attack' }}">Attack</a>
       <a href="{{ url_for('measure_page') }}" class="{{ 'active' if sec == 'measure' }}">Measure</a>
       <a href="{{ url_for('defend_page') }}" class="{{ 'active' if sec == 'defend' }}">Defend</a>
+      <span class="nav-sep">·</span>
       <a href="{{ url_for('runs_page') }}" class="{{ 'active' if sec == 'evidence' }}">Evidence</a>
     </nav>
     <button class="crt-toggle" id="crt-toggle" title="toggle CRT effects">CRT: ON</button>

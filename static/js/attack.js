@@ -52,6 +52,8 @@
         <div class="k">Target</div><div class="v">${Orion.esc(t.model || t.target || t.system_type || "unknown")}</div>
         <div class="k">System type</div><div class="v">${Orion.esc(t.system_type || "unknown")}</div>
         <div class="k">Access</div><div class="v">${Orion.esc(t.access || "unknown")}</div>
+        ${h.environment_profile_id ? `<div class="k">Environment profile</div><div class="v">${Orion.esc(h.environment_profile_id)} <span class="ok">[ LOADED ]</span></div>` : ""}
+        ${h.self_profile_id ? `<div class="k">Self profile</div><div class="v">${Orion.esc(h.self_profile_id)} <span class="ok">[ LOADED ]</span></div>` : ""}
         <div class="k">Threat model</div><div class="v">${h.threat_model && Object.keys(h.threat_model).length ? '<span class="ok">[ LOADED ]</span>' : 'N/A'}</div>
         <div class="k">Evidence</div><div class="v">${(plan.evidence_ids||[]).length} item(s) ${plan.evidence_ids && plan.evidence_ids.length ? '<span class="ok">[ LOADED ]</span>' : ''}</div>
         <div class="k">Approved by human</div><div class="v">${plan.approved_by_human ? '<span class="ok">✓ '+Orion.esc(plan.approved_at||"")+'</span>' : 'NO'}</div>

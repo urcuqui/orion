@@ -36,14 +36,48 @@ replayed?*
 
 | Phase | What happens | Package |
 | --- | --- | --- |
-| Understand | Know the target & environment (recon) | `orion.recon` / `libs.recon` |
-| Threat Model | Define assets, adversary, surfaces | `orion.threat_model` |
+| Understand | Build **Self, Target and Environment** context → Analysis Context | `orion.know_yourself`, `orion.target_analysis`, `orion.context` / `libs.recon` |
+| Threat Model | Define assets, adversary, surfaces (from all 3 profiles) | `orion.threat_model` |
 | Attack | Run a controlled, justified attack | `orion.experiments` |
 | Measure | Quantify degradation with metrics | `orion.metrics` |
 | Harden | Apply a candidate defense | `orion.defenses` |
 | Retest | Replay the attack, compare, report | `orion.experiments` + `orion.evidence` |
 
 Full write-up: [docs/methodology.md](docs/methodology.md).
+
+## The Three Context Pillars
+
+Understanding is built from three **distinct** pillars, each producing a reusable
+profile. They are independent and compose progressively (any one may be absent).
+
+### Know Yourself
+Understand the AI system itself → **Self Profile** (`orion.know_yourself`).
+Traditional ML (model-centric) or Generative AI (system-centric).
+
+### Know Your Target
+Define *what* is being assessed and *why* → **Target Profile**
+(`orion.context.target`). It **consumes** Self and Environment profiles; it does
+not own or duplicate reconnaissance.
+
+### Know the Environment
+Map the terrain *around* the target → **Environment Profile**
+(`orion.context.environment`): assets, technologies, external & **AI
+dependencies**, MCP/tool ecosystem, identity context, trust relationships and a
+lightweight topology. **Recon is a data source that populates this profile** — it
+is not the environment model.
+
+These profiles converge into an **Analysis Context** (`orion.context`) used by
+threat modeling and experiment planning:
+
+```
+KNOW YOURSELF ─┐
+KNOW YOUR TARGET ─┼─▶ ANALYSIS CONTEXT ─▶ THREAT MODEL ─▶ EXPERIMENT PLAN
+KNOW THE ENVIRONMENT ─┘        ↓ HUMAN APPROVAL ↓
+                        ATTACK ─▶ MEASURE ─▶ DEFEND ─▶ RETEST ─▶ EVIDENCE
+```
+
+> Know Yourself describes the system. Know Your Target defines the objective.
+> Know the Environment maps the terrain. Orion correlates the evidence. Humans decide.
 
 ## 4. Architecture
 
@@ -156,25 +190,30 @@ Agents are **copilots, not oracles**: they plan and explain; metrics and
 experiments decide the result. Boundaries are enforced in code. See
 [docs/agent-role.md](docs/agent-role.md).
 
-## 8. Know the Environment / Recon
+## 8. Know the Environment (`/environment`)
 
-The reconnaissance workflow is the *Understand* phase. It takes an objective,
-target, iteration limit and approval settings, and can use Playwright, Nuclei
-and MCP tools — always requiring human approval for sensitive actions. Its UI
-extends the shared Orion terminal design system (`base.html`).
+The third context pillar. Reconnaissance (Playwright, Nuclei, MCP tools, SSE,
+mock mode, approvals, screenshots, reports) is **one capability** here — a data
+source that populates the **Environment Profile** (assets, technologies, external
+& AI dependencies, MCP/tools, identity, trust relationships, topology). Build a
+profile from a completed recon run or a direct URL probe, then
+**[ SEND TO TARGET ANALYSIS ]** passes the `environment_profile_id` onward — no
+data is copied by hand.
 
 ## 8b. Know Your Target — evidence-grounded Target Analysis
 
 > **Recon collects. Orion interprets. Humans decide.**
 
-The **Know Your Target** workflow (`/target-analysis`) turns recon evidence into
-an interpretation, following the core principle:
+The **Know Your Target** workflow (`/target-analysis`) defines the Target Profile
+and interprets evidence (from a recon run, a direct probe, or a loaded
+**Environment Profile**), following the core principle:
 
 > **Evidence → applicability → hypothesis → test → finding** (never
 > *generic knowledge → finding*).
 
-Preferred flow: **Recon → Analyze with Orion → Threat Model → Experiment Plan →
-Human review** (also available standalone, or as a one-click *Guided Analysis*).
+It **consumes** the Environment Profile (`?environment_profile_id=…`); it does not
+own reconnaissance. Preferred flow: **Environment Profile → Analyze → Threat
+Model → Experiment Plan → Human review**.
 
 Every conclusion is classified `OBSERVED` / `INFERRED` / `HYPOTHESIS` /
 `NOT_APPLICABLE`, carries evidence references + confidence + rationale, and is
@@ -281,8 +320,10 @@ Navigation (Art of War structure):
   recent activity (real run data), `orion@security:~$`.
 - **Know Yourself** — Traditional ML / Generative AI profiling (fingerprint,
   posture, suggested experiments, **Approve Plan**).
-- **Know Your Target** — Recon + Agent Analysis + Threat Model + Guided Analysis
-  (Know The Environment / reconnaissance lives here, not as a separate top-level).
+- **Know Your Target** — Target Profile + Agent Analysis + Threat Model + Experiment Planning
+  (consumes the Environment Profile; does not own recon).
+- **Know The Environment** — reconnaissance + Environment Profile (assets, AI
+  dependencies, MCP/tools, trust relationships, topology).
 - **Attack** — the Attack workspace loads an approved plan and runs experiments
   explicitly.
 - **Measure** — quantify a run's metrics; bridge to Defend/Evidence.

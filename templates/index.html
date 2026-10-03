@@ -25,26 +25,36 @@
 
   <div class="term">
     <div class="term-title">ORION // ADVERSARIAL INTELLIGENCE SYSTEM</div>
-    <p class="sub" style="margin-top:-0.3rem;">Know yourself. Know the adversary. Know the environment.</p>
+    <p class="sub" style="margin-top:-0.3rem;">Know yourself. Know your target. Know the environment. Orion correlates the evidence; humans decide.</p>
+    <div class="sub" style="color:var(--green);margin-top:0.6rem;letter-spacing:0.1em;">CONTEXT</div>
     <ul class="menu-list">
       <li onclick="location.href='{{ url_for('know_yourself_page') }}'">
         <span class="code">[01]</span><span class="name">Know Yourself</span>
-        <div class="hint">Model / Dataset / Robustness</div></li>
+        <div class="hint">Understand the AI system (Self Profile)</div></li>
       <li onclick="location.href='{{ url_for('target_analysis_page') }}'">
         <span class="code">[02]</span><span class="name">Know Your Target</span>
-        <div class="hint">Recon / Agent Analysis / Threat Model</div></li>
+        <div class="hint">Define what is being evaluated (Target Profile)</div></li>
+      <li onclick="location.href='{{ url_for('environment_page') }}'">
+        <span class="code">[03]</span><span class="name">Know The Environment</span>
+        <div class="hint">Map the surrounding terrain (Environment Profile)</div></li>
+    </ul>
+    <div class="sub" style="color:var(--red);margin-top:0.4rem;letter-spacing:0.1em;">OPERATIONS</div>
+    <ul class="menu-list">
       <li onclick="location.href='{{ url_for('adversarial_page') }}'">
-        <span class="code">[03]</span><span class="name">Attack</span>
-        <div class="hint">Adversarial Experiments</div></li>
+        <span class="code">[04]</span><span class="name">Attack</span>
+        <div class="hint">Experiment workspace</div></li>
       <li onclick="location.href='{{ url_for('measure_page') }}'">
-        <span class="code">[04]</span><span class="name">Measure</span>
-        <div class="hint">Metrics / Degradation</div></li>
+        <span class="code">[05]</span><span class="name">Measure</span>
+        <div class="hint">Metrics / results</div></li>
       <li onclick="location.href='{{ url_for('defend_page') }}'">
-        <span class="code">[05]</span><span class="name">Defend</span>
-        <div class="hint">Controls / Harden / Retest</div></li>
+        <span class="code">[06]</span><span class="name">Defend</span>
+        <div class="hint">Controls / hardening / retest</div></li>
+    </ul>
+    <div class="sub" style="color:var(--blue-bright);margin-top:0.4rem;letter-spacing:0.1em;">OBSERVABILITY</div>
+    <ul class="menu-list">
       <li onclick="location.href='{{ url_for('runs_page') }}'">
-        <span class="code">[06]</span><span class="name">Evidence</span>
-        <div class="hint">Runs / Reports / Comparisons</div></li>
+        <span class="code">[07]</span><span class="name">Evidence</span>
+        <div class="hint">Runs / reports / comparisons</div></li>
     </ul>
     <div class="prompt">orion@security:~$ <span class="caret">_</span></div>
   </div>
