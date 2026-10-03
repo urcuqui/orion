@@ -27,6 +27,11 @@
     <div class="panel-title">Provenance</div>
     <p class="sub" style="margin:0;">
       {% if record.provenance.source_type %}source: {{ record.provenance.source_type }} · {% endif %}
+      {% if record.provenance.self_profile_id %}self: {{ record.provenance.self_profile_id }} · {% endif %}
+      {% if record.provenance.target_profile_id %}target: {{ record.provenance.target_profile_id }} · {% endif %}
+      {% if record.provenance.environment_profile_id %}env: {{ record.provenance.environment_profile_id }} · {% endif %}
+      {% if record.provenance.analysis_context_id %}context: {{ record.provenance.analysis_context_id }} · {% endif %}
+      {% if record.provenance.threat_model_id %}tm: {{ record.provenance.threat_model_id }} · {% endif %}
       {% if record.provenance.plan_id %}plan: {{ record.provenance.plan_id }} · {% endif %}
       {% if record.provenance.experiment_id %}experiment: {{ record.provenance.experiment_id }} · {% endif %}
       run: {{ trace_id[:8] }}

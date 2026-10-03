@@ -66,8 +66,14 @@ dependencies**, MCP/tool ecosystem, identity context, trust relationships and a
 lightweight topology. **Recon is a data source that populates this profile** — it
 is not the environment model.
 
-These profiles converge into an **Analysis Context** (`orion.context`) used by
-threat modeling and experiment planning:
+These profiles converge into an **Analysis Context** (`orion.context`) at
+`/context` — pick any combination of Self / Target / Environment (any may be
+absent), **[ RUN AGENT ANALYSIS ]** correlates them into a **source-aware** threat
+model and applicability (each conclusion tagged `SELF` / `TARGET` /
+`ENVIRONMENT`), then **[ APPROVE PLAN ]** hands off to Attack with the full
+context (`analysis_context_id`, `self_profile_id`, `target_profile_id`,
+`environment_profile_id`) preserved end-to-end. It drives threat modeling and
+experiment planning:
 
 ```
 KNOW YOURSELF ─┐

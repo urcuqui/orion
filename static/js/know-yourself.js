@@ -118,7 +118,8 @@
     } else {
       html += `<div class="state">No applicable experiments for this system with current evidence.</div>`;
     }
-    html += `<div class="btn-row" style="margin-top:0.6rem;"><button class="btn btn-red" id="btn-approve-plan">[ REVIEW &amp; EDIT PLAN ]</button></div>
+    html += `<div class="btn-row" style="margin-top:0.6rem;"><button class="btn btn-red" id="btn-approve-plan">[ REVIEW &amp; EDIT PLAN ]</button>
+      ${r.self_profile_id ? `<a class="btn btn-blue" href="/context?self_profile_id=${encodeURIComponent(r.self_profile_id)}">[ ADD TO ANALYSIS CONTEXT ]</a>` : ""}</div>
       <div id="plan-handoff" class="hidden" style="margin-top:0.6rem;"></div>
       <p class="sub" style="color:var(--warning);margin-top:0.4rem;">⚠ Review lets you remove experiments and tune parameters. Approving prepares execution — it never runs attacks.</p></div>`;
 

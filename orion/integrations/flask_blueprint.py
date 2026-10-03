@@ -248,6 +248,33 @@ def api_env_analyze(env_id):
     return jsonify(assessment)
 
 
+@api_bp.get("/profiles")
+def api_profiles_list():
+    """List persisted profiles (self / target / environment) for context building."""
+    base = Path.cwd() / ARTIFACT_DIR
+    out = {"self": [], "target": [], "environment": []}
+    if not base.exists():
+        return jsonify(out)
+    import json as _json
+    for d in sorted(base.iterdir(), reverse=True):
+        if not d.is_dir():
+            continue
+        for fname, key, labelfn in (
+            ("self.json", "self", lambda j: j.get("system_type", "")),
+            ("target.json", "target", lambda j: j.get("name") or j.get("target_type", "")),
+            ("environment.json", "environment", lambda j: j.get("target_reference", "")),
+        ):
+            f = d / fname
+            if f.exists():
+                try:
+                    j = _json.loads(f.read_text(encoding="utf-8"))
+                except Exception:  # noqa: BLE001
+                    continue
+                out[key].append({"id": d.name, "label": labelfn(j),
+                                 "updated_at": j.get("updated_at") or j.get("created_at", "")})
+    return jsonify(out)
+
+
 @api_bp.post("/target-profile")
 def api_target_profile():
     from orion.context import build_target_profile, save_profile
@@ -268,6 +295,34 @@ def api_context_create():
         scope=payload.get("scope"))
     save_profile(ctx.analysis_context_id, ctx.to_dict(), ARTIFACT_DIR)
     return jsonify(ctx.to_dict())
+
+
+@api_bp.post("/context/analyze")
+def api_context_analyze():
+    """Correlate available profiles into a source-aware Analysis Context assessment."""
+    from orion.context import (load_profile, build_analysis_context, save_profile,
+                               build_context_assessment)
+    payload = request.get_json(silent=True) or {}
+    sid = payload.get("self_profile_id")
+    tid = payload.get("target_profile_id")
+    eid = payload.get("environment_profile_id")
+    self_p = load_profile(sid, ARTIFACT_DIR) if sid else None
+    target_p = load_profile(tid, ARTIFACT_DIR) if tid else None
+    env_p = load_profile(eid, ARTIFACT_DIR) if eid else None
+    if not (self_p or target_p or env_p):
+        return jsonify({"error": "provide at least one existing profile id"}), 400
+    ctx = build_analysis_context(self_id=(sid if self_p else None),
+                                 target_id=(tid if target_p else None),
+                                 environment_id=(eid if env_p else None))
+    save_profile(ctx.analysis_context_id, ctx.to_dict(), ARTIFACT_DIR)
+    assessment = build_context_assessment(self_p, target_p, env_p)
+    assessment["analysis_context_id"] = ctx.analysis_context_id
+    assessment["self_profile_id"] = sid if self_p else None
+    assessment["target_profile_id"] = tid if target_p else None
+    assessment["environment_profile_id"] = eid if env_p else None
+    assessment["coverage"] = ctx.coverage()
+    assessment["status"] = ctx.status()
+    return jsonify(assessment)
 
 
 @api_bp.get("/context/<ctx_id>")
@@ -398,8 +453,10 @@ def api_plans_approve():
         plan = PL.build_plan_from_know_yourself(data)
     elif source == "know_your_target" and isinstance(data, dict):
         plan = PL.build_plan_from_target_analysis(data)
+    elif source == "analysis_context" and isinstance(data, dict):
+        plan = PL.build_plan_from_context(data)
     else:
-        return jsonify({"error": "source_type (know_yourself|know_your_target) and analysis required"}), 400
+        return jsonify({"error": "source_type (know_yourself|know_your_target|analysis_context) and analysis required"}), 400
     # Analyst edits (EDIT PLAN): remove experiments / tune parameters / add notes.
     PL.apply_plan_edits(plan, exclude=payload.get("exclude"),
                         overrides=payload.get("overrides"), notes=payload.get("notes"))
@@ -419,6 +476,8 @@ def api_plans_draft():
         plan = PL.build_plan_from_know_yourself(data)
     elif source == "know_your_target" and isinstance(data, dict):
         plan = PL.build_plan_from_target_analysis(data)
+    elif source == "analysis_context" and isinstance(data, dict):
+        plan = PL.build_plan_from_context(data)
     else:
         return jsonify({"error": "source_type and analysis required"}), 400
     plan.status = PL.UNDER_REVIEW

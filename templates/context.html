@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% from "components/methodology.html" import methodology_bar %}
+{% set section = 'target' %}
+{% block title %}Analysis Context — ORION{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/target-analysis.css') }}">{% endblock %}
+
+{% block content %}
+<div class="term">
+  <div class="term-title">ORION // ANALYSIS CONTEXT</div>
+  <p class="sub" style="margin:0;">Where Self + Target + Environment converge. Pick the profiles to correlate;
+    any one may be absent. Orion correlates the evidence — humans decide.</p>
+</div>
+{{ methodology_bar('threat_model') }}
+
+<div class="term">
+  <div class="term-title">Profiles</div>
+  <div id="ctx-pickers"><div class="state">Loading profiles…</div></div>
+  <div class="btn-row" style="margin-top:0.6rem;">
+    <button class="btn btn-red" id="ctx-run">[ RUN AGENT ANALYSIS ]</button>
+    <button class="btn btn-ghost" id="ctx-refresh">[ REFRESH PROFILES ]</button>
+  </div>
+</div>
+
+<div id="ctx-result" class="hidden"></div>
+<div id="ctx-handoff" class="hidden"></div>
+{% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='js/context.js') }}"></script>{% endblock %}

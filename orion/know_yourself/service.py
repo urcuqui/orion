@@ -117,6 +117,14 @@ def analyze(url: Optional[str] = None, context: Optional[str] = None,
 
     if persist:
         result["trace_id"] = _save(result, base_dir)
+        # Persist a first-class Self Profile (ORN-SELF-…) for the Analysis Context.
+        try:
+            from orion.context import build_self_profile, save_profile
+            sp = build_self_profile(result)
+            save_profile(sp.self_profile_id, sp.to_dict(), base_dir)
+            result["self_profile_id"] = sp.self_profile_id
+        except Exception:  # noqa: BLE001 - profiling must not fail the analysis
+            pass
     return result
 
 

@@ -336,6 +336,44 @@ def apply_plan_edits(plan: ExperimentPlan, exclude: Optional[List[str]] = None,
     return plan
 
 
+def build_plan_from_context(assessment: Dict[str, Any]) -> ExperimentPlan:
+    """Build a plan from a correlated Analysis Context assessment (all 3 pillars)."""
+    tm = assessment.get("threat_model", {}) or {}
+    ctx_id = assessment.get("analysis_context_id")
+    plan = ExperimentPlan(
+        source_type="analysis_context",
+        source_analysis_id=ctx_id,
+        analysis_context_id=ctx_id,
+        self_profile_id=assessment.get("self_profile_id"),
+        target_profile_id=assessment.get("target_profile_id"),
+        environment_profile_id=assessment.get("environment_profile_id"),
+        target={"system_type": (assessment.get("system_types") or ["unknown"])[0],
+                "access": tm.get("adversary", {}).get("network_access", "unknown")},
+        threat_model=tm,
+        threat_model_id="TM-" + (str(ctx_id) or new_plan_id())[-8:],
+        evidence_ids=[],
+    )
+    for idx, e in enumerate(assessment.get("suggested_experiments", []), 1):
+        status = {"APPLICABLE": READY, "CONDITIONAL": NEEDS_INPUT,
+                  "INSUFFICIENT_EVIDENCE": NEEDS_INPUT}.get(e.get("applicability"), EXCLUDED)
+        entry = _registry_entry(e.get("name", "") or e.get("key", ""))
+        scenario = (entry or {}).get("scenario") or _attack_to_scenario(e.get("name", ""))
+        params = dict(entry["parameters"]) if entry else {}
+        if scenario and status == READY:
+            params.setdefault("epsilon", 0.03)
+            params.setdefault("iterations", 40)
+        plan.proposals.append(ExperimentProposal(
+            experiment_id=f"EXP-{idx:02d}", name=e.get("name", "experiment"),
+            applicability=e.get("applicability", ""), status=status, scenario=scenario,
+            reason=e.get("rationale", ""),
+            branch=(entry["domain"] if entry else ("generative_ai" if e.get("ai_specific") else "traditional_ml")),
+            sensitive=_is_sensitive(e.get("name", ""), plan.target),
+            risk=(entry["risk"] if entry else "LOCAL"),
+            parameters=params, evidence_ids=e.get("evidence", []), missing=e.get("missing", []),
+        ))
+    return plan
+
+
 def approve_plan(plan: ExperimentPlan, scope: str = "all_approved") -> ExperimentPlan:
     """Record human approval. Prepares execution; never runs anything."""
     plan.approved_by_human = True

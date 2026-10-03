@@ -80,6 +80,10 @@ def attack_workspace_page():
 def environment_page(env_id=None):
     return render_template('environment.html', env_id=env_id)
 
+@app.route('/context')
+def analysis_context_page():
+    return render_template('context.html')
+
 @app.route('/measure')
 @app.route('/measure/<trace_id>')
 def measure_page(trace_id=None):

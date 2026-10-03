@@ -29,6 +29,7 @@ Trust Relationships .. ${c.trust_relationships}
 Findings ............. ${c.findings}</pre>
       <div class="btn-row" style="margin-top:0.5rem;">
         <a class="btn btn-red" href="${targetUrl}?environment_profile_id=${encodeURIComponent(p.environment_profile_id)}">[ SEND TO TARGET ANALYSIS ]</a>
+        <a class="btn btn-blue" href="/context?environment_profile_id=${encodeURIComponent(p.environment_profile_id)}">[ BUILD ANALYSIS CONTEXT ]</a>
         <a class="btn btn-ghost" href="/api/environment/${encodeURIComponent(p.environment_profile_id)}" target="_blank">[ VIEW EVIDENCE (JSON) ]</a>
       </div></div>`;
 

@@ -14,18 +14,22 @@ from __future__ import annotations
 from orion.context.environment import (
     EnvironmentProfile, build_environment_profile, environment_to_summary, new_env_id, topology,
 )
+from orion.context.self_profile import SelfProfile, build_self_profile, new_self_id
 from orion.context.target import TargetProfile, build_target_profile, new_target_id
 from orion.context.analysis_context import (
     AnalysisContext, build_analysis_context, new_context_id,
     COMPLETE, PARTIAL, NOT_AVAILABLE,
 )
+from orion.context.correlate import build_context_assessment, build_context_threat_model
 from orion.context.store import save_profile, load_profile
 
 __all__ = [
     "EnvironmentProfile", "build_environment_profile", "environment_to_summary",
     "new_env_id", "topology",
+    "SelfProfile", "build_self_profile", "new_self_id",
     "TargetProfile", "build_target_profile", "new_target_id",
     "AnalysisContext", "build_analysis_context", "new_context_id",
     "COMPLETE", "PARTIAL", "NOT_AVAILABLE",
+    "build_context_assessment", "build_context_threat_model",
     "save_profile", "load_profile",
 ]

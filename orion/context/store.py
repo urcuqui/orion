@@ -7,7 +7,8 @@ from typing import Any, Dict, Optional
 
 DEFAULT_DIR = "artifacts"
 # profile_id prefix -> filename
-_FILENAME = {"ORN-ENV": "environment.json", "ORN-TARGET": "target.json", "ORN-CTX": "context.json"}
+_FILENAME = {"ORN-ENV": "environment.json", "ORN-TARGET": "target.json",
+             "ORN-CTX": "context.json", "ORN-SELF": "self.json"}
 
 
 def _file_for(profile_id: str) -> str:
