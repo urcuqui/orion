@@ -15,5 +15,15 @@ from __future__ import annotations
 
 from orion.experiments.base import ExperimentMode, ExperimentOutcome
 from orion.experiments.runner import run_scenario, replay, compare
+from orion.experiments.lifecycle import (
+    ExperimentLifecycle, StageError, create_from_plan, select_experiment,
+    run_attack, run_blackbox_attack, measure, apply_defense, retest, next_action,
+    save as save_workspace, load as load_workspace, list_workspaces,
+)
 
-__all__ = ["ExperimentMode", "ExperimentOutcome", "run_scenario", "replay", "compare"]
+__all__ = [
+    "ExperimentMode", "ExperimentOutcome", "run_scenario", "replay", "compare",
+    "ExperimentLifecycle", "StageError", "create_from_plan", "select_experiment",
+    "run_attack", "run_blackbox_attack", "measure", "apply_defense", "retest", "next_action",
+    "save_workspace", "load_workspace", "list_workspaces",
+]

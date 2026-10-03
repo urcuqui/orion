@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% from "components/methodology.html" import methodology_bar %}
+{% set section = 'experiment' %}
+{% block title %}Experiment — ORION{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/target-analysis.css') }}">{% endblock %}
+
+{% block content %}
+<div class="term">
+  <div class="term-title">ORION // EXPERIMENT</div>
+  <p class="sub" style="margin:0;">One tactical operation console: Plan → Attack → Measure → Defend → Retest.
+    Approve ≠ run · defense applied ≠ defense effective · retest determines whether posture improved.</p>
+</div>
+{{ methodology_bar('attack') }}
+<div id="exp-root"
+     data-ws-id="{{ ws_id or '' }}"
+     data-compat-stage="{{ compat_stage or '' }}"
+     data-trace-id="{{ trace_id or '' }}"><div class="state">Loading…</div></div>
+{% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='js/workspace.js') }}"></script>{% endblock %}

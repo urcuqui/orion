@@ -214,10 +214,10 @@
         <div><span class="off">[-]</span> excluded experiments: ${c.excluded || 0}</div>
       </div>
       <div class="btn-row" style="margin-top:0.6rem;">
-        <a class="btn btn-red" href="/attack?plan_id=${encodeURIComponent(plan.plan_id)}">[ OPEN ATTACK WORKSPACE ]</a>
+        <a class="btn btn-red" href="/experiment?plan_id=${encodeURIComponent(plan.plan_id)}">[ OPEN EXPERIMENT ]</a>
         <a class="btn btn-ghost" href="/api/plans/${encodeURIComponent(plan.plan_id)}" target="_blank">[ VIEW APPROVED PLAN ]</a>
       </div>
-      <p class="sub" style="color:var(--warning);margin-top:0.4rem;">Approval prepared execution. Nothing has run — open the Attack workspace to execute explicitly.</p>
+      <p class="sub" style="color:var(--warning);margin-top:0.4rem;">Approval prepared execution. Nothing has run — open the Experiment to Attack → Measure → Defend → Retest explicitly.</p>
       </div>`;
   };
 

@@ -17,11 +17,13 @@ from orion.adversarial.image import (
     TORCH_AVAILABLE,
 )
 from orion.adversarial.experiment import run_adversarial_experiment
+from orion.adversarial.blackbox import run_blackbox_evasion
 
 __all__ = [
     "generate_advimage",
     "generate_adversarial_evidence",
     "run_adversarial_experiment",
+    "run_blackbox_evasion",
     "AdversarialImageResult",
     "TORCH_AVAILABLE",
 ]

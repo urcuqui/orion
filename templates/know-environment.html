@@ -18,7 +18,7 @@
 
 <section class="panel launch-panel">
   <h1 class="panel-title">&gt; Configure run</h1>
-  <p class="panel-sub">Mock mode is simulated and safe. Real tools are opt-in and only ever target hosts you own or are explicitly authorised to test.</p>
+  <p class="panel-sub">Real recon runs by default for live, reproducible results — only ever target hosts you own or are explicitly authorised to test. Enable <code class="inline-code">--mock</code> for a safe simulated demo.</p>
 
   <form id="launch-form" class="launch-form">
     <label class="field">
@@ -38,8 +38,8 @@
 
     <div class="toggles">
       <label class="toggle">
-        <input type="checkbox" name="mock" checked>
-        <span>--mock <em>(no real network requests; deterministic simulated tools)</em></span>
+        <input type="checkbox" name="mock">
+        <span>--mock <em>(opt-in: no real network requests; deterministic simulated tools for safe demos)</em></span>
       </label>
       <label class="toggle" id="playwright-toggle">
         <input type="checkbox" name="enable_playwright" id="playwright-checkbox">

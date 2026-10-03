@@ -60,16 +60,19 @@ Findings ............. ${c.findings}</pre>
   async function renderLanding() {
     let recon = [];
     try { recon = (await Orion.getJSON("/api/recon/runs")).runs || []; } catch (e) {}
-    let html = `<div class="term"><div class="term-title">Build an Environment Profile</div>
-      <p class="sub">Recon collects → observations → environment evidence → Environment Profile.</p>
-      <div class="btn-row"><a class="btn btn-red" href="${reconUrl}">[ LAUNCH RECONNAISSANCE ]</a></div>
-      <hr class="term-rule">
-      <div class="panel-title">Build from a running URL (direct probe)</div>
+    let html = `<div class="term"><div class="term-title">Live Recon — Build an Environment Profile</div>
+      <p class="sub">Real, reproducible recon: Orion connects to the target now (GET, plus an
+      optional harmless test request) → observations → environment evidence → Environment Profile.
+      No mock, no LLM dependency. Authorised targets only.</p>
       <div class="btn-row">
-        <input type="text" id="env-url" placeholder="http://127.0.0.1:5001" style="flex:1;min-width:220px;">
-        <label class="toggle" style="margin:0 0.5rem;"><input type="checkbox" id="env-active"> active</label>
-        <button class="btn" id="env-probe">[ BUILD PROFILE ]</button>
-      </div></div>`;
+        <input type="text" id="env-url" placeholder="http://127.0.0.1:5001" style="flex:1;min-width:240px;">
+        <label class="toggle" style="margin:0 0.5rem;"><input type="checkbox" id="env-active" checked> active probe <em>(sends a 1×1 test input)</em></label>
+        <button class="btn btn-red" id="env-probe">[ RUN LIVE RECON ]</button>
+      </div>
+      <hr class="term-rule">
+      <p class="sub">Advanced: agentic reconnaissance (Playwright / Nuclei / MCP tools, with human approval).
+        <a href="${reconUrl}">launch agentic recon →</a></p>
+      </div>`;
     html += `<div class="term"><div class="term-title">Recent recon runs</div>`;
     if (recon.length) {
       html += recon.map(r => `<div class="recon-run-row"><div class="meta"><span class="rid">${Orion.esc(r.display_id)}</span> · ${Orion.esc(r.target)} · ${Orion.statusBadge(r.status)}</div>

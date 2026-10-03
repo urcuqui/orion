@@ -320,3 +320,17 @@ def test_active_probe_behavioural_signal_enables_adversarial():
     assert "ml_inference_service" in [t["type"] for t in a["target_types"]]
     assert any(e["key"] == "adversarial_evasion" and e["applicability"] == "APPLICABLE"
                for e in a["suggested_experiments"])
+
+
+def test_active_probe_discovers_post_only_inference_endpoint():
+    # A POST-only /predict endpoint (no homepage form) returning a prediction
+    # shape must be detected via active inference-endpoint probing.
+    obs = [
+        {"path": "/", "status": 200, "content_type": "text/html", "snippet": "service"},
+        {"path": "POST /predict", "status": 200, "content_type": "application/json",
+         "snippet": '{"predictions":[{"label":"cat","probabilities":[0.1,0.9]}]}',
+         "tokens": ["ml_prediction_response", "probabilities"]},
+    ]
+    a = build_assessment_from_summary(build_probe_summary("http://x", obs))
+    assert a["ai_surface"]["status"] == "CONFIRMED"
+    assert any("ml_prediction_response" == s["value"] for s in a["ai_surface"]["signals"])

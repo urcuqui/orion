@@ -165,30 +165,40 @@ human review, never auto-executed. `UNKNOWN` is a valid answer and never becomes
 `NOT_FOUND`. Results export to `artifacts/<trace_id>/know_yourself.json`.
 `orion/know_yourself/` keeps the two branches in separate modules.
 
-## 6c. Analysis → Attack handoff
+## 6c. The Experiment lifecycle
 
-> **Analysis proposes. Humans approve. Attack prepares. Humans execute.
-> Approve Plan ≠ Run Attack.**
+> **Analysis proposes. Humans approve. Humans execute.
+> Approve Plan ≠ Run Attack. Defense applied ≠ defense effective.
+> Retest determines whether posture improved.**
 
-Both Know Yourself and Know Your Target end with **[ APPROVE PLAN ]**, which
-builds a shared `ExperimentPlan` (`orion/plans/`), records human approval, and
-produces a structured **handoff** — *without executing anything*. The plan is
-persisted to `artifacts/<plan_id>/plan.json` and buckets experiments into
-approved (`READY`), conditional (`NEEDS_INPUT`) and excluded (`NOT_APPLICABLE`).
-
-**[ OPEN ATTACK WORKSPACE ]** (`/attack?plan_id=…`) loads the handoff preloaded
-with target, system fingerprint, threat model, evidence, selected scenarios and
-suggested parameters — no re-entry. Each experiment is executed **explicitly**
-with **[ RUN EXPERIMENT ]** (sensitive/remote experiments require a second
-**[ CONFIRM & RUN ]**). Execution links provenance back through
-`analysis_id → plan_id → experiment_id → run_id`, and the result opens in the
-Measure view (`/runs/<trace>`), from which Defend/Retest (replay + compare) are
-one click away. The final end-to-end flow:
+Context pillars end with **[ APPROVE PLAN ]**, which builds a shared
+`ExperimentPlan` (`orion/plans/`), records human approval and produces a handoff —
+*without executing anything*. **[ OPEN EXPERIMENT ]** then opens the single
+**Experiment workspace** (`/experiment/<id>`), a stateful console that runs the
+whole lifecycle as **one continuous workflow** (not five separate apps):
 
 ```
-Know Yourself / Know Your Target → Understand → Threat Model → Suggest Experiments
-→ Human Review → Approve Plan → Handoff → Attack Workspace → Run → Measure → Evidence → Defend → Retest
+PLAN → ATTACK → MEASURE → DEFEND → RETEST
 ```
+
+`ExperimentLifecycle` (`orion/experiments/lifecycle.py`, persisted to
+`artifacts/<ORN-EXP-id>/workspace.json`) tracks the stage states, the active
+experiment (queue), and `attack_run_id / measurement_id / defense_id /
+retest_run_id`. Transitions are **deterministic and fail-closed** (no attack
+before an approved plan; no measure before attack; no retest before an applied
+defense), and a deterministic next-action engine drives the UI — never the LLM.
+The ATTACK stage offers **two runners**: a **demo runner** (synthetic/white-box
+robustness via `scenarios/pgd_evasion.yaml`, reproducible without a GPU) and,
+when the target is a live URL, a **real black-box evasion** runner
+(`orion.adversarial.run_blackbox_evasion`) that sends L∞-bounded perturbed inputs
+to the detected endpoint and measures the decision change (decision-based, bounded
+query budget, real evidence). Attack execution stays **explicit**
+(`[ RUN EXPERIMENT ]` / `[ CONFIRM & RUN BLACK-BOX ATTACK ]` for the live one). Retest replays the **same attack**
+under the new posture and the BEFORE/AFTER comparison is a *result* of retest.
+Provenance links the whole chain
+(`self → target → environment → context → threat_model → plan → experiment →
+run → defense → retest`). Legacy `/attack`, `/measure`, `/defend` reuse this one
+workspace (no parallel UX); **Evidence** stays globally accessible.
 
 ## 7. AI agents
 
@@ -253,12 +263,13 @@ surface" — which is a useful result, not a failure. Generic web findings
 (WordPress, login forms, APIs) are **never** converted into prompt injection,
 model extraction, adversarial ML or RAG poisoning without AI-specific evidence.
 
-> **Mock recon never reaches the target.** It returns deterministic fixtures, so
-> analyzing a real app in mock mode yields `NOT_OBSERVED`. To analyze a *running*
-> service, either run recon with real tools (uncheck `--mock`) or use **Analyze a
-> running URL directly** in Know Your Target (`POST /api/target-analysis/probe`),
-> a bounded, GET-only probe that collects real evidence (e.g. an exposed
-> `/mcp_tools` or `/v1/chat/completions` endpoint) and feeds the same analyzer.
+> **Recon is real by default** for live, reproducible results. **Know The
+> Environment → Live Recon** connects to the target now (GET + an optional
+> harmless active test request) and normalizes the response into the Environment
+> Profile (`POST /api/environment/from-url {"url":…, "active":true}`) — no mock,
+> no LLM dependency. `--mock` is an opt-in safe simulation (deterministic
+> fixtures that never reach the target, so it yields `NOT_OBSERVED` on a real
+> app). The active probe only applies to systems you are authorized to test.
 
 ### Honest threat model
 
@@ -322,19 +333,23 @@ sections share one design system (`base.html` + `static/css/base.css` +
 
 Navigation (Art of War structure):
 
-- **Dashboard** — command center: system status, dragon, `[01]`–`[06]` menu,
-  recent activity (real run data), `orion@security:~$`.
-- **Know Yourself** — Traditional ML / Generative AI profiling (fingerprint,
-  posture, suggested experiments, **Approve Plan**).
-- **Know Your Target** — Target Profile + Agent Analysis + Threat Model + Experiment Planning
-  (consumes the Environment Profile; does not own recon).
-- **Know The Environment** — reconnaissance + Environment Profile (assets, AI
-  dependencies, MCP/tools, trust relationships, topology).
-- **Attack** — the Attack workspace loads an approved plan and runs experiments
-  explicitly.
-- **Measure** — quantify a run's metrics; bridge to Defend/Evidence.
-- **Defend** — apply controls and **retest the same attack** (replay + compare).
-- **Evidence** — runs, reports, comparisons, provenance.
+Top-level navigation is three groups — **CONTEXT**, **EXPERIMENTATION**,
+**OBSERVABILITY**:
+
+- **Dashboard** — command center: system status, dragon, grouped `[01]`–`[05]`
+  menu, recent activity (real run data), `orion@security:~$`.
+- **CONTEXT**
+  - **Know Yourself** — Traditional ML / Generative AI profiling → Self Profile.
+  - **Know Your Target** — Target Profile + Agent Analysis + Threat Model
+    (consumes the Environment Profile; does not own recon).
+  - **Know The Environment** — reconnaissance + Environment Profile (assets, AI
+    dependencies, MCP/tools, trust relationships, topology).
+- **EXPERIMENTATION**
+  - **Experiment** — the single workspace for Plan / Attack / Measure / Defend /
+    Retest. Attack, Measure and Defend are **stages**, not top-level apps; Retest
+    is its own stage.
+- **OBSERVABILITY**
+  - **Evidence** — runs, reports, comparisons, provenance (cross-cutting).
 
 Conference mode: append `?demo=1` to enlarge type, hide secondary controls and
 decorative CRT, and emphasize target type, AI surface, observations, suggested

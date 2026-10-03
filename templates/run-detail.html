@@ -48,7 +48,8 @@
         <a class="btn btn-blue" href="{{ url_for('defend_page', trace_id=trace_id) }}">[ OPEN DEFEND ]</a>
         {% if record.hardening %}<button class="btn btn-blue" id="btn-replay" data-trace="{{ trace_id }}">[ REPLAY HARDENED ]</button>{% endif %}
         <a class="btn btn-ghost" href="{{ url_for('agent_page') }}?mission={{ ('Explain this ' ~ (record.attack_technique or 'experiment') ~ ' result and the security trade-off.')|urlencode }}&context={{ ('trace=' ~ trace_id)|urlencode }}">[ EXPLAIN RESULT ]</a>
-        <a class="btn" href="{{ url_for('adversarial_page') }}">[ NEW EXPERIMENT ]</a>
+        <a class="btn" href="{{ url_for('experiment_page') }}">[ NEW EXPERIMENT ]</a>
+        {% if record.provenance and record.provenance.plan_id %}<a class="btn btn-blue" href="/experiment?plan_id={{ record.provenance.plan_id }}">[ OPEN EXPERIMENT WORKSPACE ]</a>{% endif %}
       </div>
     </div>
     <div id="replay-status" class="hidden" style="margin-top:0.75rem;"></div>

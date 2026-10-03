@@ -509,6 +509,100 @@ def api_plan_get(plan_id):
     return jsonify({"plan": plan.to_dict(), "handoff": plan.handoff()})
 
 
+# --------------------------------------------------------------------------- #
+# Experiment workspace: one lifecycle over PLAN → ATTACK → MEASURE → DEFEND → RETEST
+# --------------------------------------------------------------------------- #
+@api_bp.get("/experiment")
+def api_experiment_list():
+    from orion.experiments import list_workspaces
+    return jsonify({"workspaces": list_workspaces(ARTIFACT_DIR)})
+
+
+@api_bp.post("/experiment/from-plan/<plan_id>")
+def api_experiment_from_plan(plan_id):
+    from orion import plans as PL
+    from orion.experiments import create_from_plan, list_workspaces, load_workspace
+    plan = PL.load_plan(plan_id, ARTIFACT_DIR)
+    if plan is None:
+        return jsonify({"error": "unknown plan"}), 404
+    # Reuse an existing workspace for this plan if one already exists.
+    for w in list_workspaces(ARTIFACT_DIR):
+        if w.get("plan_id") == plan_id:
+            ws = load_workspace(w["experiment_workspace_id"], ARTIFACT_DIR)
+            return jsonify(ws.to_dict())
+    ws = create_from_plan(plan, ARTIFACT_DIR)
+    return jsonify(ws.to_dict())
+
+
+@api_bp.get("/experiment/<ws_id>")
+def api_experiment_get(ws_id):
+    from orion.experiments import load_workspace
+    ws = load_workspace(ws_id, ARTIFACT_DIR)
+    if ws is None:
+        return jsonify({"error": "unknown workspace"}), 404
+    data = ws.to_dict()
+    from orion import plans as PL
+    plan = PL.load_plan(ws.plan_id, ARTIFACT_DIR) if ws.plan_id else None
+    data["plan"] = plan.to_dict() if plan else None
+    return jsonify(data)
+
+
+@api_bp.post("/experiment/<ws_id>/select/<experiment_id>")
+def api_experiment_select(ws_id, experiment_id):
+    from orion.experiments import load_workspace, select_experiment
+    ws = load_workspace(ws_id, ARTIFACT_DIR)
+    if ws is None:
+        return jsonify({"error": "unknown workspace"}), 404
+    return jsonify(select_experiment(ws, experiment_id, ARTIFACT_DIR).to_dict())
+
+
+def _experiment_stage(ws_id, fn):
+    from orion.experiments import load_workspace, StageError
+    ws = load_workspace(ws_id, ARTIFACT_DIR)
+    if ws is None:
+        return jsonify({"error": "unknown workspace"}), 404
+    try:
+        result = fn(ws)
+    except StageError as exc:
+        return jsonify({"error": str(exc), "status": "BLOCKED"}), 409
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"error": str(exc), "status": "ERROR"}), 500
+    result["workspace"] = ws.to_dict()
+    return jsonify(result)
+
+
+@api_bp.post("/experiment/<ws_id>/attack")
+def api_experiment_attack(ws_id):
+    from orion.experiments import run_attack
+    return _experiment_stage(ws_id, lambda ws: run_attack(ws, ARTIFACT_DIR))
+
+
+@api_bp.post("/experiment/<ws_id>/attack-blackbox")
+def api_experiment_attack_blackbox(ws_id):
+    """Run a real decision-based black-box evasion against the live endpoint."""
+    from orion.experiments import run_blackbox_attack
+    payload = request.get_json(silent=True) or {}
+    return _experiment_stage(ws_id, lambda ws: run_blackbox_attack(ws, payload, ARTIFACT_DIR))
+
+
+@api_bp.post("/experiment/<ws_id>/measure")
+def api_experiment_measure(ws_id):
+    from orion.experiments import measure
+    return _experiment_stage(ws_id, lambda ws: measure(ws, ARTIFACT_DIR))
+
+
+@api_bp.post("/experiment/<ws_id>/defend")
+def api_experiment_defend(ws_id):
+    from orion.experiments import apply_defense
+    return _experiment_stage(ws_id, lambda ws: apply_defense(ws, ARTIFACT_DIR))
+
+
+@api_bp.post("/experiment/<ws_id>/retest")
+def api_experiment_retest(ws_id):
+    from orion.experiments import retest
+    return _experiment_stage(ws_id, lambda ws: retest(ws, ARTIFACT_DIR))
+
+
 @api_bp.get("/plans/<plan_id>/handoff")
 def api_plan_handoff(plan_id):
     from orion import plans as PL

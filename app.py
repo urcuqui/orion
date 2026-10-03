@@ -71,10 +71,6 @@ def know_yourself_page():
 def adversarial_page():
     return render_template('adversarial.html')
 
-@app.route('/attack')
-def attack_workspace_page():
-    return render_template('attack.html')
-
 @app.route('/environment')
 @app.route('/environment/<env_id>')
 def environment_page(env_id=None):
@@ -84,15 +80,26 @@ def environment_page(env_id=None):
 def analysis_context_page():
     return render_template('context.html')
 
+# --- Experiment workspace: one lifecycle (PLAN/ATTACK/MEASURE/DEFEND/RETEST) ---
+@app.route('/experiment')
+@app.route('/experiment/<ws_id>')
+def experiment_page(ws_id=None):
+    return render_template('experiment.html', ws_id=ws_id)
+
+# Backward-compatible routes: reuse the single Experiment workspace (no parallel UX).
+@app.route('/attack')
+def attack_workspace_page():
+    return render_template('experiment.html', ws_id=None, compat_stage='attack')
+
 @app.route('/measure')
 @app.route('/measure/<trace_id>')
 def measure_page(trace_id=None):
-    return render_template('measure.html', trace_id=trace_id)
+    return render_template('experiment.html', ws_id=None, compat_stage='measure', trace_id=trace_id)
 
 @app.route('/defend')
 @app.route('/defend/<trace_id>')
 def defend_page(trace_id=None):
-    return render_template('defend.html', trace_id=trace_id)
+    return render_template('experiment.html', ws_id=None, compat_stage='defend', trace_id=trace_id)
 
 @app.route('/agent')
 def agent_page():
@@ -156,7 +163,7 @@ def know_environment_run():
         max_iterations=max_iterations,
         require_human_approval=bool(form.get('human_approval')),
         require_sensitive_approval=bool(form.get('require_sensitive_approval')),
-        mock_mode=bool(form.get('mock', True)),
+        mock_mode=bool(form.get('mock')),  # real recon by default; --mock is opt-in
         enable_playwright=bool(form.get('enable_playwright')),
         enable_nuclei=bool(form.get('enable_nuclei')),
         browser_username=(form.get('browser_username') or '').strip(),

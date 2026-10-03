@@ -18,9 +18,7 @@
       <a href="{{ url_for('target_analysis_page') }}" class="{{ 'active' if sec == 'target' }}">Know Your Target</a>
       <a href="{{ url_for('environment_page') }}" class="{{ 'active' if sec == 'env' }}">Know The Environment</a>
       <span class="nav-sep">·</span>
-      <a href="{{ url_for('adversarial_page') }}" class="{{ 'active' if sec == 'attack' }}">Attack</a>
-      <a href="{{ url_for('measure_page') }}" class="{{ 'active' if sec == 'measure' }}">Measure</a>
-      <a href="{{ url_for('defend_page') }}" class="{{ 'active' if sec == 'defend' }}">Defend</a>
+      <a href="{{ url_for('experiment_page') }}" class="{{ 'active' if sec == 'experiment' }}">Experiment</a>
       <span class="nav-sep">·</span>
       <a href="{{ url_for('runs_page') }}" class="{{ 'active' if sec == 'evidence' }}">Evidence</a>
     </nav>

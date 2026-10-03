@@ -145,6 +145,32 @@ def _parse_upload_forms(html: str) -> List[Dict[str, Any]]:
     return forms
 
 
+# Inference endpoints worth an active POST, with safe test payloads per family.
+# CV/tabular predictors accept an image or a tiny numeric tensor; LLM endpoints a
+# short prompt; embedding endpoints a short input. All payloads are benign.
+_CV_POST_PATHS = ["/predict", "/predictions", "/inference", "/infer", "/invocations",
+                  "/classify", "/score", "/api/predict"]
+_LLM_POST_PATHS = ["/v1/chat/completions", "/v1/completions", "/generate", "/chat", "/chat_stream"]
+_EMB_POST_PATHS = ["/v1/embeddings", "/embeddings"]
+
+
+def _post_attempts(path: str):
+    """Ordered (kind, payload) attempts for an inference endpoint. 'files' uses a
+    1×1 PNG; 'json' uses a minimal tensor/prompt."""
+    if path in _LLM_POST_PATHS:
+        return [("json", {"model": "test", "messages": [{"role": "user", "content": "ping"}], "max_tokens": 1}),
+                ("json", {"prompt": "ping", "max_tokens": 1}),
+                ("json", {"input": "ping"})]
+    if path in _EMB_POST_PATHS:
+        return [("json", {"input": "ping"}), ("json", {"inputs": ["ping"]})]
+    # CV / tabular / generic predictor
+    return [("files", {"image": ("probe.png", _MIN_PNG, "image/png")}),
+            ("files", {"file": ("probe.png", _MIN_PNG, "image/png")}),
+            ("json", {"instances": [[0.0, 0.0, 0.0]]}),
+            ("json", {"inputs": [[0.0, 0.0, 0.0]]}),
+            ("json", {"data": [0.0, 0.0, 0.0]})]
+
+
 def _inference_tokens_from_response(home_text: str, ctype: str, body: str) -> List[str]:
     """Behavioural ML signals from an active POST response."""
     tokens: List[str] = []
@@ -263,23 +289,54 @@ def probe_url(url: str, timeout: float = 3.0, max_requests: int = 32,
     for path in queue[: max_requests - 1]:
         observations.append(_get(path))
 
-    # 3. Active mode: submit a harmless test image to discovered upload forms.
-    if active and home.get("_raw"):
+    # 3. Active mode (authorized targets only): send harmless test inputs to
+    #    (a) discovered upload forms and (b) common inference endpoints, to elicit
+    #    a prediction response — covering ML services that don't expose inference
+    #    on the home page.
+    if active:
         home_text = home.get("snippet", "")
-        for form in _parse_upload_forms(home["_raw"])[:3]:
-            target = urljoin(base + "/", form["action"].lstrip("/"))
-            obs: Dict[str, Any] = {"path": "POST " + (form["action"] or "/")}
-            try:
-                files = {form["file_field"]: ("probe.png", _MIN_PNG, "image/png")}
-                r = requests.post(target, files=files, timeout=timeout, allow_redirects=True)
-                obs["status"] = r.status_code
-                obs["content_type"] = r.headers.get("Content-Type", "")
-                body = r.text if "image/" not in obs["content_type"].lower() else ""
-                obs["snippet"] = (body or "")[:2000]
-                obs["tokens"] = _inference_tokens_from_response(home_text, obs["content_type"], body)
-            except Exception as exc:  # noqa: BLE001
-                obs["status"] = None
-                obs["error"] = str(exc)
-            observations.append(obs)
+
+        def _record_post(label_path, resp, body):
+            ctype = resp.headers.get("Content-Type", "")
+            toks = _inference_tokens_from_response(home_text, ctype, body)
+            observations.append({"path": "POST " + label_path, "status": resp.status_code,
+                                 "content_type": ctype, "snippet": (body or "")[:1500],
+                                 "tokens": toks})
+            return toks
+
+        # (a) discovered upload forms on the home page
+        if home.get("_raw"):
+            for form in _parse_upload_forms(home["_raw"])[:3]:
+                target = urljoin(base + "/", form["action"].lstrip("/"))
+                try:
+                    r = requests.post(target, files={form["file_field"]: ("probe.png", _MIN_PNG, "image/png")},
+                                      timeout=timeout, allow_redirects=True)
+                    body = r.text if "image/" not in r.headers.get("Content-Type", "").lower() else ""
+                    _record_post(form["action"] or "/", r, body)
+                except Exception:  # noqa: BLE001
+                    pass
+
+        # (b) common inference endpoints — try safe payloads; record the first
+        #     informative response (prediction shape or 2xx) per endpoint.
+        inference_paths = _CV_POST_PATHS + _LLM_POST_PATHS + _EMB_POST_PATHS
+        for path in inference_paths[: max_requests]:
+            target = urljoin(base + "/", path.lstrip("/"))
+            for kind, payload in _post_attempts(path):
+                try:
+                    if kind == "files":
+                        r = requests.post(target, files=payload, timeout=timeout, allow_redirects=True)
+                    else:
+                        r = requests.post(target, json=payload, timeout=timeout, allow_redirects=True)
+                except Exception:  # noqa: BLE001
+                    break  # unreachable — stop this path
+                if r.status_code in (404, 405, 501, 502, 503):
+                    break  # route/method not present — not an active inference endpoint
+                body = r.text if "image/" not in r.headers.get("Content-Type", "").lower() else ""
+                toks = _inference_tokens_from_response(home_text, r.headers.get("Content-Type", ""), body)
+                if toks or r.status_code < 400:
+                    observations.append({"path": "POST " + path, "status": r.status_code,
+                                         "content_type": r.headers.get("Content-Type", ""),
+                                         "snippet": (body or "")[:1500], "tokens": toks})
+                    break  # informative response found — next endpoint
 
     return build_probe_summary(base, observations)

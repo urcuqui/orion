@@ -41,23 +41,17 @@
         <span class="code">[&middot;&middot;]</span><span class="name">Analysis Context</span>
         <div class="hint">Correlate Self + Target + Environment → Threat Model</div></li>
     </ul>
-    <div class="sub" style="color:var(--red);margin-top:0.4rem;letter-spacing:0.1em;">OPERATIONS</div>
+    <div class="sub" style="color:var(--red);margin-top:0.4rem;letter-spacing:0.1em;">EXPERIMENTATION</div>
     <ul class="menu-list">
-      <li onclick="location.href='{{ url_for('adversarial_page') }}'">
-        <span class="code">[04]</span><span class="name">Attack</span>
-        <div class="hint">Experiment workspace</div></li>
-      <li onclick="location.href='{{ url_for('measure_page') }}'">
-        <span class="code">[05]</span><span class="name">Measure</span>
-        <div class="hint">Metrics / results</div></li>
-      <li onclick="location.href='{{ url_for('defend_page') }}'">
-        <span class="code">[06]</span><span class="name">Defend</span>
-        <div class="hint">Controls / hardening / retest</div></li>
+      <li onclick="location.href='{{ url_for('experiment_page') }}'">
+        <span class="code">[04]</span><span class="name">Experiment</span>
+        <div class="hint">Plan / Attack / Measure / Defend / Retest</div></li>
     </ul>
     <div class="sub" style="color:var(--blue-bright);margin-top:0.4rem;letter-spacing:0.1em;">OBSERVABILITY</div>
     <ul class="menu-list">
       <li onclick="location.href='{{ url_for('runs_page') }}'">
-        <span class="code">[07]</span><span class="name">Evidence</span>
-        <div class="hint">Runs / reports / comparisons</div></li>
+        <span class="code">[05]</span><span class="name">Evidence</span>
+        <div class="hint">Runs / reports / comparisons / traceability</div></li>
     </ul>
     <div class="prompt">orion@security:~$ <span class="caret">_</span></div>
   </div>
