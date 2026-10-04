@@ -49,6 +49,8 @@ class AttackDefinition:
     success: Dict[str, List[str]] = field(default_factory=dict)
     # Ordered trust path this attack targets; the segment crossed is computed per run.
     trust_boundary: List[str] = field(default_factory=list)
+    # Expected security boundaries within the trust path (from/to/type).
+    security_boundaries: List[Dict[str, str]] = field(default_factory=list)
     supported_metrics: List[str] = field(default_factory=list)
     recommended_controls: List[str] = field(default_factory=list)
     framework_mappings: Dict[str, List[str]] = field(default_factory=dict)
@@ -67,6 +69,11 @@ class AttackDefinition:
     def runnable(self) -> bool:
         return bool(self.runner)
 
+    @property
+    def trust_path(self) -> List[str]:
+        """Alias for trust_boundary (spec terminology)."""
+        return self.trust_boundary
+
     def to_dict(self) -> Dict[str, Any]:
         d = {
             "id": self.id, "name": self.name, "family": self.family,
@@ -79,6 +86,8 @@ class AttackDefinition:
             "success_criteria": list(self.success_criteria),
             "success": self.success_rule(),
             "trust_boundary": list(self.trust_boundary),
+            "trust_path": list(self.trust_boundary),
+            "security_boundaries": [dict(b) for b in self.security_boundaries],
             "supported_metrics": list(self.supported_metrics),
             "recommended_controls": list(self.recommended_controls),
             "framework_mappings": {k: list(v) for k, v in self.framework_mappings.items()},
@@ -252,11 +261,22 @@ _SUCCESS_RULES = {
     "ORN-ATTACK-AG-001": {"all": ["privileged_tool_requested", "authorization_boundary_crossed", "tool_executed"]},
     "ORN-ATTACK-AG-002": {"all": ["privileged_tool_requested", "authorization_boundary_crossed", "tool_executed"]},
 }
+_PRIV_BOUNDARY = [{"from": "Tool Authorization", "to": "Privileged Capability",
+                   "type": "privilege_boundary"}]
+_SECURITY_BOUNDARIES = {
+    "ORN-ATTACK-PI-002": _PRIV_BOUNDARY,
+    "ORN-ATTACK-AG-001": _PRIV_BOUNDARY,
+    "ORN-ATTACK-AG-002": _PRIV_BOUNDARY,
+    "ORN-ATTACK-PI-001": [{"from": "Instruction Boundary", "to": "LLM / Agent",
+                           "type": "instruction_boundary"}],
+}
 for _a in _ATTACKS:
     if not _a.trust_boundary and _a.id in _TRUST_BOUNDARIES:
         _a.trust_boundary = _TRUST_BOUNDARIES[_a.id]
     if not _a.success and _a.id in _SUCCESS_RULES:
         _a.success = _SUCCESS_RULES[_a.id]
+    if not _a.security_boundaries and _a.id in _SECURITY_BOUNDARIES:
+        _a.security_boundaries = _SECURITY_BOUNDARIES[_a.id]
 
 ATTACKS: Dict[str, AttackDefinition] = {a.id: a for a in _ATTACKS}
 
@@ -272,10 +292,13 @@ _ALIASES.update({
     "carlinil2": "ORN-ATTACK-EVA-CW", "c&w": "ORN-ATTACK-EVA-CW", "cw": "ORN-ATTACK-EVA-CW",
     "hopskipjump": "ORN-ATTACK-EVA-BB", "black-box evasion": "ORN-ATTACK-EVA-BB",
     "prompt injection": "ORN-ATTACK-PI-001",
+    "direct_prompt_injection": "ORN-ATTACK-PI-001", "direct prompt injection": "ORN-ATTACK-PI-001",
     "indirect prompt injection": "ORN-ATTACK-PI-002",
-    "tool poisoning": "ORN-ATTACK-AG-001",
+    "indirect_prompt_injection": "ORN-ATTACK-PI-002",
+    "tool poisoning": "ORN-ATTACK-AG-001", "tool_poisoning": "ORN-ATTACK-AG-001",
     "tool / mcp poisoning": "ORN-ATTACK-AG-001", "tool / mcp poisoning ": "ORN-ATTACK-AG-001",
     "privilege abuse": "ORN-ATTACK-AG-002", "tool abuse": "ORN-ATTACK-AG-002",
+    "privilege_abuse": "ORN-ATTACK-AG-002", "tool_abuse": "ORN-ATTACK-AG-002",
 })
 
 
@@ -285,6 +308,10 @@ def get(attack_id: str) -> Optional[AttackDefinition]:
     if attack_id in ATTACKS:
         return ATTACKS[attack_id]
     return ATTACKS.get(_ALIASES.get(attack_id.strip().lower(), ""))
+
+
+# Public resolution entry point (name, id, alias or legacy id -> definition).
+resolve_attack = get
 
 
 def all_attacks() -> List[AttackDefinition]:

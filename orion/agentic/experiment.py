@@ -118,8 +118,10 @@ def run_agentic_experiment(
         attack_technique=attack.name,
         parameters={"attack_id": attack.id, "controls": [i.id for i in impls],
                     "success_evaluation": success_eval, "trust_boundary": attack.trust_boundary,
+                    "security_boundaries": attack.security_boundaries,
                     "boundary_crossing": crossing, "agent_identity": AGENT["identity"],
-                    "user_request": ureq, "external_content_present": ext is not None},
+                    "user_request": ureq, "external_content": ext,
+                    "external_content_present": ext is not None},
         baseline_result={"benign_task": "export_report -> internal-reports",
                          "note": "agent's intended, authorised action"},
         adversarial_result={

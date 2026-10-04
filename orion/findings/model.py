@@ -50,7 +50,8 @@ class Finding:
     family: str = ""
     affected_target: str = ""
     affected_component: str = ""
-    boundary_crossed: str = ""
+    trust_path: List[str] = field(default_factory=list)   # expected path (from attack)
+    boundary_crossed: str = ""                             # observed crossing
     success_condition: str = ""
     observations: Dict[str, Any] = field(default_factory=dict)
     metrics: Dict[str, Any] = field(default_factory=dict)
@@ -75,6 +76,7 @@ class Finding:
             "status": self.status, "severity": self.severity, "confidence": self.confidence,
             "attack_id": self.attack_id, "family": self.family,
             "affected_target": self.affected_target, "affected_component": self.affected_component,
+            "trust_path": list(self.trust_path),
             "boundary_crossed": self.boundary_crossed, "success_condition": self.success_condition,
             "observations": self.observations, "metrics": self.metrics,
             "evidence_refs": self.evidence_refs, "recommended_controls": self.recommended_controls,
@@ -197,9 +199,9 @@ def build_finding_from_record(record, attack=None, provenance: Optional[Dict[str
     succeeded = _record_succeeded(record)
     status = OBSERVED if succeeded else NOT_REPRODUCIBLE
 
-    # Trust boundary from the attack definition; crossed segment from the run.
-    boundary_path = " → ".join(attack.trust_boundary) if attack and attack.trust_boundary else ""
-    crossing = params.get("boundary_crossing") or boundary_path
+    # Expected trust path from the attack definition; crossed segment from the run.
+    trust_path = list(attack.trust_boundary) if attack and attack.trust_boundary else []
+    crossing = params.get("boundary_crossing") or ""
     se = params.get("success_evaluation") or {}
     adv = record.adversarial_result or {}
     name = attack.name if attack else (record.attack_technique or "Attack")
@@ -217,6 +219,7 @@ def build_finding_from_record(record, attack=None, provenance: Optional[Dict[str
         family=family,
         affected_target=target_name,
         affected_component=(record.target or {}).get("task", ""),
+        trust_path=trust_path,
         boundary_crossed=crossing,
         success_condition=", ".join(attack.success_criteria) if attack else "",
         observations={

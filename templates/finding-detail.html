@@ -35,6 +35,16 @@ Applied control ... {{ finding.applied_control or '—' }}{% if finding.control_
     {% if finding.description %}<p class="sub">{{ finding.description }}</p>{% endif %}
   </div>
 
+  {% if finding.trust_path %}
+  <div class="panel">
+    <div class="panel-title">Trust path</div>
+    <pre class="term-pre">{{ finding.trust_path|join('\n   ↓\n') }}
+
+Observed boundary crossing:
+{{ finding.boundary_crossed or '—' }}</pre>
+  </div>
+  {% endif %}
+
   {% if finding.corroboration %}
   <div class="panel">
     <div class="panel-title">Corroboration</div>

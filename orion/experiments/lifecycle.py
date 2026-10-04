@@ -568,9 +568,11 @@ def retest(ws: ExperimentLifecycle, base_dir: str = DEFAULT_DIR) -> Dict[str, An
             # Replay the SAME agentic attack with the applied control.
             from orion.agentic import run_agentic_experiment
             controls = [ws.defense_control] if ws.defense_control else []
+            bp = before_rec.parameters or {}
+            # Retest reuses the SAME attack, target and payload — only the control changes.
             after_rec = run_agentic_experiment(
                 ws.attack_catalog_id, controls=controls,
-                trials=int((before_rec.parameters or {}).get("trials", 3)),
+                user_request=bp.get("user_request"), external_content=bp.get("external_content"),
                 mode="hardened", base_dir=base_dir, provenance=retest_provenance)
         else:
             from orion.experiments import replay
