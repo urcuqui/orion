@@ -11,15 +11,12 @@
   const DEMO = q.get("demo") === "1";   // conference mode: make comparison prominent
 
   const STAGES = ["plan", "attack", "measure", "defend", "retest"];
-  const BAR = { COMPLETE: "[████████]", APPROVED: "[████████]", APPLIED: "[████████]",
-                RUNNING: "[>>>>>>..]", READY: "[>>>>....]", PENDING: "[........]",
-                PROPOSED: "[>>......]", FAILED: "[xxxx....]" };
-
-  function progress(stages) {
-    return `<pre class="term-pre">` + STAGES.map(s => {
-      const st = (stages[s] || "PENDING");
-      return `${s.toUpperCase().padEnd(8)} ${BAR[st] || "[........]"} ${st}`;
-    }).join("\n") + `</pre>`;
+  function progress(stages, current) {
+    const symbols = { COMPLETE: "✓", APPROVED: "✓", APPLIED: "!", RUNNING: "●", READY: "○", PENDING: "○", PROPOSED: "◇", FAILED: "×" };
+    return `<ol class="lifecycle" aria-label="Experiment lifecycle">${STAGES.map(stage => {
+      const state = stages[stage] || "UNKNOWN";
+      return `<li ${current === stage ? 'aria-current="step"' : ''}><span aria-hidden="true">${symbols[state] || "?"}</span> ${stage.toUpperCase()}<small>${Orion.esc(state)}</small></li>`;
+    }).join("")}</ol>`;
   }
 
   function ctxLine(ws) {
@@ -42,15 +39,17 @@
     const ws = data;                 // to_dict of lifecycle (+ plan)
     const plan = data.plan || {};
     const na = ws.next_action || {};
+    const activeProposal = (plan.proposals || []).find(p => p.experiment_id === ws.active_experiment_id);
     let stage = na.stage && na.stage !== "evidence" ? na.stage : ws.current_stage;
     // If the plan is approved but nothing is runnable, surface the ATTACK stage
     // so the user sees *why* there is no attack (and how to fix it).
     if (!ws.active_experiment_id && (ws.stages || {}).plan === "APPROVED") stage = "attack";
 
     let html = `<div class="assessment-box"><div class="term-title">ORION // EXPERIMENT ${Orion.esc(ws.experiment_workspace_id)}</div>
-      ${progress(ws.stages || {})}
-      ${ctxLine(ws)}
-      <div class="next-action">NEXT: [ ${Orion.esc((na.label || "—"))} ]</div></div>`;
+      <h2>${Orion.esc(activeProposal ? activeProposal.name : "No active proposal")}</h2>
+      ${progress(ws.stages || {}, ws.current_stage)}
+      <p class="sub">Plan ${Orion.statusBadge((ws.stages || {}).plan)} · current stage: ${Orion.esc(ws.current_stage)} · ${Orion.esc(ws.active_experiment_id || "No active proposal")}</p></div>
+      ${Orion.nextActionCard(na.label, ws.defense_id && !ws.retest_run_id ? "Control applied. Mitigation not verified. Run the original attack again to verify the control." : "Review the recorded state below. Approval and execution are separate actions.")}`;
 
     // Experiment queue (plan proposals)
     const props = (plan.proposals || []);
@@ -70,6 +69,7 @@
 
     // Active stage detail
     html += `<div class="term" id="stage-detail"><div class="term-title">EXPERIMENT / ${stage.toUpperCase()}</div><div class="state">…</div></div>`;
+    html += `<details class="panel"><summary>Context & provenance</summary>${ctxLine(ws)}${Orion.provenanceChain(ws)}</details>`;
     root.innerHTML = html;
 
     root.querySelectorAll(".btn-select").forEach(b => b.addEventListener("click", async () => {
@@ -90,7 +90,7 @@
       host.innerHTML = html || "";
       if (html) Orion.wireImageAmplify(host);
       return !!html;
-    } catch (e) { host.innerHTML = ""; return false; }
+    } catch (e) { Orion.setState(host, "error", "Image evidence unavailable: " + e.message); return true; }
   }
 
   async function renderStage(ws, plan, stage) {
@@ -118,12 +118,9 @@
       // No runnable experiment — explain why and point back to analysis.
       const na = (plan.proposals || []).filter(p => p.applicability === "NOT_APPLICABLE");
       wrap("ATTACK", `<div class="state error">[x] No runnable attack in this plan.</div>
-        <p class="sub">All AI-specific experiments were <strong>EXCLUDED</strong> because the AI surface was
-        not <strong>CONFIRMED</strong> for this target (it was POSSIBLE or NOT_OBSERVED). Adversarial /
-        prompt-injection / RAG / tool experiments require confirmed evidence.</p>
+        <p class="sub">Review each proposal’s recorded reason and missing inputs. An approved plan may contain proposals that are excluded or still require input.</p>
         <pre class="term-pre">${(na.map(p => "- " + p.name + "  (NOT_APPLICABLE)").join("\n")) || "(none)"}</pre>
-        <p class="sub">Re-analyze the live service with the <strong>Active Probe</strong> so Orion confirms
-        the AI/ML surface, then approve a new plan.</p>
+        <p class="sub">Complete the missing assessment inputs, review the analysis, then approve an eligible plan.</p>
         <div class="btn-row">
           <a class="btn btn-red" href="/environment">[ KNOW THE ENVIRONMENT · LIVE RECON ]</a>
           <a class="btn btn-blue" href="/target-analysis">[ KNOW YOUR TARGET ]</a>
@@ -230,6 +227,7 @@ STATUS .......... ${Orion.esc(ws.stages.defend)}</pre>
     if (stage === "retest") {
       const done = ws.stages.retest === "COMPLETE";
       wrap("RETEST", `<div class="sub">SAME ATTACK · DIFFERENT SECURITY POSTURE</div>
+        <p class="sub">${ws.attack_mode === "agentic_live" ? "Live endpoint retest — real requests using the recorded attack configuration." : ws.attack_mode === "agentic" ? "Controlled agentic lab retest — recorded attack with the applied control." : "Scenario replay uses the existing synthetic teaching backend. Its result does not verify mitigation on live model weights or an external endpoint."}</p>
         <pre class="term-pre">ORIGINAL RUN .... ${Orion.esc(ws.attack_run_id || "—")}
 DEFENSE ......... ${Orion.esc(ws.defense_id || "—")}
 ATTACK CONFIG ... UNCHANGED
@@ -252,6 +250,11 @@ STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
       }
       const rb = document.getElementById("run-retest");
       if (rb) rb.addEventListener("click", async () => {
+        // Read the recorded execution boundary rather than guessing from family.
+        let original;
+        try { original = await Orion.getJSON("/api/runs/" + encodeURIComponent(ws.attack_run_id)); }
+        catch (e) { Orion.setState(document.getElementById("retest-out"), "error", "Original execution record unavailable: " + e.message); return; }
+        if (ws.attack_mode === "agentic_live" && !await Orion.confirmExecution({title: "RUN LIVE RETEST", fields: {Target: (original.parameters || {}).url || (original.target || {}).model_name, Endpoint: (original.parameters || {}).endpoint || "UNKNOWN", "Original run": ws.attack_run_id, Control: ws.defense_id, Network: "LIVE TARGET", Authorization: "REQUIRED", Configuration: "Same recorded attack configuration"}})) return;
         Orion.setState(document.getElementById("retest-out"), "running", "replaying same attack with new posture…");
         try {
           const r = await Orion.postJSON(`/api/experiment/${wsid}/retest`, {});
@@ -264,8 +267,13 @@ STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
       if (done) { try {
         const cmp = await Orion.getJSON(`/orion/compare?before=${encodeURIComponent(ws.attack_run_id)}&after=${encodeURIComponent(ws.retest_run_id)}`);
         document.getElementById("retest-out").innerHTML = comparison(cmp, ws.attack_run_id, ws.retest_run_id);
+        if (ws.finding_id) { try {
+          const d = await Orion.getJSON("/api/findings/" + encodeURIComponent(ws.finding_id));
+          const f = d.finding || d;
+          document.getElementById("retest-out").innerHTML += `<p>Finding <a href="/findings/${encodeURIComponent(f.id)}">${Orion.esc(f.id)}</a>: ${Orion.statusBadge(f.status)} · control ${Orion.statusBadge(f.retest_status)}</p>`;
+        } catch (e) { document.getElementById("retest-out").innerHTML += `<p class="state">! PARTIAL — comparison loaded; finding unavailable: ${Orion.esc(e.message)}</p>`; } }
         renderRetestImages(ws.retest_run_id);
-      } catch (e) {} }
+      } catch (e) { Orion.setState(document.getElementById("retest-out"), "error", "Retest comparison unavailable: " + e.message); } }
       return;
     }
   }
@@ -324,14 +332,14 @@ STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
         <div class="atk-tuning">${tuningInputs(a)}</div></label>`).join("")
       : `<div class="state">No ${access.replace("_", "-")} attacks catalogued for this modality.</div>`;
     const wbInputs = `<div class="kv">
-        <div class="k">Weights path</div><div class="v"><input type="text" id="wb-weights" value="weights/vit_teacher.pth" style="width:100%"></div>
-        <div class="k">Input image</div><div class="v"><input type="text" id="wb-image" value="static/fake/0001_00_00_01_0.jpg" style="width:100%"></div>
-        <div class="k">num_outputs</div><div class="v"><input type="number" id="wb-num" placeholder="(inferred from weights)" style="width:180px"></div></div>`;
+        <div class="k">Weights path</div><div class="v"><input type="text" id="wb-weights" aria-label="Weights path" value="weights/vit_teacher.pth" style="width:100%"></div>
+        <div class="k">Input image</div><div class="v"><input type="text" id="wb-image" aria-label="Input image" value="static/fake/0001_00_00_01_0.jpg" style="width:100%"></div>
+        <div class="k">num_outputs</div><div class="v"><input type="number" id="wb-num" aria-label="Number of outputs" placeholder="(inferred from weights)" style="width:180px"></div></div>`;
     const bbInputs = `<div class="kv">
-        <div class="k">Target URL</div><div class="v"><input type="text" id="bb-url" value="${Orion.esc(liveUrl)}" style="width:100%"></div>
-        <div class="k">Endpoint path</div><div class="v"><input type="text" id="bb-path" value="/" style="width:100%"></div>
-        <div class="k">File field</div><div class="v"><input type="text" id="bb-field" value="image" style="width:120px"></div>
-        <div class="k">Input image</div><div class="v"><input type="text" id="bb-image" value="static/fake/0001_00_00_01_0.jpg" style="width:100%"></div></div>`;
+        <div class="k">Target URL</div><div class="v"><input type="text" id="bb-url" aria-label="Target URL" value="${Orion.esc(liveUrl)}" style="width:100%"></div>
+        <div class="k">Endpoint path</div><div class="v"><input type="text" id="bb-path" aria-label="Endpoint path" value="/" style="width:100%"></div>
+        <div class="k">File field</div><div class="v"><input type="text" id="bb-field" aria-label="File field" value="image" style="width:120px"></div>
+        <div class="k">Input image</div><div class="v"><input type="text" id="bb-image" aria-label="Input image" value="static/fake/0001_00_00_01_0.jpg" style="width:100%"></div></div>`;
     return `<div class="term-title">ATTACKER ACCESS LEVEL</div>
       <div class="btn-row">
         <button class="btn ${wbOn ? "btn-red" : "btn-ghost"}" id="acc-wb">WHITE-BOX (weights)</button>
@@ -340,6 +348,7 @@ STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
       <div class="term-title">${wbOn ? "WHITE-BOX" : "BLACK-BOX"} ATTACKS — base tuning applied, override as needed</div>
       <div class="atk-catalog">${attackList}</div>
       ${wbOn ? wbInputs : bbInputs}
+      ${Orion.executionBoundary({Access: wbOn ? "WHITE BOX · local weights" : "BLACK BOX · query-only endpoint", Isolation: "? UNKNOWN", Network: wbOn ? "Restrictions UNKNOWN · local model selected" : "LIVE TARGET · real requests", Filesystem: "? UNKNOWN", Authorization: wbOn ? "Local model access" : "REQUIRED"})}
       <div class="btn-row" style="margin-top:0.4rem;"><button class="btn btn-red" id="run-atk">[ RUN ATTACK ]</button>
         <span class="sub" style="align-self:center">${wbOn ? "real torch+ART attack on the weights (local)" : "real queries to the live endpoint — authorised targets only"}</span></div>`;
   }
@@ -366,17 +375,18 @@ STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
             image: document.getElementById("wb-image").value,
             num_outputs: document.getElementById("wb-num").value || null, attack: id, params });
           loadWorkspace(wsid);
-        } catch (e) { Orion.setState(out, "error", "[x] " + e.message); }
+        } catch (e) { Orion.setState(out, "error", "Execution failed: " + e.message + ". Inspect Runs for preserved evidence before retrying; any live requests already sent cannot be undone."); }
       } else {
-        if (!run.dataset.ok) { run.dataset.ok = "1"; run.textContent = "[ CONFIRM: real queries to " + (document.getElementById("bb-url").value || "endpoint") + " ]"; return; }
+        const payload = {
+          url: document.getElementById("bb-url").value, path: document.getElementById("bb-path").value,
+          field: document.getElementById("bb-field").value, image: document.getElementById("bb-image").value,
+          epsilon: params.epsilon, max_queries: params.max_queries };
+        if (!await Orion.confirmExecution({fields: {Target: payload.url + payload.path, Attack: id, Access: "BLACK BOX", "Maximum requests": payload.max_queries, Network: "LIVE TARGET", Authorization: "REQUIRED"}})) return;
         Orion.setState(out, "running", `running black-box ${id} …`);
         try {
-          await Orion.postJSON(`/api/experiment/${wsid}/attack-blackbox`, {
-            url: document.getElementById("bb-url").value, path: document.getElementById("bb-path").value,
-            field: document.getElementById("bb-field").value, image: document.getElementById("bb-image").value,
-            epsilon: params.epsilon, max_queries: params.max_queries });
+          await Orion.postJSON(`/api/experiment/${wsid}/attack-blackbox`, payload);
           loadWorkspace(wsid);
-        } catch (e) { Orion.setState(out, "error", "[x] " + e.message); }
+        } catch (e) { Orion.setState(out, "error", "Execution failed: " + e.message + ". Inspect Runs for preserved evidence before retrying; any live requests already sent cannot be undone."); }
       }
     });
   }
@@ -396,16 +406,17 @@ STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
       <div class="term-title" style="color:var(--red)">LIVE TARGET (real requests to a discovered AI endpoint)</div>
       <p class="sub">Canary-based prompt injection against the live endpoint. Authorised targets only.</p>
       <div class="kv">
-        <div class="k">Target URL</div><div class="v"><input type="text" id="lv-url" value="${Orion.esc(liveUrl)}" style="width:100%"></div>
-        <div class="k">AI endpoint</div><div class="v"><select id="lv-ep" style="width:100%">${aiEps.map(e => `<option value="${Orion.esc(e)}">${Orion.esc(e)}</option>`).join("")}</select></div>
-        <div class="k">OWASP payloads</div><div class="v"><select id="lv-owasp" style="width:100%"><option value="">All categories</option></select></div>
-        <div class="k">Trials</div><div class="v"><input type="number" id="lv-trials" placeholder="(all payloads)" min="1" max="20" style="width:140px"></div>
+        <div class="k">Target URL</div><div class="v"><input type="text" id="lv-url" aria-label="Target URL" value="${Orion.esc(liveUrl)}" style="width:100%"></div>
+        <div class="k">AI endpoint</div><div class="v"><select id="lv-ep" aria-label="AI endpoint" style="width:100%">${aiEps.map(e => `<option value="${Orion.esc(e)}">${Orion.esc(e)}</option>`).join("")}</select></div>
+        <div class="k">OWASP payloads</div><div class="v"><select id="lv-owasp" aria-label="OWASP payload category" style="width:100%"><option value="">All categories</option></select></div>
+        <div class="k">Trials</div><div class="v"><input type="number" id="lv-trials" aria-label="Live injection trials" placeholder="(all payloads)" min="1" max="20" style="width:140px"></div>
       </div>
       <div class="btn-row" style="margin-top:0.4rem;"><button class="btn btn-red" id="run-live">[ CONFIRM & RUN LIVE INJECTION ]</button></div>` : "";
     return `<div class="term-title">${family === "generative_ai" ? "GENERATIVE AI" : "AGENTIC"} EXPERIMENTS</div>
       <p class="sub">Controlled lab: an agent with tools over (possibly untrusted) content. Findings are derived from the recorded trace, not asserted.</p>
       <div class="atk-catalog">${items}</div>
-      <div class="kv"><div class="k">Trials</div><div class="v"><input type="number" id="ag-trials" value="3" min="1" max="20" style="width:120px"></div></div>
+      <div class="kv"><div class="k">Trials</div><div class="v"><input type="number" id="ag-trials" aria-label="Lab trials" value="3" min="1" max="20" style="width:120px"></div></div>
+      ${Orion.executionBoundary({Execution: "Controlled lab · no live LLM / MCP", Isolation: "? UNKNOWN", Filesystem: "? UNKNOWN"})}
       <div class="btn-row" style="margin-top:0.4rem;"><button class="btn btn-red" id="run-atk">[ RUN EXPERIMENT ]</button>
         <span class="sub" style="align-self:center">controlled lab (no live LLM / MCP)</span></div>
       ${live}`;
@@ -422,7 +433,7 @@ STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
         await Orion.postJSON(`/api/experiment/${wsid}/attack-agentic`, {
           attack_id: sel.value, trials: document.getElementById("ag-trials").value || 3 });
         loadWorkspace(wsid);
-      } catch (e) { Orion.setState(out, "error", "[x] " + e.message); }
+      } catch (e) { Orion.setState(out, "error", "Execution failed: " + e.message + ". Inspect Runs for preserved evidence before retrying; any live requests already sent cannot be undone."); }
     });
     const lv = document.getElementById("run-live");
     if (lv) {
@@ -437,18 +448,16 @@ STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
       lv.addEventListener("click", async () => {
         const sel = el.querySelector('input[name="atk-sel"]:checked');
         const ep = document.getElementById("lv-ep").value;
-        if (!lv.dataset.ok) { lv.dataset.ok = "1"; lv.textContent = "[ CONFIRM: real requests to " + ep + " ]"; return; }
+        const payload = {
+          attack_id: sel ? sel.value : "ORN-ATTACK-PI-001", url: document.getElementById("lv-url").value, endpoint: ep,
+          owasp: document.getElementById("lv-owasp").value || null, trials: document.getElementById("lv-trials").value || null };
+        if (!await Orion.confirmExecution({fields: {Target: payload.url, Endpoint: payload.endpoint, Attack: payload.attack_id, Trials: payload.trials || "All selected payloads", Network: "LIVE TARGET", Authorization: "REQUIRED"}})) return;
         const out = document.getElementById("attack-out");
         Orion.setState(out, "running", `running OWASP LLM injection against ${ep} …`);
         try {
-          const trials = document.getElementById("lv-trials").value;
-          await Orion.postJSON(`/api/experiment/${wsid}/attack-agentic-live`, {
-            attack_id: sel ? sel.value : "ORN-ATTACK-PI-001",
-            url: document.getElementById("lv-url").value, endpoint: ep,
-            owasp: document.getElementById("lv-owasp").value || null,
-            trials: trials ? trials : null });
+          await Orion.postJSON(`/api/experiment/${wsid}/attack-agentic-live`, payload);
           loadWorkspace(wsid);
-        } catch (e) { Orion.setState(out, "error", "[x] " + e.message); }
+        } catch (e) { Orion.setState(out, "error", "Execution failed: " + e.message + ". Inspect Runs for preserved evidence before retrying; any live requests already sent cannot be undone."); }
       });
     }
   }
@@ -458,10 +467,10 @@ STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
     const keys = Object.keys(m);
     if (!keys.length) return '<div class="state">No comparable metrics.</div>';
     const rows = keys.map(k => `<tr><td>${k.replace(/_/g, " ")}</td><td class="col-attack">${m[k].before}</td><td class="col-hardened">${m[k].after}</td><td>${m[k].delta > 0 ? "+" : ""}${m[k].delta}</td></tr>`).join("");
-    return `<div class="term-title" style="color:var(--green)">BEFORE vs AFTER</div>
+    return `<div class="term-title" style="color:var(--green)">BEFORE vs AFTER · SAME ATTACK</div>
       <table class="orion compare"><thead><tr><th>Metric</th><th>BEFORE</th><th>AFTER</th><th>Δ</th></tr></thead><tbody>${rows}</tbody></table>
       <div class="btn-row" style="margin-top:0.4rem;">
-        <a class="btn btn-ghost" href="/runs/${encodeURIComponent(afterId)}">[ OPEN EVIDENCE ]</a></div>`;
+        <a class="btn btn-ghost" href="/runs/${encodeURIComponent(beforeId)}">Original evidence</a><a class="btn btn-ghost" href="/runs/${encodeURIComponent(afterId)}">Retest evidence</a></div>`;
   }
 
   // ---------- compat single-run mode (/measure/<trace>, /defend/<trace>) ----------
@@ -502,17 +511,17 @@ STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
   // ---------- landing ----------
   async function landing() {
     let list = [];
-    try { list = (await Orion.getJSON("/api/experiment")).workspaces || []; } catch (e) {}
+    try { list = (await Orion.getJSON("/api/experiment")).workspaces || []; } catch (e) { Orion.setState(root, "error", "Experiment list unavailable: " + e.message); return; }
     let html = `<div class="term"><div class="term-title">Open an experiment</div>
       <p class="sub">Experiments are created when you approve a plan (Know Yourself / Target / Analysis Context).</p>
-      <div class="btn-row"><input type="text" id="open-plan" placeholder="paste a plan id (ORN-PLAN-…)" style="flex:1;min-width:220px;">
+      <div class="btn-row"><input aria-label="Plan ID" type="text" id="open-plan" placeholder="paste a plan id (ORN-PLAN-…)" style="flex:1;min-width:220px;">
         <button class="btn btn-red" id="open-plan-btn">[ OPEN FROM PLAN ]</button></div></div>`;
     html += `<div class="term"><div class="term-title">Recent experiments</div>`;
     if (list.length) {
       html += list.map(w => `<div class="recon-run-row"><div class="meta"><span class="rid">${Orion.esc(w.experiment_workspace_id)}</span>
         · ${Orion.esc(w.active_experiment_id || "—")} · stage: ${Orion.esc(w.current_stage)}</div>
         <a class="btn btn-ghost" href="/experiment/${encodeURIComponent(w.experiment_workspace_id)}">[ RESUME ]</a></div>`).join("");
-    } else { html += '<div class="state">No experiments yet.</div>'; }
+    } else { html += '<div class="state">NO EXPERIMENTS YET — Analysis can propose experiments from your assessment context. <a href="/context">Open Analysis</a>.</div>'; }
     html += `</div>`;
     root.innerHTML = html;
     document.getElementById("open-plan-btn").addEventListener("click", async () => {

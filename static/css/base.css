@@ -3,32 +3,23 @@
    green (safe/defensive) semantics. No CSS framework. */
 
 :root {
-  /* Retro adversarial-intelligence console palette. */
-  --bg: #050505;
-  --bg-deep: #000000;
-  --panel: #0a0a0a;
-  --panel-alt: #0c0707;        /* very dark red-black */
-  --border: #3b0e0e;           /* thin crimson border */
-  --border-strong: #5a1414;
-
-  --red: #d71920;              /* primary red-team crimson */
-  --red-bright: #ff3b3b;
-  --red-dark: #5a1414;
-  --red-mid: #d71920;
-
-  --green: #5cff8a;            /* phosphor green */
-  --green-dark: #35c866;
-
-  --blue: #5794d6;             /* muted information blue */
-  --blue-bright: #5794d6;
-
-  --warning: #ffb347;          /* amber */
-
-  --text: #e6e6e6;
-  --muted: #8a8a8a;
-  --dim: #5a5a5a;
-
-  --mono: "Courier New", "IBM Plex Mono", "Source Code Pro", ui-monospace, Menlo, Consolas, monospace;
+  --surface-page: #0b0e12; --surface-panel: #11161c; --surface-raised: #192029;
+  --surface-terminal: #080b0f; --surface-hover: #202934;
+  --border-subtle: #252e38; --border-default: #35414e; --border-strong: #566475;
+  --text-primary: #edf1f5; --text-secondary: #b8c2ce; --text-muted: #9aa8b8;
+  --text-terminal: #93dfac; --orion-crimson: #f06a75; --orion-phosphor: #93dfac; --orion-amber: #efbe70;
+  --status-critical: #ff7f8a; --status-high: #f06a75; --status-warning: #efbe70;
+  --status-success: #93dfac; --status-info: #90bbec; --status-neutral: #b8c2ce; --status-unknown: #c4afd9;
+  --action-primary: #93dfac; --action-secondary: #90bbec; --action-danger: #f06a75;
+  --spacing-xs: .25rem; --spacing-sm: .5rem; --spacing-md: 1rem; --spacing-lg: 1.5rem; --spacing-xl: 2rem;
+  --bg: var(--surface-page); --bg-deep: var(--surface-terminal); --panel: var(--surface-panel);
+  --panel-alt: var(--surface-raised); --border: var(--border-subtle);
+  --red: var(--orion-crimson); --red-bright: var(--status-critical); --red-dark: #76404a; --red-mid: var(--red);
+  --green: var(--orion-phosphor); --green-dark: #528963; --blue: var(--status-info); --blue-bright: var(--blue);
+  --warning: var(--orion-amber); --amber: var(--warning);
+  --text: var(--text-primary); --muted: var(--text-secondary); --dim: var(--text-muted);
+  --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 }
 
 * { box-sizing: border-box; }
@@ -38,8 +29,9 @@ html, body {
   padding: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: var(--mono);
-  font-size: 15px;
+  font-family: var(--ui);
+  font-size: 14px;
+  line-height: 1.5;
 }
 body { min-height: 100vh; display: flex; flex-direction: column; }
 
@@ -365,3 +357,128 @@ body.demo .orion-main { max-width: 1400px; }
 .ascii-mini { color: var(--dim); font-size: 0.6rem; line-height: 1.1; white-space: pre; }
 
 .orion-nav .nav-sep { color: var(--dim); align-self: center; padding: 0 0.1rem; }
+
+/* Analyst workstation shell; legacy page classes continue to share these tokens. */
+.orion-sidebar { position: fixed; inset: 0 auto 0 0; width: 216px; padding: 22px 14px; background: var(--surface-terminal); border-right: 1px solid var(--border-default); overflow-y: auto; z-index: 110; }
+.orion-brand { display: block; color: var(--orion-crimson); font: 700 24px var(--mono); text-shadow: none; }
+.brand-caption, .workspace-label { font: 600 10px var(--mono); letter-spacing: .1em; color: var(--text-secondary); margin-top: 6px; }
+.orion-sidebar .ascii-mini { margin: 18px 0; color: var(--orion-crimson); }
+.orion-nav { display: block; }
+.nav-group { margin: 18px 0; }
+.nav-label { color: var(--text-muted); font: 600 10px var(--ui); text-transform: uppercase; letter-spacing: .14em; padding: 0 10px 6px; }
+.orion-nav a { display: flex; align-items: center; gap: 8px; padding: 8px; color: var(--text-secondary); font: 13px var(--ui); text-transform: none; letter-spacing: normal; border-left: 2px solid transparent; }
+.orion-nav a small { display: block; font-size: 10px; color: var(--text-muted); margin-top: 3px; }
+.orion-nav a.active { color: var(--text-primary); background: var(--surface-raised); border-color: transparent; border-left-color: var(--orion-crimson); font-weight: 650; }
+.nav-marker { color: var(--orion-crimson); font: 18px var(--mono); }
+.sidebar-note { color: var(--text-muted); font-size: 12px; border-top: 1px solid var(--border-default); padding: 14px 8px; }
+.appearance-control { display: flex; flex-direction: column; gap: 6px; font-size: 12px; padding: 8px; color: var(--text-secondary); }
+.orion-topbar { margin-left: 216px; min-height: 66px; padding: 12px 24px; background: var(--surface-page); border-bottom-color: var(--border-default); justify-content: space-between; gap: 8px; }
+.terminal-path { font: 12px var(--mono); color: var(--text-terminal); margin-top: 5px; overflow-wrap: anywhere; }
+.orion-status { color: var(--text-muted); font-size: 11px; }
+.orion-main { margin: 0 0 0 216px; width: calc(100% - 216px); max-width: none; padding: 24px; min-width: 0; }
+.orion-footer { margin-left: 216px; text-align: left; color: var(--text-muted); }
+.section-head h1 { color: var(--text-primary); font-size: 22px; letter-spacing: -.02em; }
+.section-head .sub, .sub { color: var(--text-secondary); line-height: 1.6; }
+.panel, .term, .assessment-box { padding: 16px; margin-bottom: 16px; }
+.panel-title, .term-title { font-family: var(--mono); color: var(--text-secondary); }
+.btn { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; font: 600 11px var(--ui); letter-spacing: .04em; padding: 8px 12px; }
+.btn:hover { text-decoration: none; }
+.btn-ghost { color: var(--text-secondary); border-color: var(--border-default); }
+.btn:disabled { color: var(--text-muted); }
+input, select, textarea { max-width: 100%; }
+select, textarea { font-family: var(--ui); }
+pre, code, .mono, .metric .v, .prov-val, .trace-trial, .kv .v { font-family: var(--mono); }
+pre { overflow-x: auto; }
+.metric .v { font-size: 20px; }
+.badge { font: 600 10px var(--mono); letter-spacing: .03em; white-space: nowrap; }
+.badge-confirmed, .badge-observed, .badge-high, .badge-critical, .badge-failed, .badge-not_mitigated { color: var(--status-high); }
+.badge-hypothesis, .badge-partial, .badge-proposed, .badge-applied, .badge-ready, .badge-needs_input, .badge-pending { color: var(--status-warning); }
+.badge-inferred, .badge-executing, .badge-queued { color: var(--status-info); }
+.badge-approved, .badge-complete, .badge-mitigated, .badge-effective { color: var(--status-success); }
+.badge-unknown { color: var(--status-unknown); border-style: dashed; }
+.badge-not_applicable { color: var(--status-neutral); }
+.table-scroll { overflow-x: auto; max-width: 100%; }
+table.orion th { position: sticky; top: 0; color: var(--text-secondary); z-index: 1; }
+table.orion caption { text-align: left; color: var(--text-secondary); padding-bottom: 10px; }
+table.orion tr:focus-within td, table.orion tr:hover td { background: var(--surface-hover); }
+.filters { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; align-items: end; }
+.filters label { display: flex; flex-direction: column; gap: 4px; color: var(--text-secondary); font-size: 12px; }
+.filters input { min-width: 240px; }
+.active-flt, .flt[aria-pressed="true"] { background: var(--surface-hover); color: var(--text-primary); border-color: var(--text-secondary); }
+.next-action-card { border: 1px solid var(--border-default); border-left: 3px solid var(--orion-amber); background: var(--surface-raised); padding: 16px; margin-bottom: 16px; }
+.next-action-card .eyebrow { font: 600 10px var(--mono); letter-spacing: .12em; color: var(--orion-amber); }
+.next-action-card h2 { margin: 8px 0; font-size: 17px; color: var(--text-primary); }
+.next-action-card p { margin: 6px 0 12px; color: var(--text-secondary); }
+.lifecycle { display: flex; list-style: none; padding: 0; margin: 14px 0; border: 1px solid var(--border-default); overflow-x: auto; }
+.lifecycle li { flex: 1; min-width: 110px; padding: 12px; border-right: 1px solid var(--border-default); font: 600 11px var(--mono); }
+.lifecycle li:last-child { border: 0; }
+.lifecycle small { display: block; color: var(--text-secondary); font-size: 10px; margin-top: 6px; }
+.lifecycle [aria-current="step"] { background: var(--surface-hover); box-shadow: inset 0 -3px var(--orion-amber); }
+.profile-row { display: grid; grid-template-columns: 110px minmax(0,1fr) auto; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border-subtle); align-items: center; }
+.profile-row small { display: block; color: var(--text-muted); }
+.profile-row .mono { overflow-wrap: anywhere; }
+.security-dialog { color: var(--text-primary); background: var(--surface-panel); border: 1px solid var(--action-danger); width: min(540px, calc(100% - 32px)); padding: 24px; }
+.security-dialog::backdrop { background: rgba(0,0,0,.75); }
+.security-dialog h2 { font: 600 18px var(--mono); margin-top: 0; }
+.security-dialog dl { display: grid; grid-template-columns: 140px minmax(0,1fr); gap: 10px; }
+.security-dialog dt { color: var(--text-secondary); }
+.security-dialog dd { margin: 0; overflow-wrap: anywhere; font-family: var(--mono); }
+.skip-link { position: fixed; left: 230px; top: -100px; padding: 12px; background: var(--surface-raised); z-index: 9999; }
+.skip-link:focus { top: 8px; }
+:focus-visible { outline: 2px solid var(--status-info) !important; outline-offset: 3px; }
+[tabindex="-1"]:focus { outline: none; }
+.prov-node.off { opacity: 1; border-style: dashed; }
+.prov-chain { max-width: none; }
+.finding-grid { grid-template-columns: repeat(4, minmax(0,1fr)); }
+.state { text-align: left; padding: 18px; }
+body.demo .orion-nav, body.demo .orion-status, body.demo .secondary { display: revert; }
+@media (max-width: 1100px) { .two-col { grid-template-columns: 1fr !important; } .orion-status { white-space: normal; } }
+@media (max-width: 768px) {
+  .orion-sidebar { position: static; width: 100%; padding: 12px; }
+  .orion-sidebar .ascii-mini, .sidebar-note, .brand-caption { display: none; }
+  .orion-nav { display: flex; flex-wrap: wrap; gap: 12px; }
+  .nav-group { flex: 1; min-width: 130px; margin: 8px 0; }
+  .orion-nav a small { display: none; }
+  .appearance-control { flex-direction: row; align-items: center; }
+  .orion-topbar, .orion-footer { margin-left: 0; }
+  .orion-topbar { position: static; padding: 12px; }
+  .orion-main { margin: 0; width: 100%; padding: 16px 12px; }
+  .profile-row { grid-template-columns: 90px minmax(0,1fr); } .profile-row > :last-child { grid-column: 2; }
+  .finding-grid { grid-template-columns: 1fr 1fr; gap: 16px; }
+  .kv { grid-template-columns: 110px minmax(0,1fr); }
+  .skip-link { left: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+input[type="search"] { background: var(--surface-terminal); color: var(--text-primary); border: 1px solid var(--border-strong); padding: 9px 12px; font: 14px var(--ui); min-height: 36px; }
+.kv dd { margin: 0; overflow-wrap: anywhere; }
+#finding-evidence, #stage-detail { scroll-margin-top: 90px; }
+@media (min-width: 1101px) { .img-triptych { grid-template-columns: repeat(3, minmax(0,1fr)); } }
+.analysis-item .cls::before { content: '· '; }
+.cls-OBSERVED::before { content: '● ' !important; }
+.cls-INFERRED::before { content: '≈ ' !important; }
+.cls-HYPOTHESIS::before { content: '◇ ' !important; }
+.cls-UNKNOWN::before { content: '? ' !important; }
+.cls-NOT_APPLICABLE::before { content: '— ' !important; }
+
+.menu-list li:has(.menu-choice) { padding: 0; }
+.menu-choice { width: 100%; background: transparent; color: var(--text-primary); font: inherit; text-align: left; border: 0; padding: 12px 14px; cursor: pointer; }
+.menu-choice.active { background: var(--surface-hover); box-shadow: inset 3px 0 var(--orion-crimson); }
+.menu-choice .hint { display: block; }
+
+.badge-ineffective, .badge-blocked { color: var(--status-high); }
+.badge-partially_effective { color: var(--status-warning); }
+.badge-not_retested { color: var(--status-unknown); }
+.security-dialog .btn { min-height: 44px; }
+@media (max-width: 768px) { .lifecycle { flex-wrap: wrap; } .lifecycle li { min-width: 100px; border-bottom: 1px solid var(--border-default); } }
+
+.prov-val { overflow-wrap: anywhere; min-width: 0; }
+@media (max-width: 768px) { .prov-node { flex-direction: column; gap: 4px; } }
+
+/* Shared technical key/value rows also used outside assessment pages. */
+.kv { display: grid; grid-template-columns: 160px minmax(0,1fr); gap: 6px 16px; font-size: 13px; }
+.kv .k { color: var(--text-secondary); }
+.kv .v { color: var(--text-primary); }
+@media (max-width: 768px) { .kv { grid-template-columns: 110px minmax(0,1fr); } }

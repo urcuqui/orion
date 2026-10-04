@@ -1,6 +1,6 @@
 {% macro metric_card(key, value, unit='', tone='') %}
 <div class="metric {{ tone }}">
   <div class="k">{{ key|replace('_',' ') }}</div>
-  <div class="v">{{ value if value is not none else 'N/A' }}{% if unit %} {{ unit }}{% endif %}</div>
+  <div class="v">{{ value if value is not none else 'UNKNOWN' }}{% if unit %} {{ unit }}{% endif %}</div>
 </div>
 {% endmacro %}

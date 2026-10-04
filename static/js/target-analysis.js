@@ -13,8 +13,8 @@
       const el = document.getElementById("cap-" + c);
       if (el) el.classList.toggle("hidden", c !== cap);
     });
-    document.querySelectorAll("#capability-menu li").forEach(li =>
-      li.classList.toggle("active", li.dataset.cap === cap));
+    document.querySelectorAll("#capability-menu [data-cap]").forEach(li =>
+      { li.classList.toggle("active", li.dataset.cap === cap); li.setAttribute("aria-pressed", String(li.dataset.cap === cap)); });
     if (cap === "recon") loadReconRuns();
     if (cap === "threat") renderThreatOnly();
     const el = document.getElementById("cap-" + cap);
@@ -55,6 +55,7 @@
     if (!url) { Orion.setState(assessmentEl, "error", "Enter a URL, e.g. http://127.0.0.1:5001"); assessmentEl.classList.remove("hidden"); return; }
     const activeEl = document.getElementById("probe-active");
     const active = activeEl ? activeEl.checked : false;
+    if (!await Orion.confirmExecution({title: "PROBE TARGET", fields: {Target: url, Requests: active ? "GET discovery + POST inference probe" : "GET discovery", "Maximum requests": "UNKNOWN", Authorization: "REQUIRED"}})) return;
     Orion.setState(assessmentEl, "running", "probing " + url + (active ? " (GET + active POST)…" : " (GET-only)…"));
     assessmentEl.classList.remove("hidden");
     try {

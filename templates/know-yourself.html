@@ -1,28 +1,25 @@
 {% extends "base.html" %}
+{% from "components/workspace.html" import page_header %}
 {% from "components/methodology.html" import methodology_bar %}
 {% set section = 'you' %}
 {% block title %}Know Yourself — ORION{% endblock %}
 {% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/target-analysis.css') }}">{% endblock %}
 
 {% block content %}
-<div class="term">
-  <div class="term-title">ORION // KNOW YOURSELF</div>
-  <div class="statusline"><span class="work" id="ky-status">[*] SYSTEM TYPE: UNKNOWN</span></div>
-  <p class="sub" style="margin-top:0.5rem;">Characterize, measure and classify your AI system <em>before</em> attacking it.
-    Traditional ML is model-centric; Generative AI is system-centric. Profiling only — execution belongs to Attack.</p>
-</div>
+{{ page_header('System', 'What is this AI system? Characterize capabilities and access before testing.', 'Know Yourself') }}
+<div class="statusline"><span class="work" id="ky-status">? SYSTEM TYPE: UNKNOWN</span></div>
 
 {{ methodology_bar('understand') }}
 
 <ul class="menu-list" id="ky-menu">
-  <li data-type=""><span class="code">[1]</span><span class="name">Auto Detect</span>
-    <div class="hint">Classify from evidence (traditional_ml / generative_ai / hybrid / unknown).</div></li>
-  <li data-type="traditional_ml"><span class="code">[2]</span><span class="name">Traditional ML</span>
-    <div class="hint">Classifiers · regressors · computer vision · tabular models.</div></li>
-  <li data-type="generative_ai"><span class="code">[3]</span><span class="name">Generative AI</span>
-    <div class="hint">LLM · RAG · agents · tools · MCP.</div></li>
-  <li data-type="hybrid"><span class="code">[4]</span><span class="name">Hybrid</span>
-    <div class="hint">e.g. a vision model plus an LLM agent interpreting predictions.</div></li>
+  <li><button type="button" class="menu-choice" data-type="" aria-pressed="false"><span class="code">[1]</span><span class="name">Auto Detect</span>
+    <div class="hint">Classify from evidence (traditional_ml / generative_ai / hybrid / unknown).</div></button></li>
+  <li><button type="button" class="menu-choice" data-type="traditional_ml" aria-pressed="false"><span class="code">[2]</span><span class="name">Traditional ML</span>
+    <div class="hint">Classifiers · regressors · computer vision · tabular models.</div></button></li>
+  <li><button type="button" class="menu-choice" data-type="generative_ai" aria-pressed="false"><span class="code">[3]</span><span class="name">Generative AI</span>
+    <div class="hint">LLM · RAG · agents · tools · MCP.</div></button></li>
+  <li><button type="button" class="menu-choice" data-type="hybrid" aria-pressed="false"><span class="code">[4]</span><span class="name">Hybrid</span>
+    <div class="hint">e.g. a vision model plus an LLM agent interpreting predictions.</div></button></li>
 </ul>
 
 <div class="term">

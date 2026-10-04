@@ -60,7 +60,8 @@ def enemey():
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    from orion.workspace_view import overview
+    return render_template('index.html', overview=overview())
 
 # --- Orion command-center pages (new UI) ---
 @app.route('/know-yourself')
@@ -131,7 +132,10 @@ def run_detail_page(trace_id):
     finding = None
     try:
         from orion.findings import FindingStore
-        f = FindingStore('artifacts').find_by_evidence(trace_id)
+        findings_store = FindingStore('artifacts')
+        f = findings_store.find_by_evidence(trace_id)
+        if f is None:
+            f = next((item for item in findings_store.list() if trace_id in item.retest_refs), None)
         finding = f.to_dict() if f else None
     except Exception:
         finding = None

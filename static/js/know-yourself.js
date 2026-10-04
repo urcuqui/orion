@@ -9,10 +9,10 @@
   let lastKY = null;
   const attackUrl = document.body.dataset.attackUrl || "/adversarial";
 
-  document.querySelectorAll("#ky-menu li").forEach(li =>
+  document.querySelectorAll("#ky-menu [data-type]").forEach(li =>
     li.addEventListener("click", () => {
       forceType = li.dataset.type || "";
-      document.querySelectorAll("#ky-menu li").forEach(x => x.classList.toggle("active", x === li));
+      document.querySelectorAll("#ky-menu [data-type]").forEach(x => { x.classList.toggle("active", x === li); x.setAttribute("aria-pressed", String(x === li)); });
       forcedEl.textContent = forceType ? "branch: " + forceType : "branch: auto-detect";
     }));
 
@@ -150,6 +150,7 @@
     const context = (document.getElementById("ky-context").value || "").trim();
     const active = document.getElementById("ky-active").checked;
     if (!url && !context) { Orion.setState(resultEl, "error", "Provide a URL or a description."); resultEl.classList.remove("hidden"); return; }
+    if (url && !await Orion.confirmExecution({title: "PROFILE LIVE SYSTEM", fields: {Target: url, Requests: active ? "GET discovery + POST inference probe" : "GET discovery", "Maximum requests": "UNKNOWN", Authorization: "REQUIRED"}})) return;
     Orion.setState(resultEl, "running", "profiling system…");
     resultEl.classList.remove("hidden");
     try {

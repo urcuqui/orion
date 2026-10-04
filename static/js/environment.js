@@ -17,7 +17,7 @@
   function renderProfile(p) {
     const c = p.counts || {};
     let html = `<div class="assessment-box"><div class="term-title">ORION // ENVIRONMENT PROFILE — ${Orion.esc(p.environment_profile_id)}</div>
-      <div class="statusline"><span class="ok">[+] STATUS: COMPLETE</span></div>
+      <div class="statusline"><span class="ok">● PROFILE LOADED · security coverage depends on recorded evidence</span></div>
       <pre class="term-pre">TARGET ............... ${Orion.esc(p.target_reference || "unknown")}
 Assets ............... ${c.assets}
 Endpoints ............ ${c.endpoints}
@@ -84,9 +84,11 @@ Findings ............. ${c.findings}</pre>
     document.getElementById("env-probe").addEventListener("click", async () => {
       const url = document.getElementById("env-url").value.trim();
       if (!url) { return; }
+      const active = !!(document.getElementById("env-active") && document.getElementById("env-active").checked);
+      if (!await Orion.confirmExecution({title: "PROBE ENVIRONMENT", fields: {Target: url, Requests: active ? "GET discovery + POST inference probe" : "GET discovery", "Maximum requests": "UNKNOWN", Authorization: "REQUIRED"}})) return;
       Orion.setState(root, "running", "probing & building environment profile…");
       try {
-        const p = await Orion.postJSON("/api/environment/from-url", { url, active: document.getElementById("env-active") && document.getElementById("env-active").checked });
+        const p = await Orion.postJSON("/api/environment/from-url", { url, active });
         location.href = "/environment/" + encodeURIComponent(p.environment_profile_id);
       } catch (e) { Orion.setState(root, "error", "[x] " + e.message); }
     });

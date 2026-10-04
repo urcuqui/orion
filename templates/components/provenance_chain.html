@@ -22,7 +22,7 @@
     ("Measurement", attack_run_id or p.get('attack_run_id'), ('/runs/' ~ (attack_run_id or p.get('attack_run_id'))) if (attack_run_id or p.get('attack_run_id')) else None),
     ("Finding", finding_id, ('/findings/' ~ finding_id) if finding_id else None),
     ("Defense", defense_id or p.get('defense_id') or p.get('defense_control'), None),
-    ("Retest", retest_run_id or p.get('retest_of'), ('/runs/' ~ retest_run_id) if retest_run_id else None),
+    ("Retest", retest_run_id, ('/runs/' ~ retest_run_id) if retest_run_id else None),
 ] %}
 <div class="prov-chain">
   {% for label, value, link in nodes %}
@@ -30,7 +30,7 @@
       <div class="prov-label">{{ label }}</div>
       {% if value and link %}<a class="prov-val" href="{{ link }}">{{ value }}</a>
       {% elif value %}<span class="prov-val">{{ value }}</span>
-      {% else %}<span class="prov-val none">—</span>{% endif %}
+      {% else %}<span class="prov-val none">UNKNOWN / NOT RECORDED</span>{% endif %}
     </div>
     {% if not loop.last %}<div class="prov-arrow">↓</div>{% endif %}
   {% endfor %}

@@ -1,0 +1,6 @@
+{% macro page_header(title, description, subtitle='') %}
+<div class="section-head"><h1>{{ title }}</h1>{% if subtitle %}<div class="field-label">{{ subtitle }}</div>{% endif %}<p class="sub">{{ description }}</p></div>
+{% endmacro %}
+{% macro next_action_card(label, description, href, cta='Open workspace') %}
+<section class="next-action-card" aria-label="Next action"><div class="eyebrow">NEXT ACTION</div><h2>{{ label }}</h2><p>{{ description }}</p><a class="btn" href="{{ href }}">{{ cta }}</a></section>
+{% endmacro %}

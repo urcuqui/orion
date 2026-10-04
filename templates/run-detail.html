@@ -5,7 +5,7 @@
 {% from "components/atlas.html" import atlas_item %}
 {% from "components/image_attack_comparison.html" import image_attack_comparison %}
 {% from "components/provenance_chain.html" import provenance_chain %}
-{% set section = 'evidence' %}
+{% set section = 'runs' %}
 {% block title %}Run {{ trace_id[:8] }} — ORION{% endblock %}
 {% block head %}<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>{% endblock %}
 
@@ -18,28 +18,16 @@
   {% set atk = record.attack_technique or '' %}
   {% set phase = 'retest' if record.mode == 'hardened' else (record.phase or 'attack') %}
   <div class="section-head {{ 'offensive' if 'ATTACK_SUCCESS' == record.status else '' }}">
-    <h1>Run <span class="mono">{{ trace_id[:8] }}</span></h1>
+    <h1>Run <span class="mono">{{ trace_id[:8] }}…{{ trace_id[-6:] }}</span></h1>
     <p class="sub">{{ record.scenario_name or 'ad-hoc experiment' }} &middot; mode: {{ record.mode }} &middot; {{ record.timestamp }}</p>
   </div>
 
-  {{ methodology_bar(phase) }}
 
-  {% if record.provenance %}
-  <div class="panel">
-    <div class="panel-title">Provenance chain</div>
-    <p class="sub">Why Orion ran this, and what justified it.</p>
-    {{ provenance_chain(record.provenance, attack_run_id=trace_id,
-        retest_run_id=(trace_id if record.provenance.get('source_type') == 'experiment_retest' else None),
-        defense_id=record.provenance.get('defense_id')) }}
-  </div>
-  {% endif %}
 
   <div class="panel">
     <div class="btn-row" style="justify-content:space-between; align-items:center;">
-      <div>Final status: {{ status_badge(record.status) }}</div>
+      <div>Key result: {{ status_badge(record.status) }}</div>
       <div class="btn-row">
-        <a class="btn btn-ghost" href="/api/artifacts/{{ trace_id }}/experiment.json" target="_blank">[ VIEW RAW JSON ]</a>
-        {% if report_md %}<a class="btn btn-ghost" href="/api/artifacts/{{ trace_id }}/report.md" target="_blank">[ DOWNLOAD REPORT ]</a>{% endif %}
         <a class="btn btn-blue" href="{{ url_for('defend_page', trace_id=trace_id) }}">[ OPEN DEFEND ]</a>
         {% if record.hardening %}<button class="btn btn-blue" id="btn-replay" data-trace="{{ trace_id }}">[ REPLAY HARDENED ]</button>{% endif %}
         <a class="btn btn-ghost" href="{{ url_for('agent_page') }}?mission={{ ('Explain this ' ~ (record.attack_technique or 'experiment') ~ ' result and the security trade-off.')|urlencode }}&context={{ ('trace=' ~ trace_id)|urlencode }}">[ EXPLAIN RESULT ]</a>
@@ -47,6 +35,7 @@
         {% if record.provenance and record.provenance.plan_id %}<a class="btn btn-blue" href="/experiment?plan_id={{ record.provenance.plan_id }}">[ OPEN EXPERIMENT WORKSPACE ]</a>{% endif %}
       </div>
     </div>
+    {% if record.hardening %}<p class="sub">Scenario replay uses the existing synthetic teaching backend. Review its limitations before comparing it with live evidence.</p>{% endif %}
     <div id="replay-status" class="hidden" style="margin-top:0.75rem;"></div>
   </div>
 
@@ -60,6 +49,48 @@
     <p class="sub" style="margin:0;">This evidence is interpreted as
       <a href="{{ url_for('finding_detail_page', finding_id=finding.id) }}" class="mono">{{ finding.id }}</a>
       — {{ finding.title }} ({{ finding.status }}{% if finding.retest_status %} · {{ finding.retest_status }}{% endif %}).</p>
+  </div>
+  {% endif %}
+
+  {# ---- Baseline vs Adversarial ---- #}
+  {% if record.baseline_result or record.adversarial_result %}
+  <div class="panel">
+    <div class="panel-title">Result</div>
+    <table class="orion compare">
+      <thead><tr><th></th><th>Baseline</th><th>Adversarial</th></tr></thead>
+      <tbody>
+        <tr><td>Prediction</td>
+          <td class="col-baseline">{{ record.baseline_result.get('prediction', record.baseline_result.get('clean_accuracy','UNKNOWN')) }}</td>
+          <td class="col-attack">{{ record.adversarial_result.get('prediction', record.adversarial_result.get('robust_accuracy','UNKNOWN')) }}</td></tr>
+        <tr><td>Confidence</td>
+          <td class="col-baseline">{{ record.baseline_result.get('confidence','UNKNOWN') }}</td>
+          <td class="col-attack">{{ record.adversarial_result.get('confidence','UNKNOWN') }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {# ---- Metrics ---- #}
+  <div class="panel">
+    <div class="panel-title">Metrics</div>
+    {% if record.metrics %}
+    <div class="metric-grid">
+      {% for k, m in record.metrics.items() %}
+        {% if m is mapping and 'value' in m %}
+          {{ metric_card(k, m.value, m.unit if m.unit is defined else '') }}
+        {% endif %}
+      {% endfor %}
+    </div>
+    {% else %}<div class="state">No metrics recorded.</div>{% endif %}
+  </div>
+
+  {% if record.provenance %}
+  <div class="panel">
+    <div class="panel-title">Provenance chain</div>
+    <p class="sub">Why Orion ran this, and what justified it.</p>
+    {{ provenance_chain(record.provenance, attack_run_id=(record.provenance.get('retest_of') or trace_id),
+        retest_run_id=(trace_id if record.provenance.get('source_type') == 'experiment_retest' else None),
+        defense_id=record.provenance.get('defense_id')) }}
   </div>
   {% endif %}
 
@@ -110,38 +141,6 @@ ATTACK SUCCESS . {{ t.observations.attack_success }}</pre>
   </div>
   {% endif %}
 
-  {# ---- Baseline vs Adversarial ---- #}
-  {% if record.baseline_result or record.adversarial_result %}
-  <div class="panel">
-    <div class="panel-title">Result</div>
-    <table class="orion compare">
-      <thead><tr><th></th><th>Baseline</th><th>Adversarial</th></tr></thead>
-      <tbody>
-        <tr><td>Prediction</td>
-          <td class="col-baseline">{{ record.baseline_result.get('prediction', record.baseline_result.get('clean_accuracy','N/A')) }}</td>
-          <td class="col-attack">{{ record.adversarial_result.get('prediction', record.adversarial_result.get('robust_accuracy','N/A')) }}</td></tr>
-        <tr><td>Confidence</td>
-          <td class="col-baseline">{{ record.baseline_result.get('confidence','N/A') }}</td>
-          <td class="col-attack">{{ record.adversarial_result.get('confidence','N/A') }}</td></tr>
-      </tbody>
-    </table>
-  </div>
-  {% endif %}
-
-  {# ---- Metrics ---- #}
-  <div class="panel">
-    <div class="panel-title">Metrics</div>
-    {% if record.metrics %}
-    <div class="metric-grid">
-      {% for k, m in record.metrics.items() %}
-        {% if m is mapping and 'value' in m %}
-          {{ metric_card(k, m.value, m.unit if m.unit is defined else '') }}
-        {% endif %}
-      {% endfor %}
-    </div>
-    {% else %}<div class="state">No metrics recorded.</div>{% endif %}
-  </div>
-
   <div class="two-col">
     {# ---- Threat model ---- #}
     <div class="panel">
@@ -149,16 +148,16 @@ ATTACK SUCCESS . {{ t.observations.attack_success }}</pre>
       {% set tm = record.threat_model or {} %}
       {% set adv = tm.adversary or {} %}
       <table class="orion">
-        <tr><td>Goal</td><td>{{ adv.goal or 'N/A' }}</td></tr>
-        <tr><td>Knowledge</td><td>{{ adv.knowledge or 'N/A' }}</td></tr>
-        <tr><td>Access</td><td>{{ adv.access or 'N/A' }}</td></tr>
-        <tr><td>Budget</td><td>{{ adv.budget or 'N/A' }}</td></tr>
-        <tr><td>Assets</td><td>{{ (tm.assets or [])|join(', ') or 'N/A' }}</td></tr>
-        <tr><td>Surfaces</td><td>{{ (tm.surfaces or [])|join(', ') or 'N/A' }}</td></tr>
+        <tr><td>Goal</td><td>{{ adv.goal or 'UNKNOWN' }}</td></tr>
+        <tr><td>Knowledge</td><td>{{ adv.knowledge or 'UNKNOWN' }}</td></tr>
+        <tr><td>Access</td><td>{{ adv.access or 'UNKNOWN' }}</td></tr>
+        <tr><td>Budget</td><td>{{ adv.budget or 'UNKNOWN' }}</td></tr>
+        <tr><td>Assets</td><td>{{ (tm.assets or [])|join(', ') or 'UNKNOWN' }}</td></tr>
+        <tr><td>Surfaces</td><td>{{ (tm.surfaces or [])|join(', ') or 'UNKNOWN' }}</td></tr>
       </table>
       <div class="panel-title" style="margin-top:1rem;">Attack</div>
       <table class="orion">
-        <tr><td>Technique</td><td>{{ record.attack_technique or 'N/A' }}</td></tr>
+        <tr><td>Technique</td><td>{{ record.attack_technique or 'UNKNOWN' }}</td></tr>
         {% for k, v in (record.parameters or {}).items() %}<tr><td>{{ k }}</td><td>{{ v }}</td></tr>{% endfor %}
       </table>
     </div>
@@ -199,12 +198,16 @@ ATTACK SUCCESS . {{ t.observations.attack_success }}</pre>
     {% else %}<p class="sub">Results depend on the selected data and parameters; this is not a proof of security.</p>{% endif %}
   </div>
 
+  <details class="panel"><summary>Artifacts & raw records</summary><div class="btn-row" style="margin-top:12px">        <a class="btn btn-ghost" href="/api/artifacts/{{ trace_id }}/experiment.json" target="_blank">[ VIEW RAW JSON ]</a>
+        {% if report_md %}<a class="btn btn-ghost" href="/api/artifacts/{{ trace_id }}/report.md" target="_blank">[ DOWNLOAD REPORT ]</a>{% endif %}
+</div></details>
+
   {# ---- Full report ---- #}
   {% if report_md %}
   <div class="panel">
     <div class="panel-title">Full Report</div>
     <div class="report-html" id="report-html"></div>
-    <script>document.getElementById("report-html").innerHTML = Orion.markdown({{ report_md | tojson }});</script>
+
   </div>
   {% endif %}
 {% endif %}
@@ -213,6 +216,7 @@ ATTACK SUCCESS . {{ t.observations.attack_success }}</pre>
 {% block scripts %}
 <script>
 Orion.wireImageAmplify(document);
+{% if report_md %}document.getElementById("report-html").innerHTML = Orion.markdown({{ report_md | tojson }});{% endif %}
 (function () {
   const btn = document.getElementById("btn-replay");
   if (!btn) return;

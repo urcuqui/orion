@@ -9,25 +9,44 @@
   {% block head %}{% endblock %}
 </head>
 <body>
-  <header class="orion-topbar">
+  {% set sec = section|default('') %}
+  <a class="skip-link" href="#main-workspace">Skip to workspace</a>
+  <aside class="orion-sidebar" aria-label="Workspace navigation">
     <a class="orion-brand" href="{{ url_for('index') }}">ORION<span class="cursor">_</span></a>
-    <nav class="orion-nav">
-      {% set sec = section|default('') %}
-      <a href="{{ url_for('index') }}" class="{{ 'active' if sec == 'dashboard' }}">Dashboard</a>
-      <a href="{{ url_for('know_yourself_page') }}" class="{{ 'active' if sec == 'you' }}">Know Yourself</a>
-      <a href="{{ url_for('target_analysis_page') }}" class="{{ 'active' if sec == 'target' }}">Know Your Target</a>
-      <a href="{{ url_for('environment_page') }}" class="{{ 'active' if sec == 'env' }}">Know The Environment</a>
-      <span class="nav-sep">·</span>
-      <a href="{{ url_for('experiment_page') }}" class="{{ 'active' if sec == 'experiment' }}">Experiment</a>
-      <span class="nav-sep">·</span>
-      <a href="{{ url_for('findings_page') }}" class="{{ 'active' if sec == 'findings' }}">Findings</a>
-      <a href="{{ url_for('runs_page') }}" class="{{ 'active' if sec == 'evidence' }}">Evidence</a>
+    <div class="brand-caption">AI SECURITY VALIDATION</div>
+    <pre class="ascii-mini" aria-hidden="true"> /\___/\
+(  o o  ) // ORION
+ \__^__/</pre>
+    <nav class="orion-nav" aria-label="Primary">
+      {% set groups = [
+        ('Overview', [('dashboard','index','Overview','')]),
+        ('Assess', [('you','know_yourself_page','System','Know Yourself'), ('target','target_analysis_page','Target','Know Your Target'), ('env','environment_page','Environment','Know The Environment'), ('analysis','analysis_context_page','Analysis','Understand the Battlefield')]),
+        ('Validate', [('experiment','experiment_page','Experiments',''), ('findings','findings_page','Findings','')]),
+        ('Observe', [('runs','runs_page','Runs',''), ('evidence','runs_page','Evidence','')])
+      ] %}
+      {% for group, items in groups %}
+      <div class="nav-group"><div class="nav-label">{{ group }}</div>
+        {% for key, endpoint, label, subtitle in items %}
+        <a href="{{ url_for(endpoint) }}{{ '?view=evidence' if key == 'evidence' else '' }}" class="{{ 'active' if sec == key else '' }}" {% if sec == key %}aria-current="page"{% endif %}>
+          <span class="nav-marker" aria-hidden="true">{{ '›' if sec == key else '·' }}</span>
+          <span>{{ label }}{% if subtitle %}<small>{{ subtitle }}</small>{% endif %}</span>
+        </a>
+        {% endfor %}
+      </div>
+      {% endfor %}
     </nav>
-    <button class="crt-toggle" id="crt-toggle" title="toggle CRT effects">CRT: ON</button>
-    <span class="orion-status"><span class="dot">●</span> red team // human oversight</span>
+    <div class="sidebar-note">Analysis proposes.<br>Humans approve.</div>
+    <label class="appearance-control" for="orion-appearance">Appearance
+      <select id="orion-appearance"><option value="analyst">Analyst</option><option value="classic">Classic</option></select>
+    </label>
+  </aside>
+  <header class="orion-topbar">
+    <div><div class="workspace-label">ORION // AI SECURITY VALIDATION WORKSPACE</div>
+      <div class="terminal-path">operator@orion:~{{ request.path if request.path != '/' else '/overview' }} $ <span class="cursor" aria-hidden="true">_</span></div>
+    </div>
+    <span class="orion-status">Human oversight // explicit execution</span>
   </header>
-
-  <main class="orion-main">
+  <main class="orion-main" id="main-workspace" tabindex="-1">
     {% block content %}{% endblock %}
   </main>
 

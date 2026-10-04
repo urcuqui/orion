@@ -1,27 +1,25 @@
 {% extends "base.html" %}
+{% from "components/workspace.html" import page_header %}
 {% from "components/methodology.html" import methodology_bar %}
 {% set section = 'target' %}
 {% block title %}Know Your Target — ORION{% endblock %}
 {% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/target-analysis.css') }}">{% endblock %}
 
 {% block content %}
-<div class="term">
-  <div class="term-title">ORION // TARGET ANALYSIS</div>
-  <div class="statusline"><span class="work" id="target-status">[*] TARGET STATUS: NOT ANALYZED</span></div>
-  <p class="sub" style="margin-top:0.5rem;">Recon collects evidence &middot; Orion interprets it &middot; the human decides what happens next.</p>
-</div>
+{{ page_header('Target', 'What exactly are we assessing? Recon collects evidence; analysis proposes; humans approve.', 'Know Your Target') }}
+<div class="statusline"><span class="work" id="target-status">○ TARGET STATUS: NOT ANALYZED</span></div>
 
 {{ methodology_bar('understand') }}
 
 <ul class="menu-list" id="capability-menu">
-  <li data-cap="recon"><span class="code">[01]</span><span class="name">Reconnaissance</span>
-    <div class="hint">Map assets, endpoints, services and attack surface.</div></li>
-  <li data-cap="agent"><span class="code">[02]</span><span class="name">Agent Analysis</span>
-    <div class="hint">Interpret evidence and propose security experiments.</div></li>
-  <li data-cap="threat"><span class="code">[03]</span><span class="name">Threat Model</span>
-    <div class="hint">Review assets, adversary, boundaries and risks.</div></li>
-  <li data-cap="guided"><span class="code">[04]</span><span class="name">Guided Analysis</span>
-    <div class="hint">Recon → Analyze → Threat Model → Suggested Experiments.</div></li>
+  <li><button type="button" class="menu-choice" data-cap="recon" aria-pressed="false"><span class="code">[01]</span><span class="name">Reconnaissance</span>
+    <div class="hint">Map assets, endpoints, services and attack surface.</div></button></li>
+  <li><button type="button" class="menu-choice" data-cap="agent" aria-pressed="false"><span class="code">[02]</span><span class="name">Agent Analysis</span>
+    <div class="hint">Interpret evidence and propose security experiments.</div></button></li>
+  <li><button type="button" class="menu-choice" data-cap="threat" aria-pressed="false"><span class="code">[03]</span><span class="name">Threat Model</span>
+    <div class="hint">Review assets, adversary, boundaries and risks.</div></button></li>
+  <li><button type="button" class="menu-choice" data-cap="guided" aria-pressed="false"><span class="code">[04]</span><span class="name">Guided Analysis</span>
+    <div class="hint">Recon → Analyze → Threat Model → Suggested Experiments.</div></button></li>
 </ul>
 
 <div class="btn-row" style="margin-bottom:1.25rem;">

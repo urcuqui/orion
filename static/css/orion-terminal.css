@@ -24,7 +24,7 @@ body.crt::after {
   pointer-events: none;
   z-index: 9001;
   background: radial-gradient(ellipse at center, rgba(0,0,0,0) 60%, rgba(0,0,0,0.35) 100%);
-  animation: crt-flicker 6s infinite steps(60);
+  /* No decorative flicker during reading. */
 }
 @keyframes crt-flicker { 0%,97% { opacity: 1; } 98% { opacity: 0.92; } 100% { opacity: 1; } }
 /* Honour reduced-motion and the OFF toggle. */
@@ -143,3 +143,8 @@ body.crt::after {
 body.demo .dragon.watermark { display: none; }
 body.demo.crt::before, body.demo.crt::after { display: none; }
 body.demo .term-pre, body.demo .statusline, body.demo .phases { font-size: 1.05rem; }
+
+body.classic .orion-brand { text-shadow: 0 0 10px rgba(240,106,117,.4); }
+body.classic .dragon { text-shadow: 0 0 8px rgba(240,106,117,.3); }
+body:not(.classic) .dragon.watermark { display: none; }
+body:not(.classic) .cursor { animation: none; }

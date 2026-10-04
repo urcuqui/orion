@@ -15,24 +15,46 @@
     attack produces an <strong>OBSERVED</strong> finding you can corroborate, defend and retest.</div></div>
 {% else %}
 <div class="panel">
-  <table class="orion findings-table">
+  <div class="filters" id="finding-filters">
+    <label>Search<input type="search" id="finding-search" placeholder="Finding, target, family or control"></label>
+    {% for key in ['status','severity','retest','family'] %}<label>{{ key|title }}<select data-filter="{{ key }}"><option value="">All</option></select></label>{% endfor %}
+  </div>
+  <div id="finding-count" class="sub" role="status"></div>
+  <div class="table-scroll"><table class="orion findings-table">
     <thead><tr><th>ID</th><th>Finding</th><th>Family</th><th>Severity</th><th>Confidence</th>
-      <th>Status</th><th>Retest</th><th>Evidence</th></tr></thead>
+      <th>Status</th><th>Target</th><th>Control</th><th>Retest</th><th>Evidence</th><th>Last observed</th></tr></thead>
     <tbody>
       {% for f in findings %}
-      <tr>
+      <tr data-finding-row data-status="{{ f.status }}" data-severity="{{ f.severity }}" data-retest="{{ f.retest_status or 'NOT RETESTED' }}" data-family="{{ f.family }}">
         <td class="mono"><a href="{{ url_for('finding_detail_page', finding_id=f.id) }}">{{ f.id }}</a></td>
         <td>{{ f.title }}</td>
         <td class="sub">{{ f.family|replace('_',' ') }}</td>
         <td>{{ status_badge(f.severity) }}</td>
         <td>{{ f.confidence }}</td>
         <td>{{ status_badge(f.status) }}</td>
-        <td>{% if f.retest_status %}{{ status_badge(f.retest_status) }}{% else %}<span class="sub">—</span>{% endif %}</td>
-        <td class="sub">{{ f.evidence_refs|length }} run(s)</td>
+        <td class="mono">{{ f.affected_target or 'UNKNOWN' }}</td>
+        <td>{{ f.applied_control or 'Not applied' }}</td>
+        <td>{% if f.retest_status %}{{ status_badge(f.retest_status) }}{% else %}<span class="sub">○ NOT RETESTED</span>{% endif %}</td>
+        <td class="sub"><a href="{{ url_for('finding_detail_page', finding_id=f.id) }}#finding-evidence">{{ f.evidence_refs|length }} run(s)</a></td><td class="mono">{{ f.updated_at }}</td>
       </tr>
       {% endfor %}
     </tbody>
-  </table>
+  </table></div>
 </div>
 {% endif %}
 {% endblock %}
+
+{% block scripts %}<script>
+(function () {
+  const filters = document.getElementById("finding-filters"); if (!filters) return;
+  const rows = Array.from(document.querySelectorAll("[data-finding-row]"));
+  const search = document.getElementById("finding-search");
+  const selects = Array.from(filters.querySelectorAll("select"));
+  selects.forEach(s => Array.from(new Set(rows.map(r => r.dataset[s.dataset.filter]))).sort().forEach(value => { const o = document.createElement("option"); o.value = value; o.textContent = value; s.appendChild(o); }));
+  function update() {
+    rows.forEach(r => { r.hidden = !r.textContent.toLowerCase().includes(search.value.toLowerCase()) || selects.some(s => s.value && r.dataset[s.dataset.filter] !== s.value); });
+    document.getElementById("finding-count").textContent = `${rows.filter(r => !r.hidden).length} of ${rows.length} findings shown`;
+  }
+  search.addEventListener("input", update); selects.forEach(s => s.addEventListener("change", update)); update();
+})();
+</script>{% endblock %}

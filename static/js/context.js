@@ -8,7 +8,7 @@
   const q = new URLSearchParams(location.search);
 
   function sel(id, label, options, preset) {
-    const opts = ['<option value="">— NOT_AVAILABLE —</option>']
+    const opts = ['<option value="">○ NOT PROVIDED — optional input</option>']
       .concat(options.map(o => `<option value="${Orion.esc(o.id)}" ${o.id === preset ? "selected" : ""}>${Orion.esc(o.id)}${o.label ? " · " + Orion.esc(o.label) : ""}</option>`));
     return `<label class="field"><span class="field-label">${label}</span>
       <select id="${id}">${opts.join("")}</select></label>`;
@@ -19,9 +19,18 @@
     try {
       const p = await Orion.getJSON("/api/profiles");
       pickers.innerHTML =
-        sel("ctx-self", "SELF PROFILE (Know Yourself)", p.self || [], q.get("self_profile_id")) +
-        sel("ctx-target", "TARGET PROFILE (Know Your Target)", p.target || [], q.get("target_profile_id")) +
-        sel("ctx-env", "ENVIRONMENT PROFILE (Know The Environment)", p.environment || [], q.get("environment_profile_id"));
+        sel("ctx-self", "SYSTEM · Know Yourself", p.self || [], q.get("self_profile_id")) +
+        sel("ctx-target", "TARGET · Know Your Target", p.target || [], q.get("target_profile_id")) +
+        sel("ctx-env", "ENVIRONMENT · Know the Terrain", p.environment || [], q.get("environment_profile_id"));
+      const summary = document.createElement("p");
+      summary.className = "sub"; summary.setAttribute("role", "status");
+      pickers.appendChild(summary);
+      function updateSummary() {
+        const count = pickers.querySelectorAll("select");
+        summary.textContent = `Using ${Array.from(count).filter(s => s.value).length} of 3 profile inputs. Missing inputs are explicit; no profile is silently added.`;
+      }
+      pickers.querySelectorAll("select").forEach(s => s.addEventListener("change", updateSummary));
+      updateSummary();
       if ((p.self||[]).length + (p.target||[]).length + (p.environment||[]).length === 0) {
         pickers.innerHTML += '<div class="state">No profiles yet. Create them in Know Yourself / Know Your Target / Know The Environment.</div>';
       }

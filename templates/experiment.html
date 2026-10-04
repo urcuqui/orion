@@ -1,16 +1,14 @@
 {% extends "base.html" %}
+{% from "components/workspace.html" import page_header %}
 {% from "components/methodology.html" import methodology_bar %}
 {% set section = 'experiment' %}
 {% block title %}Experiment — ORION{% endblock %}
 {% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/target-analysis.css') }}">{% endblock %}
 
 {% block content %}
-<div class="term">
-  <div class="term-title">ORION // EXPERIMENT</div>
-  <p class="sub" style="margin:0;">One tactical operation console: Plan → Attack → Measure → Defend → Retest.
-    Approve ≠ run · defense applied ≠ defense effective · retest determines whether posture improved.</p>
-</div>
-{{ methodology_bar('attack') }}
+{{ page_header('Experiment workspace', 'Plan → Attack → Measure → Defend → Retest. Approval enables execution; retest verifies mitigation.', 'ORION // EXPERIMENT WORKSPACE') }}
+
+
 <div id="exp-root"
      data-ws-id="{{ ws_id or '' }}"
      data-compat-stage="{{ compat_stage or '' }}"

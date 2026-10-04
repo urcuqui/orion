@@ -1,90 +1,25 @@
 {% extends "base.html" %}
+{% from "components/status.html" import status_badge %}
+{% from "components/workspace.html" import page_header, next_action_card %}
 {% set section = 'dashboard' %}
-{% block title %}ORION — Command Center{% endblock %}
-
+{% block title %}Overview — ORION{% endblock %}
 {% block content %}
-<div class="two-col" style="grid-template-columns: 1fr 1.4fr; align-items:start;">
-  <div class="term">
-    <pre class="dragon">          /\___/\
-     ___ /  o   o  \ ___
-    /   \   >\_/<   /   \
-   |     \ ======= /     |
-   | O R I O N  ADVERSARIAL
-   |     / ======= \     |
-    \___/__\__ __/__\___/
-        /_/      \_\
-       //          \\
-      ADVERSARIAL ENGINE</pre>
-    <hr class="term-rule">
-    <div class="statusline">
-      <div><span class="ok">[+]</span> SYSTEM STATUS: <span class="ok">READY</span></div>
-      <div><span class="work">[*]</span> MODE: RED TEAM</div>
-      <div><span class="warn">[!]</span> HUMAN OVERSIGHT: ENABLED</div>
-    </div>
-  </div>
-
-  <div class="term">
-    <div class="term-title">ORION // ADVERSARIAL INTELLIGENCE SYSTEM</div>
-    <p class="sub" style="margin-top:-0.3rem;">Know yourself. Know your target. Know the environment. Orion correlates the evidence; humans decide.</p>
-    <div class="sub" style="color:var(--green);margin-top:0.6rem;letter-spacing:0.1em;">CONTEXT</div>
-    <ul class="menu-list">
-      <li onclick="location.href='{{ url_for('know_yourself_page') }}'">
-        <span class="code">[01]</span><span class="name">Know Yourself</span>
-        <div class="hint">Understand the AI system (Self Profile)</div></li>
-      <li onclick="location.href='{{ url_for('target_analysis_page') }}'">
-        <span class="code">[02]</span><span class="name">Know Your Target</span>
-        <div class="hint">Define what is being evaluated (Target Profile)</div></li>
-      <li onclick="location.href='{{ url_for('environment_page') }}'">
-        <span class="code">[03]</span><span class="name">Know The Environment</span>
-        <div class="hint">Map the surrounding terrain (Environment Profile)</div></li>
-      <li onclick="location.href='{{ url_for('analysis_context_page') }}'">
-        <span class="code">[&middot;&middot;]</span><span class="name">Analysis Context</span>
-        <div class="hint">Correlate Self + Target + Environment → Threat Model</div></li>
-    </ul>
-    <div class="sub" style="color:var(--red);margin-top:0.4rem;letter-spacing:0.1em;">EXPERIMENTATION</div>
-    <ul class="menu-list">
-      <li onclick="location.href='{{ url_for('experiment_page') }}'">
-        <span class="code">[04]</span><span class="name">Experiment</span>
-        <div class="hint">Plan / Attack / Measure / Defend / Retest</div></li>
-    </ul>
-    <div class="sub" style="color:var(--blue-bright);margin-top:0.4rem;letter-spacing:0.1em;">OBSERVABILITY</div>
-    <ul class="menu-list">
-      <li onclick="location.href='{{ url_for('runs_page') }}'">
-        <span class="code">[05]</span><span class="name">Evidence</span>
-        <div class="hint">Runs / reports / comparisons / traceability</div></li>
-    </ul>
-    <div class="prompt">orion@security:~$ <span class="caret">_</span></div>
-  </div>
+{{ page_header('Assessment overview', 'Know yourself. Know your target. Know the terrain. Follow the evidence.') }}
+{% if overview.errors %}<div class="state" role="status">! PARTIAL — {{ overview.errors|join(' ') }} Available records are shown below.</div>{% endif %}
+<div class="panel">
+  <h2 class="panel-title">{{ 'Current experiment assessment' if overview.current else 'Most recent profiles · select an assessment in Analysis' }}</h2>
+  {% if overview.current %}<p class="mono"><a href="/experiment/{{ overview.current.experiment_workspace_id }}">{{ overview.current.experiment_workspace_id }}</a> · {{ overview.current.active_experiment_id or 'No active experiment' }}</p>{% endif %}
+  {% for p in overview.profiles %}<div class="profile-row"><div><strong>{{ p.label }}</strong><small>{{ {'self':'Know Yourself','target':'Know Your Target','environment':'Know the Terrain'}[p.key] }}</small></div><div><a href="{{ url_for(p.endpoint) }}">{{ p.name or p.id or 'Not provided' }}</a>{% if p.id %}<small class="mono">{{ p.id }}</small>{% endif %}</div><div>{{ status_badge('AVAILABLE' if p.available else ('OPTIONAL / NOT PROVIDED' if p.key == 'environment' else 'UNKNOWN')) }}</div></div>{% endfor %}
 </div>
-
-<div class="term">
-  <div class="term-title">Recent Activity</div>
-  <div id="recent-runs"><div class="state">Loading evidence…</div></div>
+{{ next_action_card(overview.action.label, overview.action.description, overview.action.href, 'Open experiment' if overview.current else 'Open analysis') }}
+<div class="two-col">
+  <section class="panel"><h2 class="panel-title">Security posture · recorded findings</h2><p class="sub">Evidence supports conclusions. An applied control needs a retest.</p>
+    {% if overview.findings %}<ul class="evidence-list">{% for f in overview.findings[:5] %}<li><a href="/findings/{{ f.id }}">{{ f.title }}</a><br>{{ status_badge(f.status) }} {{ status_badge(f.retest_status or 'UNKNOWN') }}{% if f.applied_control and not f.retest_refs %}<small class="sub"> ! Mitigation not verified</small>{% endif %}</li>{% endfor %}</ul><a class="btn btn-ghost" href="/findings">All findings</a>{% else %}<div class="state">? UNKNOWN — No findings recorded. A lack of findings does not establish security.</div>{% endif %}
+  </section>
+  <section class="panel"><h2 class="panel-title">Attack surface</h2>{% if overview.surfaces %}<ul class="evidence-list">{% for surface in overview.surfaces %}<li><span class="mono">{{ surface.value }}</span><small class="sub"> · {{ surface.source }} profile</small></li>{% endfor %}</ul>{% else %}<p class="sub">? UNKNOWN — No linked interfaces or capabilities recorded.</p>{% endif %}<p class="sub">Review the target and source-attributed analysis to inspect observed capabilities, inferred dependencies, and hypotheses.</p><div class="btn-row"><a class="btn btn-ghost" href="/target-analysis">Inspect target</a><a class="btn btn-ghost" href="/context">Review analysis inputs</a></div></section>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-(async function () {
-  const el = document.getElementById("recent-runs");
-  const PFX = { adversarial: "ADV", replay: "REPLAY", recon: "RECON", agent: "AGENT" };
-  function orn(r) { return "ORN-" + (PFX[r.type] || "RUN") + "-" + Orion.shortId(r.trace_id).toUpperCase(); }
-  function leader(name, status) {
-    const dots = ".".repeat(Math.max(4, 46 - name.length));
-    return name + " " + dots + " ";
-  }
-  try {
-    const data = await Orion.getJSON("/api/runs");
-    const runs = (data.runs || []).slice(0, 8);
-    if (!runs.length) { el.innerHTML = '<div class="state">No runs yet. Launch an experiment to generate evidence.</div>'; return; }
-    el.innerHTML = '<pre class="term-pre">' + runs.map(r =>
-      '<span style="color:var(--muted)">&gt; </span>' +
-      '<a href="/runs/' + encodeURIComponent(r.trace_id) + '">' + Orion.esc(orn(r)) + '</a> ' +
-      Orion.esc(leader(orn(r), r.status)) + Orion.statusBadge(r.status)
-    ).join("\n") + '</pre>';
-  } catch (e) {
-    Orion.setState(el, "error", "[x] evidence unavailable: " + e.message);
-  }
-})();
-</script>
+<section class="panel"><h2 class="panel-title">EXPERIMENTATION · active / recent experiments</h2><a class="btn btn-ghost" href="/experiment">Experiment</a>
+{% if overview.workspaces %}<div class="table-scroll"><table class="orion"><caption>Persisted experiment stages</caption><thead><tr><th scope="col">Experiment</th><th scope="col">Active proposal</th><th scope="col">Current stage</th><th scope="col">Approval</th><th scope="col">Updated</th></tr></thead><tbody>{% for w in overview.workspaces %}<tr><td class="mono"><a href="/experiment/{{ w.experiment_workspace_id }}">{{ w.experiment_workspace_id }}</a></td><td class="mono">{{ w.active_experiment_id or 'UNKNOWN' }}</td><td>{{ w.current_stage|upper }}</td><td>{{ status_badge(w.stages.get('plan')) }}</td><td>{{ w.updated_at }}</td></tr>{% endfor %}</tbody></table></div>{% else %}<div class="state">NO EXPERIMENTS YET — Threat analysis can propose experiments from assessment profiles. <a href="/context">Open Analysis</a>.</div>{% endif %}
+</section>
+<section class="panel"><h2 class="panel-title">Recent activity · execution records</h2>{% if overview.runs %}<ul class="evidence-list">{% for r in overview.runs %}<li><a class="mono" href="/runs/{{ r.trace_id }}">{{ r.trace_id[:8] ~ "…" ~ r.trace_id[-6:] if r.trace_id|length > 16 else r.trace_id }}</a> · {{ r.scenario or r.type }} {{ status_badge(r.status) }} <small class="sub">{{ r.timestamp }}</small></li>{% endfor %}</ul>{% else %}<div class="state">No executions recorded. Explicitly run an approved experiment to produce evidence.</div>{% endif %}<a class="btn btn-ghost" href="/runs">Open runs</a></section>
 {% endblock %}

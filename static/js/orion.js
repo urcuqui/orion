@@ -10,28 +10,63 @@
 
   const Orion = {};
 
-  // ---- CRT effects (on by default; off in demo; remembered per browser) ----
-  (function initCRT() {
-    let crtOn = true;
-    try {
-      const saved = localStorage.getItem("orion.crt");
-      if (saved !== null) crtOn = saved === "1";
-    } catch (e) { /* ignore */ }
-    if (demoMode) crtOn = false; // conference mode: no decorative flicker
-    function apply() { document.body.classList.toggle("crt", crtOn); }
+  // Appearance affects presentation only. Analyst is the default.
+  (function initAppearance() {
+    let appearance = "analyst";
+    try { appearance = localStorage.getItem("orion.appearance") === "classic" ? "classic" : "analyst"; } catch (_) {}
+    if (demoMode) appearance = "classic";
+    function apply() {
+      document.body.classList.toggle("classic", appearance === "classic");
+      document.body.classList.toggle("crt", appearance === "classic");
+    }
     apply();
-    document.addEventListener("DOMContentLoaded", function () {
-      const btn = document.getElementById("crt-toggle");
-      if (!btn) return;
-      btn.textContent = "CRT: " + (crtOn ? "ON" : "OFF");
-      btn.addEventListener("click", function () {
-        crtOn = !crtOn;
-        apply();
-        btn.textContent = "CRT: " + (crtOn ? "ON" : "OFF");
-        try { localStorage.setItem("orion.crt", crtOn ? "1" : "0"); } catch (e) { /* ignore */ }
+    const select = document.getElementById("orion-appearance");
+    if (select) {
+      select.value = appearance;
+      select.addEventListener("change", () => {
+        appearance = select.value; apply();
+        try { localStorage.setItem("orion.appearance", appearance); } catch (_) {}
       });
-    });
+    }
   })();
+
+  // Native dialog: explicit external-execution confirmation, cancel/Escape,
+  // focus containment and restoration. Callers capture the exact payload first.
+  Orion.confirmExecution = function (details) {
+    return new Promise(resolve => {
+      const previous = document.activeElement;
+      const dialog = document.createElement("dialog");
+      dialog.className = "security-dialog";
+      dialog.setAttribute("aria-labelledby", "execution-confirm-title");
+      dialog.setAttribute("aria-describedby", "execution-confirm-description");
+      dialog.innerHTML = `<h2 id="execution-confirm-title">${Orion.esc(details.title || "RUN LIVE ATTACK")}</h2>
+        <dl>${Object.entries(details.fields || {}).map(([k,v]) => `<dt>${Orion.esc(k)}</dt><dd>${Orion.esc(v == null || v === "" ? "UNKNOWN" : v)}</dd>`).join("")}</dl>
+        <p id="execution-confirm-description">This operation sends real requests to the target. Continue only if you are authorized to test it. Isolation is UNKNOWN unless explicitly recorded by the backend.</p>
+        <form method="dialog" class="btn-row"><button class="btn btn-ghost" value="cancel" autofocus>Cancel</button><button class="btn btn-red" value="run">Confirm and run</button></form>`;
+      document.body.appendChild(dialog);
+      dialog.addEventListener("close", () => {
+        const approved = dialog.returnValue === "run";
+        dialog.remove(); if (previous && previous.isConnected) previous.focus(); resolve(approved);
+      }, { once: true });
+      dialog.showModal();
+    });
+  };
+
+  Orion.nextActionCard = function (label, description) {
+    return `<section class="next-action-card" aria-label="Next action"><div class="eyebrow">NEXT ACTION</div><h2>${Orion.esc(label || "UNKNOWN")}</h2><p>${Orion.esc(description)}</p><a class="btn btn-ghost" href="#stage-detail">Review current stage</a></section>`;
+  };
+
+  Orion.executionBoundary = function (fields) {
+    return `<div class="term-title" style="margin-top:16px">EXECUTION BOUNDARY</div><dl class="kv">${Object.entries(fields).map(([k,v]) => `<dt class="k">${Orion.esc(k)}</dt><dd class="v">${Orion.esc(v)}</dd>`).join("")}</dl>`;
+  };
+
+  Orion.provenanceChain = function (ws) {
+    const nodes = [["System",ws.self_profile_id], ["Target",ws.target_profile_id], ["Environment",ws.environment_profile_id],
+      ["Analysis context",ws.analysis_context_id], ["Threat model",ws.threat_model_id], ["Plan",ws.plan_id],
+      ["Experiment",ws.experiment_workspace_id,"/experiment/"], ["Attack run",ws.attack_run_id,"/runs/"],
+      ["Finding",ws.finding_id,"/findings/"], ["Control",ws.defense_id], ["Retest",ws.retest_run_id,"/runs/"]];
+    return `<div class="prov-chain">${nodes.map(([label,id,route]) => `<div class="prov-node ${id ? "on" : "off"}"><span class="prov-label">${label}</span>${id && route ? `<a class="prov-val" href="${route + encodeURIComponent(id)}">${Orion.esc(id)}</a>` : `<span class="prov-val">${Orion.esc(id || "UNKNOWN / NOT RECORDED")}</span>`}</div>`).join('<div class="prov-arrow" aria-hidden="true">↓</div>')}</div>`;
+  };
 
   // ---- fetch helpers ----
   Orion.getJSON = async function (url) {
@@ -66,7 +101,7 @@
     return d.innerHTML;
   };
 
-  Orion.shortId = function (id) { return id ? String(id).slice(0, 8) : "?"; };
+  Orion.shortId = function (id) { if (!id) return "?"; const value = String(id); return value.length > 16 ? value.slice(0, 8) + "…" + value.slice(-6) : value; };
 
   Orion.fmtTime = function (iso) {
     if (!iso) return "N/A";
@@ -75,8 +110,9 @@
 
   // ---- reusable renderers (mirror the Jinja components) ----
   Orion.statusBadge = function (status) {
-    const s = (status || "neutral").toLowerCase();
-    return `<span class="badge badge-${s}">${Orion.esc(status || "N/A")}</span>`;
+    const s = String(status || "UNKNOWN").toLowerCase();
+    const symbols = { confirmed: "✓", observed: "●", hypothesis: "◇", inferred: "≈", unknown: "?", not_applicable: "—", running: "●", pending: "○", blocked: "×", failed: "×", error: "×", mitigated: "✓", partially_mitigated: "!", not_mitigated: "×", approved: "✓", applied: "!", complete: "✓", completed: "✓" };
+    return `<span class="badge badge-${Orion.esc(s.replace(/[^a-z0-9_]/g, ""))}"><span aria-hidden="true">${symbols[s] || "·"}</span> ${Orion.esc(status || "UNKNOWN")}</span>`;
   };
 
   // Offensive statuses are "bad" for the defender (red); resisted = good (green).
@@ -89,7 +125,7 @@
   };
 
   Orion.metricCard = function (key, value, unit, tone) {
-    const v = value === null || value === undefined ? "N/A" : value;
+    const v = value === null || value === undefined ? "UNKNOWN" : value;
     return `<div class="metric ${tone || ""}"><div class="k">${Orion.esc(key.replace(/_/g, " "))}</div>` +
            `<div class="v">${Orion.esc(v)}${unit ? " " + Orion.esc(unit) : ""}</div></div>`;
   };
@@ -121,9 +157,11 @@
   Orion.setState = function (el, kind, msg) {
     if (!el) return;
     el.classList.remove("hidden");
+    el.setAttribute("role", kind === "error" ? "alert" : "status");
+    el.setAttribute("aria-live", kind === "error" ? "assertive" : "polite");
     const cls = kind === "error" ? "state error" : "state";
     if (kind === "running") {
-      el.innerHTML = `<div class="${cls}"><span class="loading-line">ORION IS RUNNING... ${Orion.esc(msg || "")}</span></div>`;
+      el.innerHTML = `<div class="${cls}"><span class="loading-line">● ${Orion.esc(msg || "")}</span></div>`;
     } else {
       el.innerHTML = `<div class="${cls}">${Orion.esc(msg || "")}</div>`;
     }
@@ -164,7 +202,8 @@
     }
 
     let html = `<div class="assessment-box"><div class="term-title">ORION // PLAN REVIEW — ${Orion.esc(plan.plan_id)}</div>
-      <div class="sub">STATUS: UNDER_REVIEW · remove experiments, tune parameters, add notes, then approve.</div>
+      <div class="sub">STATUS: UNDER_REVIEW · remove experiments, tune parameters, add notes, then approve. Approval makes eligible experiments executable. Approval does not run them.</div>
+      <p class="sub">${editable.filter(p => p.status === "READY").length} READY · ${editable.filter(p => p.status === "NEEDS_INPUT").length} NEEDS INPUT · ${excluded.length} EXCLUDED</p>
       ${editable.map(row).join("") || '<div class="state">No editable experiments.</div>'}`;
     if (excluded.length) {
       html += `<button class="btn btn-ghost" id="pr-excluded">[ SHOW EXCLUDED (${excluded.length}) ]</button>

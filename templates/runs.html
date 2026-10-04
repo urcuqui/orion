@@ -1,14 +1,17 @@
 {% extends "base.html" %}
-{% set section = 'evidence' %}
+{% set evidence_view = request.args.get('view') == 'evidence' %}
+{% set section = 'evidence' if evidence_view else 'runs' %}
 {% block title %}Evidence — Runs — ORION{% endblock %}
 
 {% block content %}
 <div class="section-head">
-  <h1>Evidence · Experiment History</h1>
-  <p class="sub">Artifact-backed runs read from <code>artifacts/</code>. No database required.</p>
+  <h1>{{ 'Evidence · records & artifacts' if evidence_view else 'Runs · execution history' }}</h1>
+  <p class="sub">{{ 'Inspect the records and artifacts proving what happened. Each links to its originating execution; findings provide the security interpretation.' if evidence_view else 'A run is an execution. Inspect its result, measurements, related finding, and evidence.' }}</p>
 </div>
 
 <div class="panel">
+  <div class="btn-row"><a class="btn btn-ghost" href="/runs">Runs</a><a class="btn btn-ghost" href="/runs?view=evidence">Evidence</a></div>
+  <label class="field" style="margin-top:12px"><span class="field-label">Search ID, scenario, target or technique</span><input type="search" id="runs-search" placeholder="Filter recorded executions"></label>
   <div class="btn-row secondary" style="margin-bottom:0.5rem;">
     <span class="field-label" style="align-self:center;">Type:</span>
     <button class="btn btn-ghost flt" data-k="type" data-v="all">All</button>
@@ -28,7 +31,7 @@
 </div>
 
 <div class="panel">
-  <div id="runs-table"><div class="state">Loading evidence…</div></div>
+  <div class="table-scroll" id="runs-table" aria-live="polite" data-view="{{ 'evidence' if evidence_view else 'runs' }}"><div class="state">Loading evidence…</div></div>
 </div>
 {% endblock %}
 
