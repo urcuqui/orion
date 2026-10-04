@@ -112,6 +112,18 @@ def list_workspaces(base_dir: str = DEFAULT_DIR) -> List[Dict[str, Any]]:
 # --------------------------------------------------------------------------- #
 # Create from an approved plan
 # --------------------------------------------------------------------------- #
+def _proposal_runnable(p) -> bool:
+    """A proposal is runnable if it has a legacy scenario OR maps to a catalog
+    attack with a runner (so GenAI/agentic experiments are runnable too)."""
+    if p.status != "READY":
+        return False
+    if p.scenario:
+        return True
+    from orion.catalog import attacks as CAT
+    a = CAT.get(p.name)
+    return bool(a and a.runnable)
+
+
 def create_from_plan(plan, base_dir: str = DEFAULT_DIR) -> ExperimentLifecycle:
     ws = ExperimentLifecycle(
         plan_id=plan.plan_id,
@@ -122,7 +134,7 @@ def create_from_plan(plan, base_dir: str = DEFAULT_DIR) -> ExperimentLifecycle:
         threat_model_id=plan.threat_model_id,
     )
     ws.stages["plan"] = APPROVED if plan.approved_by_human else PROPOSED
-    ready = [p for p in plan.proposals if p.status == "READY" and p.scenario]
+    ready = [p for p in plan.proposals if _proposal_runnable(p)]
     if ready:
         ws.active_experiment_id = ready[0].experiment_id
         ws.stages["attack"] = READY if plan.approved_by_human else PENDING
@@ -153,6 +165,13 @@ def run_attack(ws: ExperimentLifecycle, base_dir: str = DEFAULT_DIR) -> Dict[str
         raise StageError("attack requires an approved plan")      # fail-closed
     if not ws.active_experiment_id:
         raise StageError("no active experiment selected")
+    # If the active experiment maps to a GenAI/agentic catalog attack, dispatch to
+    # the controlled lab (not the adversarial scenario runner).
+    from orion.catalog import attacks as CAT
+    active = next((p for p in plan.proposals if p.experiment_id == ws.active_experiment_id), None)
+    a = CAT.get(active.name) if active else None
+    if a and a.family in (CAT.GENERATIVE_AI, CAT.AGENTIC_AI):
+        return run_agentic_attack(ws, {"attack_id": a.id}, base_dir=base_dir)
     ws.attack_mode = "adversarial"
     ws.stages["attack"] = RUNNING
     save(ws, base_dir)
@@ -227,9 +246,20 @@ def attack_options(ws: ExperimentLifecycle, base_dir: str = DEFAULT_DIR) -> Dict
     derived = derive_access_level(self_profile_id=ws.self_profile_id,
                                   target_url=url if live else None)
     from orion.catalog import attacks as CAT
+    # Suggest the family that matches the active experiment (e.g. an LLM target's
+    # prompt-injection proposal → generative_ai), so the chooser opens on it.
+    suggested = "traditional_ml"
+    active = next((p for p in (getattr(plan, "proposals", []) or [])
+                   if p.experiment_id == ws.active_experiment_id), None)
+    if active:
+        a = CAT.get(active.name)
+        if a:
+            suggested = a.family
+    ai_endpoints = (target.get("ai_endpoints") or []) if isinstance(target, dict) else []
     return {"derived": derived, "catalog": catalog("image"),
             "live_url": url if live else None,
-            "families": CAT.grouped_by_family()}
+            "ai_endpoints": ai_endpoints,
+            "families": CAT.grouped_by_family(), "suggested_family": suggested}
 
 
 def run_agentic_attack(ws: ExperimentLifecycle, params: Dict[str, Any],
@@ -272,6 +302,57 @@ def run_agentic_attack(ws: ExperimentLifecycle, params: Dict[str, Any],
     save(ws, base_dir)
     return {"trace_id": rec.trace_id, "status": rec.status, "mode": "agentic",
             "attack": attack.name, "family": attack.family}
+
+
+def run_live_agentic_attack(ws: ExperimentLifecycle, params: Dict[str, Any],
+                            base_dir: str = DEFAULT_DIR) -> Dict[str, Any]:
+    """Run a real prompt injection against a live LLM endpoint (the extension)."""
+    from orion import plans as PL
+    from orion.catalog import attacks as CAT
+    plan = PL.load_plan(ws.plan_id, base_dir)
+    if plan is None or not plan.approved_by_human:
+        raise StageError("live attack requires an approved plan")
+    params = params or {}
+    url = params.get("url") or (getattr(plan, "target", {}) or {}).get("target")
+    endpoint = params.get("endpoint")
+    if not url:
+        raise StageError("a live target URL is required")
+    if not endpoint:
+        raise StageError("a live AI endpoint (e.g. /api/chat) is required")
+    attack_id = params.get("attack_id", "ORN-ATTACK-PI-001")
+    attack = CAT.get(attack_id)
+    if attack is None or attack.family == CAT.TRADITIONAL_ML:
+        raise StageError("a GenAI/agentic attack id is required")
+    provenance = {
+        "source_type": "live_prompt_injection", "plan_id": ws.plan_id,
+        "experiment_id": ws.active_experiment_id, "analysis_context_id": ws.analysis_context_id,
+        "self_profile_id": ws.self_profile_id, "target_profile_id": ws.target_profile_id,
+        "environment_profile_id": ws.environment_profile_id, "threat_model_id": ws.threat_model_id,
+        "experiment_workspace_id": ws.experiment_workspace_id, "attack_id": attack.id,
+    }
+    ws.attack_mode = "agentic_live"
+    ws.attack_catalog_id = attack.id
+    ws.stages["attack"] = RUNNING
+    save(ws, base_dir)
+    try:
+        from orion.agentic import run_live_prompt_injection
+        rec = run_live_prompt_injection(
+            url=url, endpoint=endpoint, field=params.get("field"),
+            owasp=params.get("owasp"),
+            trials=int(params["trials"]) if params.get("trials") else None,
+            attack_id=attack.id, base_dir=base_dir, provenance=provenance)
+    except Exception:
+        ws.stages["attack"] = FAILED
+        save(ws, base_dir)
+        raise
+    ws.attack_run_id = rec.trace_id
+    ws.measurement_id = rec.trace_id
+    ws.stages["attack"] = COMPLETE
+    ws.stages["measure"] = READY
+    ws.current_stage = "measure"
+    save(ws, base_dir)
+    return {"trace_id": rec.trace_id, "status": rec.status, "mode": "agentic_live",
+            "attack": attack.name, "family": attack.family, "endpoint": endpoint}
 
 
 def run_whitebox_attack(ws: ExperimentLifecycle, params: Dict[str, Any],
@@ -435,7 +516,18 @@ def retest(ws: ExperimentLifecycle, base_dir: str = DEFAULT_DIR) -> Dict[str, An
     }
 
     try:
-        if ws.attack_mode == "agentic":
+        if ws.attack_mode == "agentic_live":
+            # Replay the SAME live attack, applying a client-side input filter when
+            # the chosen control is one a gateway can enforce.
+            from orion.agentic import run_live_prompt_injection
+            p = before_rec.parameters or {}
+            mitigate = ws.defense_control in {"instruction_provenance", "context_isolation", "human_approval"}
+            after_rec = run_live_prompt_injection(
+                url=p.get("url"), endpoint=p.get("endpoint", "/api/chat"), field=p.get("field"),
+                owasp=p.get("owasp"), trials=int(p["trials"]) if p.get("trials") else None,
+                attack_id=ws.attack_catalog_id,
+                mitigate=mitigate, mode="hardened", base_dir=base_dir, provenance=retest_provenance)
+        elif ws.attack_mode == "agentic":
             # Replay the SAME agentic attack with the applied control.
             from orion.agentic import run_agentic_experiment
             controls = [ws.defense_control] if ws.defense_control else []
@@ -465,7 +557,7 @@ def retest(ws: ExperimentLifecycle, base_dir: str = DEFAULT_DIR) -> Dict[str, An
     save(ws, base_dir)
 
     # Comparison is a *result* of retest (original vs retest measurement).
-    if ws.attack_mode == "agentic":
+    if ws.attack_mode in ("agentic", "agentic_live"):
         cmp = _metric_comparison(before_rec, after_rec)
     else:
         from orion.experiments import compare

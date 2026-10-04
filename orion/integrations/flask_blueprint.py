@@ -617,6 +617,14 @@ def api_experiment_attack_agentic(ws_id):
     return _experiment_stage(ws_id, lambda ws: run_agentic_attack(ws, payload, ARTIFACT_DIR))
 
 
+@api_bp.post("/experiment/<ws_id>/attack-agentic-live")
+def api_experiment_attack_agentic_live(ws_id):
+    """Run a real prompt injection against a live discovered AI endpoint."""
+    from orion.experiments import run_live_agentic_attack
+    payload = request.get_json(silent=True) or {}
+    return _experiment_stage(ws_id, lambda ws: run_live_agentic_attack(ws, payload, ARTIFACT_DIR))
+
+
 @api_bp.post("/experiment/<ws_id>/defend")
 def api_experiment_defend(ws_id):
     from orion.experiments import apply_defense
@@ -656,6 +664,14 @@ def api_catalog():
     from orion.catalog import attacks as CAT
     return jsonify({"families": CAT.grouped_by_family(),
                     "family_labels": CAT.FAMILY_LABELS})
+
+
+@api_bp.get("/payloads")
+def api_payloads():
+    """The OWASP LLM prompt-injection payload catalog (metadata only)."""
+    from orion.agentic import payloads as PLD
+    return jsonify({"categories": PLD.owasp_categories(),
+                    "payloads": [p.to_dict() for p in PLD.all_payloads()]})
 
 
 @api_bp.get("/findings")

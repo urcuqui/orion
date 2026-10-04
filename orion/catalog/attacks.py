@@ -235,6 +235,7 @@ _ALIASES.update({
     "prompt injection": "ORN-ATTACK-PI-001",
     "indirect prompt injection": "ORN-ATTACK-PI-002",
     "tool poisoning": "ORN-ATTACK-AG-001",
+    "tool / mcp poisoning": "ORN-ATTACK-AG-001", "tool / mcp poisoning ": "ORN-ATTACK-AG-001",
     "privilege abuse": "ORN-ATTACK-AG-002", "tool abuse": "ORN-ATTACK-AG-002",
 })
 

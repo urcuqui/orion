@@ -267,6 +267,8 @@ def build_plan_from_target_analysis(assessment: Dict[str, Any]) -> ExperimentPla
         "system_type": (assessment.get("target_types") or [{}])[0].get("type"),
         "access": (assessment.get("threat_model") or {}).get("adversary", {}).get("access", "unknown"),
         "ai_surface": (assessment.get("ai_surface") or {}).get("status"),
+        # Concrete AI endpoints discovered during analysis — targets for a live step.
+        "ai_endpoints": assessment.get("ai_endpoints", []),
     }
     plan = ExperimentPlan(
         source_type="know_your_target",

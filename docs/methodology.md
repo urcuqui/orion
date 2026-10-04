@@ -78,7 +78,10 @@ every family, each from the one catalog:
   (`orion.adversarial`); access level (white/black-box) is derived and confirmed.
 - **Generative AI / Agentic AI** — controlled, deterministic lab experiments for
   prompt injection and tool/privilege abuse (`orion.agentic`), with a full
-  per-trial execution trace. Results are derived from the trace, never asserted.
+  per-trial execution trace. Discovered AI endpoints also become **live targets**:
+  a canary-based prompt injection can be run against a real endpoint such as
+  `/api/chat` (`orion.agentic.run_live_prompt_injection`). Results are derived from
+  the trace/response, never asserted.
 
 Execution is always explicit (a human presses RUN); analysis never silently
 becomes attack execution.

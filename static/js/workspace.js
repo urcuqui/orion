@@ -260,14 +260,14 @@ STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
     try { opt = await Orion.getJSON(`/api/experiment/${wsid}/attack-options`); }
     catch (e) { Orion.setState(el, "error", "[x] " + e.message); return; }
     const families = opt.families || {};
-    const family = el._family || "traditional_ml";
+    const family = el._family || opt.suggested_family || "traditional_ml";
 
     const tabs = `<div class="btn-row">` + FAMILY_TABS.map(([k, label]) =>
       `<button class="btn ${family === k ? "btn-red" : "btn-ghost"}" data-fam="${k}">${label}</button>`).join("") + `</div>`;
 
     let body;
     if (family === "traditional_ml") body = traditionalBody(opt, el);
-    else body = agenticBody(families[family] || [], family);
+    else body = agenticBody(families[family] || [], family, opt);
 
     el.innerHTML = `<div class="term-title">EXPERIMENT / ATTACK</div>
       <div class="term-title" style="margin-top:0.3rem;">AI SECURITY FAMILY</div>
@@ -359,25 +359,39 @@ STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
     });
   }
 
-  function agenticBody(list, family) {
+  function agenticBody(list, family, opt) {
     if (!list.length) return `<div class="state">No ${family.replace("_", " ")} attacks catalogued.</div>`;
     const items = list.map((a, i) => `<label class="atk-opt">
       <div><input type="radio" name="atk-sel" value="${Orion.esc(a.id)}" ${i === 0 ? "checked" : ""}>
         <strong>${Orion.esc(a.name)}</strong> <span class="sub">${Orion.esc(a.id)}</span></div>
       <div class="sub">${Orion.esc(a.description)}</div>
       <div class="sub">success: ${Orion.esc((a.success_criteria || []).join(", "))}</div></label>`).join("");
-    return `<div class="term-title">${family === "generative_ai" ? "GENERATIVE AI" : "AGENTIC"} EXPERIMENTS — controlled lab</div>
-      <p class="sub">Deterministic lab: an agent with tools over (possibly untrusted) content. Findings are derived from the recorded trace, not asserted.</p>
+    // Live-endpoint section: each discovered AI endpoint is a concrete target.
+    const aiEps = (opt && opt.ai_endpoints) || [];
+    const liveUrl = (opt && opt.live_url) || "";
+    const live = (liveUrl && aiEps.length) ? `
+      <hr class="term-rule">
+      <div class="term-title" style="color:var(--red)">LIVE TARGET (real requests to a discovered AI endpoint)</div>
+      <p class="sub">Canary-based prompt injection against the live endpoint. Authorised targets only.</p>
+      <div class="kv">
+        <div class="k">Target URL</div><div class="v"><input type="text" id="lv-url" value="${Orion.esc(liveUrl)}" style="width:100%"></div>
+        <div class="k">AI endpoint</div><div class="v"><select id="lv-ep" style="width:100%">${aiEps.map(e => `<option value="${Orion.esc(e)}">${Orion.esc(e)}</option>`).join("")}</select></div>
+        <div class="k">OWASP payloads</div><div class="v"><select id="lv-owasp" style="width:100%"><option value="">All categories</option></select></div>
+        <div class="k">Trials</div><div class="v"><input type="number" id="lv-trials" placeholder="(all payloads)" min="1" max="20" style="width:140px"></div>
+      </div>
+      <div class="btn-row" style="margin-top:0.4rem;"><button class="btn btn-red" id="run-live">[ CONFIRM & RUN LIVE INJECTION ]</button></div>` : "";
+    return `<div class="term-title">${family === "generative_ai" ? "GENERATIVE AI" : "AGENTIC"} EXPERIMENTS</div>
+      <p class="sub">Controlled lab: an agent with tools over (possibly untrusted) content. Findings are derived from the recorded trace, not asserted.</p>
       <div class="atk-catalog">${items}</div>
       <div class="kv"><div class="k">Trials</div><div class="v"><input type="number" id="ag-trials" value="3" min="1" max="20" style="width:120px"></div></div>
       <div class="btn-row" style="margin-top:0.4rem;"><button class="btn btn-red" id="run-atk">[ RUN EXPERIMENT ]</button>
-        <span class="sub" style="align-self:center">controlled lab (no live LLM / MCP)</span></div>`;
+        <span class="sub" style="align-self:center">controlled lab (no live LLM / MCP)</span></div>
+      ${live}`;
   }
 
   function wireAgentic(el, ws, wsid) {
     const run = document.getElementById("run-atk");
-    if (!run) return;
-    run.addEventListener("click", async () => {
+    if (run) run.addEventListener("click", async () => {
       const sel = el.querySelector('input[name="atk-sel"]:checked');
       if (!sel) return;
       const out = document.getElementById("attack-out");
@@ -388,6 +402,33 @@ STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
         loadWorkspace(wsid);
       } catch (e) { Orion.setState(out, "error", "[x] " + e.message); }
     });
+    const lv = document.getElementById("run-live");
+    if (lv) {
+      // Populate OWASP categories from the payload catalog.
+      const owaspSel = document.getElementById("lv-owasp");
+      if (owaspSel) Orion.getJSON("/api/payloads").then(d => {
+        (d.categories || []).forEach(c => {
+          const o = document.createElement("option");
+          o.value = c.owasp; o.textContent = c.owasp + " — " + c.name; owaspSel.appendChild(o);
+        });
+      }).catch(() => {});
+      lv.addEventListener("click", async () => {
+        const sel = el.querySelector('input[name="atk-sel"]:checked');
+        const ep = document.getElementById("lv-ep").value;
+        if (!lv.dataset.ok) { lv.dataset.ok = "1"; lv.textContent = "[ CONFIRM: real requests to " + ep + " ]"; return; }
+        const out = document.getElementById("attack-out");
+        Orion.setState(out, "running", `running OWASP LLM injection against ${ep} …`);
+        try {
+          const trials = document.getElementById("lv-trials").value;
+          await Orion.postJSON(`/api/experiment/${wsid}/attack-agentic-live`, {
+            attack_id: sel ? sel.value : "ORN-ATTACK-PI-001",
+            url: document.getElementById("lv-url").value, endpoint: ep,
+            owasp: document.getElementById("lv-owasp").value || null,
+            trials: trials ? trials : null });
+          loadWorkspace(wsid);
+        } catch (e) { Orion.setState(out, "error", "[x] " + e.message); }
+      });
+    }
   }
 
   function comparison(cmp, beforeId, afterId) {

@@ -9,5 +9,6 @@ from __future__ import annotations
 
 from orion.agentic import lab
 from orion.agentic.experiment import run_agentic_experiment
+from orion.agentic.live import run_live_prompt_injection
 
-__all__ = ["lab", "run_agentic_experiment"]
+__all__ = ["lab", "run_agentic_experiment", "run_live_prompt_injection"]

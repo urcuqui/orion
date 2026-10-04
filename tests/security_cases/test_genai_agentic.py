@@ -101,6 +101,47 @@ def test_agentic_attack_requires_approved_plan(tmp_path):
         EXP.run_agentic_attack(ws, {"attack_id": "ORN-ATTACK-AG-002"}, base_dir=str(tmp_path))
 
 
+def test_openapi_schema_is_parsed_into_endpoints_and_ai_signals():
+    # Regression: an OpenAPI-declared surface (e.g. an LLM app) must be discovered,
+    # not left as a single /openapi.json endpoint.
+    from orion.target_analysis.probe import build_probe_summary
+    obs = [
+        {"path": "/", "status": 200, "server": "uvicorn", "content_type": "text/html"},
+        {"path": "/", "status": 200, "server": "uvicorn", "content_type": "text/html"},  # dup
+        {"path": "/openapi.json", "status": 200, "content_type": "application/json",
+         "openapi_title": "AgentBreak — OWASP LLM Top 10 Lab",
+         "openapi_paths": ["/", "/api/health", "/api/chat", "/api/report"]},
+    ]
+    s = build_probe_summary("http://svc", obs)
+    assert "/api/chat" in s["endpoints"] and "/api/report" in s["endpoints"]
+    titles = [f["title"] for f in s["findings"]]
+    assert any("ai_api_endpoint: /api/chat" == t for t in titles)
+    assert any("openapi service" in t for t in titles)
+    assert titles.count("server stack: uvicorn") == 1          # de-duplicated
+
+
+def test_llm_target_yields_a_runnable_agentic_experiment(tmp_path):
+    # Regression: a CONFIRMED LLM target must offer an attack, not a dead-end —
+    # the prompt-injection proposal is runnable via the catalog even without a
+    # legacy scenario.
+    a = build_assessment_from_summary({"target": "http://chatbot", "endpoints": ["/api/chat"],
+        "report_markdown": "llm chat assistant; conversational prompt interface (chatbot)",
+        "findings": [{"id": "f", "title": "ai_api_endpoint: /api/chat", "severity": "info"},
+                     {"id": "g", "title": "openapi service: chatbot", "severity": "info"}]})
+    assert a["ai_surface"]["status"] == "CONFIRMED"
+    plan = PL.build_plan_from_target_analysis(a)
+    assert {p.name: p.status for p in plan.proposals}.get("Prompt injection") == "READY"
+    PL.approve_plan(plan); PL.save_plan(plan, base_dir=str(tmp_path))
+    ws = EXP.create_from_plan(plan, base_dir=str(tmp_path))
+    assert ws.active_experiment_id is not None            # not a dead-end
+    assert EXP.next_action(ws)["label"] == "RUN ATTACK"
+    opt = EXP.attack_options(ws, base_dir=str(tmp_path))
+    assert opt["suggested_family"] == "generative_ai"
+    # The generic RUN path dispatches to the controlled agentic lab.
+    r = EXP.run_attack(ws, base_dir=str(tmp_path))
+    assert r["mode"] == "agentic"
+
+
 def test_agentic_attack_requires_agentic_id(tmp_path):
     ws = EXP.create_from_plan(_approved_agentic_plan(tmp_path), base_dir=str(tmp_path))
     with pytest.raises(EXP.StageError):

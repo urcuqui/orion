@@ -333,6 +333,32 @@ the vector**. Against indirect-PI exfiltration, `tool_authorization` is
 the trace, not declared. The full per-trial trace is preserved on the run and
 shown under **Evidence**.
 
+### Live endpoint extension
+
+Discovered AI endpoints are **targets for a later step**. When analysis reads a
+service's OpenAPI schema (or elicits an inference response), each AI/LLM endpoint
+(e.g. `/api/chat`) is recorded as an `ai_endpoint` and carried through to the
+Experiment Workspace. The ATTACK stage then offers a **LIVE TARGET** option that
+runs a real prompt injection against that endpoint
+(`orion.agentic.run_live_prompt_injection`) — the GenAI analogue of the
+decision-based black-box image runner. Success is detected with a unique
+**canary** token (the injected instruction asks the model to echo it), so
+"the instruction was followed" is observable **without knowing any server-side
+secret**, and the result is honest (if the model refuses, the run is
+`ATTACK_BLOCKED`). Retest can apply a client-side **prompt-injection input
+filter** (what `instruction_provenance` / `context_isolation` mean for a live
+endpoint) and replay the same attack for a real before/after.
+
+Payloads come from an **OWASP LLM Top 10 catalog** (`orion.agentic.payloads`):
+direct/indirect injection and jailbreak (LLM01), system-prompt leakage (LLM07),
+sensitive-information disclosure (LLM06), insecure output handling (LLM02) and
+excessive agency (LLM08). A run can be filtered to one category, and the result
+records a **per-OWASP breakdown**. Success is counted when the model echoes the
+canary **or** a non-refusing response shows technique-specific compliance (e.g.
+it actually reveals its system prompt) — conservative, and visible in the trace.
+Against a real OWASP LLM lab this yields an honest per-category score (e.g. system
+prompt leakage and insecure output confirmed, naive direct injection refused).
+
 ## Findings
 
 A **Finding** (`orion.findings`) is Orion's *security interpretation* of the

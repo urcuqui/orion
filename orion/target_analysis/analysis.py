@@ -729,6 +729,9 @@ def _assemble(summary: Dict[str, Any], source: str, run_id: Optional[str], extra
         "target": summary.get("target", "unknown"),
         "summary": summary,
         "evidence": evidence,
+        "endpoints": summary.get("endpoints", []),
+        # Discovered AI/LLM endpoints are concrete targets for a later live step.
+        "ai_endpoints": summary.get("ai_endpoints", []),
         "target_types": types,
         "ai_surface": ai_surface,
         "observations": observations,

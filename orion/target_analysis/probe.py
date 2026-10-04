@@ -196,11 +196,36 @@ def build_probe_summary(url: str, observations: List[Dict[str, Any]]) -> Dict[st
     findings: List[Dict[str, Any]] = []
     report_parts: List[str] = [f"# Direct URL probe of {url}"]
 
+    _seen_findings = set()
+    ai_endpoints: List[str] = []   # discovered AI/LLM endpoints = targets for a later step
+
     def add_finding(title: str):
+        if title in _seen_findings:
+            return  # de-duplicate (e.g. the same serving-stack header on many paths)
+        _seen_findings.add(title)
         findings.append({"title": title, "severity": "info",
                          "description": f"Observed via direct URL probe of {url}."})
 
+    # Paths that signal an AI/LLM/agent surface when declared in an API schema.
+    _AI_PATH_HINTS = ("chat", "completion", "complete", "agent", "assistant", "predict",
+                      "inference", "generate", "embedding", "rag", "tool", "llm", "message")
+
     for o in observations:
+        # OpenAPI/Swagger schema: declared paths are real endpoints + AI signals.
+        if o.get("openapi_paths"):
+            title = (o.get("openapi_title") or "").strip()
+            if title:
+                add_finding(f"openapi service: {title}")
+            for p in o["openapi_paths"]:
+                if p and p != "/" and p not in endpoints:
+                    endpoints.append(p)
+                lp = p.lower()
+                if any(h in lp for h in _AI_PATH_HINTS):
+                    add_finding(f"ai_api_endpoint: {p}")
+                    if p not in ai_endpoints:
+                        ai_endpoints.append(p)
+            report_parts.append(o.get("snippet", ""))
+            continue
         status = o.get("status")
         path = o.get("path", "")
         exists = status is not None and status not in (404, 501, 502, 503)
@@ -224,14 +249,20 @@ def build_probe_summary(url: str, observations: List[Dict[str, Any]]) -> Dict[st
                     add_finding(tok)
         # Behavioural tokens (active POST) -> evidence-backed findings so they
         # carry an evidence id and can satisfy attack prerequisites.
-        for tok in o.get("tokens", []) or []:
+        toks = o.get("tokens", []) or []
+        for tok in toks:
             add_finding(tok)
+        if toks and path.startswith("POST "):
+            ep = path[len("POST "):].strip()
+            if ep and ep not in ai_endpoints:
+                ai_endpoints.append(ep)   # live inference endpoint = a target
 
     auth = [p for p in endpoints if any(k in p for k in ("login", "auth", "signin"))]
     return {
         "target": url,
         "objective": "direct URL probe",
         "endpoints": endpoints,
+        "ai_endpoints": ai_endpoints,
         "auth_indicators": auth,
         "screenshots": [],
         "findings": findings,
@@ -288,6 +319,30 @@ def probe_url(url: str, timeout: float = 3.0, max_requests: int = 32,
     queue = [p for p in (PROBE_PATHS[1:] + discovered) if not (p in seen or seen.add(p))]
     for path in queue[: max_requests - 1]:
         observations.append(_get(path))
+
+    # 2b. OpenAPI / Swagger schema: if the service publishes one, read its declared
+    #     paths — the real API surface (e.g. /api/chat on an LLM app) that a plain
+    #     GET of the home page never reveals.
+    for spec_path in ("/openapi.json", "/swagger.json", "/v1/openapi.json", "/api/openapi.json"):
+        try:
+            r = requests.get(urljoin(base + "/", spec_path.lstrip("/")), timeout=timeout)
+        except Exception:  # noqa: BLE001
+            continue
+        if r.status_code == 200 and "json" in r.headers.get("Content-Type", "").lower():
+            try:
+                spec = r.json()
+            except Exception:  # noqa: BLE001
+                spec = {}
+            paths = [p for p in (spec.get("paths") or {}).keys()]
+            if paths:
+                title = ((spec.get("info") or {}).get("title") or "").strip()
+                observations.append({
+                    "path": spec_path, "status": 200,
+                    "content_type": r.headers.get("Content-Type", ""),
+                    "openapi_paths": paths, "openapi_title": title,
+                    "snippet": ("OpenAPI schema" + (f" — {title}" if title else "")
+                                + ": " + ", ".join(paths))[:1500]})
+            break
 
     # 3. Active mode (authorized targets only): send harmless test inputs to
     #    (a) discovered upload forms and (b) common inference endpoints, to elicit

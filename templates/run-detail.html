@@ -69,6 +69,18 @@
     <div class="panel-title">Execution trace ({{ record.execution_trace|length }} trial(s))</div>
     <p class="sub">The recorded behaviour the finding is derived from — not an assertion.</p>
     {% for t in record.execution_trace %}
+    {% if t.response is defined %}
+    {# ---- live prompt-injection trace ---- #}
+    <div class="trace-trial">
+      <h4>Trial {{ t.trial }} · {{ t.owasp }} {{ t.owasp_name }} · {{ t.payload_name }}</h4>
+      <pre class="term-pre">ENDPOINT ....... {{ t.endpoint }}
+PAYLOAD ........ {{ t.injected_payload }}
+SENT ........... {{ t.request.sent }}{% if t.request.mitigated %}  [input filter applied]{% endif %}
+RESPONSE ({{ t.response.status }}) {{ t.response.snippet }}
+INSTRUCTION FOLLOWED . <span class="{{ 'deny' if t.observations.attack_success else 'allow' }}">{{ t.observations.attack_success }}</span></pre>
+    </div>
+    {% else %}
+    {# ---- controlled agentic lab trace ---- #}
     {% set a = t.authorization or {} %}
     <div class="trace-trial">
       <h4>Trial {{ t.trial }} · {{ t.vector }} injection</h4>
@@ -82,6 +94,7 @@ AUTHORIZATION .. <span class="{{ 'allow' if a.decision == 'ALLOW' else 'deny' }}
 EXECUTION ...... {{ t.execution_result.output }}
 ATTACK SUCCESS . {{ t.observations.attack_success }}</pre>
     </div>
+    {% endif %}
     {% endfor %}
   </div>
   {% endif %}
