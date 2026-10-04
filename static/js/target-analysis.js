@@ -38,7 +38,7 @@
         <div class="recon-run-row">
           <div class="meta"><span class="rid">${Orion.esc(r.display_id)}</span>
             &middot; ${Orion.esc(r.target)} &middot; ${Orion.statusBadge(r.status)}</div>
-          <button class="btn btn-red btn-analyze" data-run="${Orion.esc(r.run_id)}">[ ANALYZE WITH ORION ]</button>
+          <button class="btn btn-ghost btn-analyze" data-run="${Orion.esc(r.run_id)}">Analyze With ORION</button>
         </div>`).join("");
       el.querySelectorAll(".btn-analyze").forEach(b =>
         b.addEventListener("click", () => analyzeRecon(b.dataset.run)));
@@ -156,8 +156,8 @@
       html += `<div class="term"><div class="term-title">INSUFFICIENT AI EVIDENCE</div>
         <div class="statusline"><span class="off">[-] ${Orion.esc(a.abstention)}</span></div>
         <div class="btn-row" style="margin-top:0.6rem;">
-          <a class="btn btn-red" href="${reconHref}">[ RUN DEEPER RECON ]</a>
-          <button class="btn" data-cap="agent">[ PROVIDE TARGET CONTEXT ]</button>
+          <a class="btn btn-ghost" href="${reconHref}">[ RUN DEEPER RECON ]</a>
+          <button class="btn" data-cap="agent">Provide Target Context</button>
           <a class="btn btn-ghost" href="${reconHref}">[ SELECT AN AI APPLICATION ]</a>
         </div></div>`;
     }
@@ -192,17 +192,17 @@
         <button class="why-btn">[ WHY? ]</button>
         <div class="why-box">${Orion.esc(e.rationale || "")}${e.missing && e.missing.length ? " · missing prerequisites: " + Orion.esc(e.missing.join(", ")) : ""}${e.atlas && e.atlas.length ? " · ATLAS: " + e.atlas.map(m=>Orion.esc(m.technique_id)).join(", ") : ""}</div>
         <div class="exp-launch hidden" style="margin-top:0.4rem;">
-          ${(e.scenario && e.applicability === "APPLICABLE") ? `<a class="btn btn-red" href="/adversarial">[ LAUNCH EXPERIMENT ]</a>` : `<span class="sub">${e.applicability === "APPLICABLE" ? "Manual experiment — review required." : "Not applicable to this target with current evidence."}</span>`}
+          ${(e.scenario && e.applicability === "APPLICABLE") ? `<a class="btn btn-ghost" href="/adversarial">Launch Experiment</a>` : `<span class="sub">${e.applicability === "APPLICABLE" ? "Manual experiment — review required." : "Not applicable to this target with current evidence."}</span>`}
         </div></div>`;
     }
     html += `<div class="term"><div class="term-title">SUGGESTED EXPERIMENTS <span class="proposed">PROPOSED</span></div>
       ${primaryExps.length ? primaryExps.map(expHtml).join("") : '<div class="state">No applicable experiments for this target with current evidence.</div>'}
       ${naExps.length ? `<div style="margin-top:0.6rem;">
-        <button class="btn btn-ghost" id="btn-show-na">[ SHOW NON-APPLICABLE EXPERIMENTS (${naExps.length}) ]</button>
+        <button class="btn btn-ghost" id="btn-show-na">Show Non-Applicable Experiments (${naExps.length})</button>
         <div id="na-exps" class="hidden" style="margin-top:0.5rem;">${naExps.map(expHtml).join("")}</div></div>` : ""}
       <div class="btn-row" style="margin-top:0.6rem;">
-        <button class="btn" id="btn-review">[ REVIEW PLAN ]</button>
-        <button class="btn btn-red hidden" id="btn-approve-plan">[ REVIEW &amp; EDIT PLAN ]</button>
+        <button class="btn" id="btn-review">Review Plan</button>
+        <button class="btn btn-ghost hidden" id="btn-approve-plan">Review &amp; Edit Plan</button>
       </div>
       <div id="plan-note" class="sub" style="margin-top:0.4rem;"></div>
       <div id="plan-handoff" class="hidden" style="margin-top:0.6rem;"></div></div>`;
@@ -233,7 +233,7 @@
       <div class="tm-approve">
         <button class="btn" id="tm-accept">[ ACCEPT ]</button>
         <button class="btn btn-ghost" id="tm-edit">[ EDIT ]</button>
-        <button class="btn btn-red" id="tm-reject">[ REJECT ]</button>
+        <button class="btn btn-ghost" id="tm-reject">Reject</button>
       </div></div>`;
 
     assessmentEl.innerHTML = html;

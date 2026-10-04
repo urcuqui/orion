@@ -139,8 +139,17 @@ def run_detail_page(trace_id):
         finding = f.to_dict() if f else None
     except Exception:
         finding = None
+    workspace = None
+    if record and (record.get('provenance') or {}).get('experiment_workspace_id'):
+        try:
+            from orion.experiments import load_workspace
+            ws = load_workspace(record['provenance']['experiment_workspace_id'], 'artifacts')
+            if ws and trace_id in (ws.attack_run_id, ws.retest_run_id):
+                workspace = ws.to_dict()
+        except (OSError, ValueError, TypeError):
+            pass
     return render_template('run-detail.html', trace_id=trace_id, record=record,
-                           report_md=report_md, finding=finding)
+                           report_md=report_md, finding=finding, workspace=workspace)
 
 @app.route('/findings')
 def findings_page():

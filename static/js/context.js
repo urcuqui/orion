@@ -55,10 +55,10 @@
     const tm = a.threat_model || {};
     html += `<div class="term"><div class="term-title">THREAT MODEL (source-aware)</div>`;
     html += `<div class="sub">ASSETS</div>` + (tm.assets||[]).map(x => `<div class="analysis-item"><strong>${Orion.esc(x.asset)}</strong> <span class="ttype">${Orion.esc(x.kind||"")}</span><div class="meta">source: ${Orion.esc(x.source)} · evidence: ${(x.evidence||[]).length}</div></div>`).join("") || "";
-    html += `<div class="sub" style="margin-top:0.4rem;">TRUST BOUNDARIES</div>` + ((tm.trust_boundaries||[]).map(x => `<div class="analysis-item">${Orion.esc(x.boundary)}<div class="meta">source: ${Orion.esc(x.source)}</div></div>`).join("") || '<div class="sub">none</div>');
-    html += `<div class="sub" style="margin-top:0.4rem;">OBJECTIVES</div>` + ((tm.objectives||[]).map(x => `<div class="analysis-item">${Orion.esc(x.objective)}<div class="meta">source: ${Orion.esc(x.source)}</div></div>`).join("") || '<div class="sub">none (define in Target Profile)</div>');
+    html += `<div class="sub space-above-sm">TRUST BOUNDARIES</div>` + ((tm.trust_boundaries||[]).map(x => `<div class="analysis-item">${Orion.esc(x.boundary)}<div class="meta">source: ${Orion.esc(x.source)}</div></div>`).join("") || '<div class="sub">none</div>');
+    html += `<div class="sub space-above-sm">OBJECTIVES</div>` + ((tm.objectives||[]).map(x => `<div class="analysis-item">${Orion.esc(x.objective)}<div class="meta">source: ${Orion.esc(x.source)}</div></div>`).join("") || '<div class="sub">none (define in Target Profile)</div>');
     const adv = tm.adversary || {};
-    html += `<div class="sub" style="margin-top:0.4rem;">ADVERSARY</div><pre class="term-pre">goal ....... ${Orion.esc(adv.goal)}
+    html += `<div class="sub space-above-sm">ADVERSARY</div><pre class="term-pre">goal ....... ${Orion.esc(adv.goal)}
 knowledge .. ${Orion.esc(adv.knowledge)}
 budget ..... ${Orion.esc(adv.budget)}
 network .... ${Orion.esc(adv.network_access)}
@@ -74,11 +74,11 @@ creds ...... ${Orion.esc(adv.credential_access)}</pre>`;
         <span class="appl APPLICABLE">APPLICABLE</span>
         <div class="sub">${Orion.esc(e.rationale)} · source: ${Orion.esc((e.source_profiles||[]).join(", ") || "—")}</div></div>`).join("")
       : '<div class="state">No applicable experiments for this context.</div>';
-    html += `<div style="margin-top:0.5rem;"><button class="btn btn-ghost" id="ctx-na">[ SHOW NON-APPLICABLE (${na.length}) ]</button>
-      <div id="ctx-na-list" class="hidden" style="margin-top:0.4rem;">`
+    html += `<div style="margin-top:0.5rem;"><button class="btn btn-ghost" id="ctx-na">Show Non-Applicable (${na.length})</button>
+      <div id="ctx-na-list" class="hidden space-above-sm">`
       + na.map(e => `<div class="exp na"><span class="ename">${Orion.esc(e.name)}</span> <span class="appl ${Orion.esc(e.applicability)}">${Orion.esc(e.applicability.replace("_"," "))}</span><div class="sub">${Orion.esc(e.rationale)}${e.missing&&e.missing.length?" · missing: "+Orion.esc(e.missing.join(", ")):""}</div></div>`).join("")
       + `</div></div>`;
-    html += `<div class="btn-row" style="margin-top:0.6rem;"><button class="btn btn-red" id="ctx-approve">[ REVIEW &amp; APPROVE PLAN ]</button></div></div>`;
+    html += `<div class="btn-row space-above"><button class="btn btn-ghost" id="ctx-approve">Review &amp; Approve Plan</button></div></div>`;
 
     resultEl.innerHTML = html;
     resultEl.classList.remove("hidden");

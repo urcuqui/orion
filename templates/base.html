@@ -1,3 +1,4 @@
+{% from "components/cat.html" import cyber_cat %}
 <!doctype html>
 <html lang="en">
 <head>
@@ -14,9 +15,7 @@
   <aside class="orion-sidebar" aria-label="Workspace navigation">
     <a class="orion-brand" href="{{ url_for('index') }}">ORION<span class="cursor">_</span></a>
     <div class="brand-caption">AI SECURITY VALIDATION</div>
-    <pre class="ascii-mini" aria-hidden="true"> /\___/\
-(  o o  ) // ORION
- \__^__/</pre>
+    {{ cyber_cat('compact') }}
     <nav class="orion-nav" aria-label="Primary">
       {% set groups = [
         ('Overview', [('dashboard','index','Overview','')]),
@@ -50,15 +49,10 @@
     {% block content %}{% endblock %}
   </main>
 
-  <pre class="dragon watermark sm" aria-hidden="true">        /\___/\
-   ___ /  o o  \ ___
-  /   \  &gt;\_/&lt;  /   \
- | O R I O N  ===  |
-  \___/__\_/__\___/
-      /_/   \_\</pre>
+  {{ cyber_cat('primary', 'cat-watermark') }}
 
   <footer class="orion-footer">
-    ORION // ADVERSARIAL INTELLIGENCE SYSTEM &mdash; Know yourself. Know the adversary. Know the environment.
+    ORION // AI SECURITY VALIDATION WORKSPACE &mdash; Know yourself. Know the target. Know the terrain.
   </footer>
 
   <script src="{{ url_for('static', filename='js/orion.js') }}"></script>

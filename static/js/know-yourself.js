@@ -50,7 +50,7 @@
     html += `<div class="k">Applicable attacks</div><div class="v">${card.applicable_attacks} (conditional: ${card.conditional_attacks})</div>`;
     if (card.unknown_assumptions != null) html += `<div class="k">Unknown assumptions</div><div class="v">${card.unknown_assumptions}</div>`;
     if (card.unknown_controls != null) html += `<div class="k">Unknown controls</div><div class="v">${card.unknown_controls}</div>`;
-    html += `</div>${r.detection.rationale ? `<div class="sub" style="margin-top:0.4rem;">${Orion.esc(r.detection.rationale)}</div>`:''}</div>`;
+    html += `</div>${r.detection.rationale ? `<div class="sub space-above-sm">${Orion.esc(r.detection.rationale)}</div>`:''}</div>`;
 
     // Progress state + branch capability menu
     const ctrlsPartial = (card.unknown_controls || 0) > 0;
@@ -63,7 +63,7 @@
     const caps = st === "generative_ai"
       ? ["SYSTEM PROFILE","CONTEXT SURFACE","TRUST BOUNDARIES","RAG / MEMORY","TOOLS / MCP","IDENTITY","CONTROLS","SECURITY POSTURE","EXPERIMENT PLAN"]
       : ["MODEL PROFILE","BASELINE","INPUT SURFACE","FAILURE EXPLORER","ROBUSTNESS","CONTROLS","SECURITY POSTURE","EXPERIMENT PLAN"];
-    html += `<div class="ttypes" style="margin-top:0.5rem;">`
+    html += `<div class="ttypes space-above-sm">`
       + caps.map(c => `<span class="ttype">${Orion.esc(c)}</span>`).join("") + `</div></div>`;
 
     // Traditional ML
@@ -111,16 +111,16 @@
           <span class="risk ${x.applicability==='HIGH'?'LOW':'MEDIUM'}">${Orion.esc(x.applicability)}</span>
           <div class="sub">${Orion.esc(x.reason)} · evidence: ${x.evidence_count} · risk: ${Orion.esc(x.risk)}</div>
           <div class="btn-row" style="margin-top:0.3rem;">
-            <button class="btn btn-ghost btn-review">[ REVIEW ]</button>
-            <a class="btn btn-red" href="${attackUrl}${canRun ? q : ''}">[ SEND TO ATTACK ]</a>
+            <button class="btn btn-ghost btn-review">Review</button>
+            <a class="btn btn-ghost" href="${attackUrl}${canRun ? q : ''}">Send To Attack</a>
           </div></div>`;
       });
     } else {
       html += `<div class="state">No applicable experiments for this system with current evidence.</div>`;
     }
-    html += `<div class="btn-row" style="margin-top:0.6rem;"><button class="btn btn-red" id="btn-approve-plan">[ REVIEW &amp; EDIT PLAN ]</button>
-      ${r.self_profile_id ? `<a class="btn btn-blue" href="/context?self_profile_id=${encodeURIComponent(r.self_profile_id)}">[ ADD TO ANALYSIS CONTEXT ]</a>` : ""}</div>
-      <div id="plan-handoff" class="hidden" style="margin-top:0.6rem;"></div>
+    html += `<div class="btn-row space-above"><button class="btn btn-ghost" id="btn-approve-plan">Review &amp; Edit Plan</button>
+      ${r.self_profile_id ? `<a class="btn btn-blue" href="/context?self_profile_id=${encodeURIComponent(r.self_profile_id)}">Add To Analysis Context</a>` : ""}</div>
+      <div id="plan-handoff" class="hidden space-above"></div>
       <p class="sub" style="color:var(--warning);margin-top:0.4rem;">⚠ Review lets you remove experiments and tune parameters. Approving prepares execution — it never runs attacks.</p></div>`;
 
     if (r.trace_id) html += `<div class="sub">Evidence: <a href="/api/artifacts/${encodeURIComponent(r.trace_id)}/know_yourself.json" target="_blank">know_yourself.json</a></div>`;
@@ -128,7 +128,7 @@
     resultEl.innerHTML = html;
     resultEl.classList.remove("hidden");
     resultEl.querySelectorAll(".btn-review").forEach(b => b.addEventListener("click", () => {
-      b.textContent = "[ REVIEWED ]"; b.disabled = true;
+      b.textContent = "Reviewed"; b.disabled = true;
     }));
     const approveBtn = document.getElementById("btn-approve-plan");
     if (approveBtn) approveBtn.addEventListener("click", approvePlan);
@@ -144,6 +144,15 @@
       + controls.map(c=>`<div class="analysis-item" style="border-left-color:var(--border);">${Orion.esc(c.control.replace(/_/g," "))} — ${ctrlBadge(c.status)}</div>`).join("")
       + `<p class="sub">UNKNOWN is not NOT_FOUND — it means Orion has no evidence either way.</p></div>`;
   }
+
+  // A URL changes profiling from local analysis to external discovery.
+  const profileButton = document.getElementById("ky-analyze");
+  document.getElementById("ky-url").addEventListener("input", function () {
+    const live = Boolean(this.value.trim());
+    profileButton.classList.toggle("btn-red", live);
+    profileButton.classList.toggle("btn-primary", !live);
+    profileButton.textContent = live ? "Confirm Live Profiling" : "Profile System";
+  });
 
   document.getElementById("ky-analyze").addEventListener("click", async function () {
     const url = (document.getElementById("ky-url").value || "").trim();

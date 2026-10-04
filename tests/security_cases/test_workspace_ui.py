@@ -74,3 +74,40 @@ def test_retest_run_links_back_to_its_finding(monkeypatch):
         response = client.get('/runs/UI-RETEST')
     assert response.status_code == 200
     assert 'href="/findings/UI-FINDING"' in response.data.decode()
+
+
+def test_run_action_uses_matching_workspace_and_ignores_stale_link(monkeypatch):
+    from app import app
+    from orion.evidence import EvidenceStore, ExperimentRecord
+    import orion.experiments as experiments
+    record = ExperimentRecord(trace_id='UI-ATTACK', status='ATTACK_SUCCESS',
+        provenance={'experiment_workspace_id': 'UI-WORKSPACE'})
+    ws = ExperimentLifecycle(experiment_workspace_id='UI-WORKSPACE',
+        attack_run_id='UI-ATTACK', stages={'plan': 'APPROVED', 'attack': 'COMPLETE',
+        'measure': 'COMPLETE', 'defend': 'READY', 'retest': 'PENDING'})
+    monkeypatch.setattr(EvidenceStore, 'load', lambda self, trace: record)
+    monkeypatch.setattr(experiments, 'load_workspace', lambda *args: ws)
+    with app.test_client() as client:
+        body = client.get('/runs/UI-ATTACK').data.decode()
+        assert 'data-run-next-action href="/experiment/UI-WORKSPACE">Open Defend' in body
+        assert f'Next action: {next_action(ws)["label"]}' in body
+        ws.attack_run_id = 'DIFFERENT-RUN'
+        stale = client.get('/runs/UI-ATTACK').data.decode()
+    assert 'data-run-next-action' not in stale
+
+
+def test_eligible_corroboration_does_not_promote_finding(monkeypatch):
+    from app import app
+    import orion.findings as findings
+    from orion.findings.model import Finding
+    finding = Finding(id='UI-OBSERVATION', title='Observed boundary crossing',
+        status='OBSERVED', corroboration={'independent_run_count': 3,
+        'successful_trials': 3, 'trial_count': 3, 'success_rate': 1.0,
+        'minimum_success_rate': .66, 'confirmation_eligible': True})
+    monkeypatch.setattr(findings, 'load_finding', lambda *args: finding)
+    with app.test_client() as client:
+        body = client.get('/findings/UI-OBSERVATION').data.decode()
+    assert 'badge-observed' in body and 'badge-confirmed' not in body
+    assert '3 / 3' in body and '100%' in body and '66%' in body
+    assert 'Confirmation eligible' in body
+    assert finding.status == 'OBSERVED'

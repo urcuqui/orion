@@ -57,7 +57,7 @@
   };
 
   Orion.executionBoundary = function (fields) {
-    return `<div class="term-title" style="margin-top:16px">EXECUTION BOUNDARY</div><dl class="kv">${Object.entries(fields).map(([k,v]) => `<dt class="k">${Orion.esc(k)}</dt><dd class="v">${Orion.esc(v)}</dd>`).join("")}</dl>`;
+    return `<div class="term-title space-above-lg">EXECUTION BOUNDARY</div><dl class="kv">${Object.entries(fields).map(([k,v]) => `<dt class="k">${Orion.esc(k)}</dt><dd class="v">${Orion.esc(v)}</dd>`).join("")}</dl>`;
   };
 
   Orion.provenanceChain = function (ws) {
@@ -110,8 +110,8 @@
 
   // ---- reusable renderers (mirror the Jinja components) ----
   Orion.statusBadge = function (status) {
-    const s = String(status || "UNKNOWN").toLowerCase();
-    const symbols = { confirmed: "✓", observed: "●", hypothesis: "◇", inferred: "≈", unknown: "?", not_applicable: "—", running: "●", pending: "○", blocked: "×", failed: "×", error: "×", mitigated: "✓", partially_mitigated: "!", not_mitigated: "×", approved: "✓", applied: "!", complete: "✓", completed: "✓" };
+    const s = String(status || "UNKNOWN").toLowerCase().replace(/[\s-]+/g, "_");
+    const symbols = {"confirmed": "✓", "observed": "●", "hypothesis": "◇", "inferred": "≈", "unknown": "?", "not_applicable": "—", "running": "●", "executing": "●", "queued": "○", "pending": "○", "ready": "○", "proposed": "◇", "blocked": "×", "failed": "×", "error": "×", "mitigated": "✓", "partial": "!", "partially_mitigated": "!", "not_mitigated": "×", "approved": "✓", "applied": "!", "complete": "✓", "completed": "✓", "effective": "✓", "ineffective": "×", "partially_effective": "!", "not_retested": "○", "eligible": "✓", "available": "●", "attack_success": "!", "attack_blocked": "✓", "no_attack": "—"};
     return `<span class="badge badge-${Orion.esc(s.replace(/[^a-z0-9_]/g, ""))}"><span aria-hidden="true">${symbols[s] || "·"}</span> ${Orion.esc(status || "UNKNOWN")}</span>`;
   };
 
@@ -206,14 +206,14 @@
       <p class="sub">${editable.filter(p => p.status === "READY").length} READY · ${editable.filter(p => p.status === "NEEDS_INPUT").length} NEEDS INPUT · ${excluded.length} EXCLUDED</p>
       ${editable.map(row).join("") || '<div class="state">No editable experiments.</div>'}`;
     if (excluded.length) {
-      html += `<button class="btn btn-ghost" id="pr-excluded">[ SHOW EXCLUDED (${excluded.length}) ]</button>
-        <div id="pr-excluded-list" class="hidden" style="margin-top:0.4rem;">`
+      html += `<button class="btn btn-ghost" id="pr-excluded">Show Excluded (${excluded.length})</button>
+        <div id="pr-excluded-list" class="hidden space-above-sm">`
         + excluded.map(p => `<div class="exp na"><span class="ename">${Orion.esc(p.name)}</span> <span class="appl NOT_APPLICABLE">NOT_APPLICABLE</span><div class="sub">${Orion.esc(p.reason || "")}</div></div>`).join("")
         + `</div>`;
     }
-    html += `<div class="btn-row" style="margin-top:0.6rem;">
-        <button class="btn btn-red" id="pr-approve">[ APPROVE PLAN ]</button></div>
-      <div id="pr-handoff" class="hidden" style="margin-top:0.6rem;"></div></div>`;
+    html += `<div class="btn-row space-above">
+        <button class="btn btn-primary" id="pr-approve">Approve Plan</button></div>
+      <div id="pr-handoff" class="hidden space-above"></div></div>`;
     container.innerHTML = html;
 
     const exBtn = document.getElementById("pr-excluded");
@@ -252,9 +252,9 @@
         <div><span class="warn">[!]</span> conditional experiments: ${c.conditional || 0}</div>
         <div><span class="off">[-]</span> excluded experiments: ${c.excluded || 0}</div>
       </div>
-      <div class="btn-row" style="margin-top:0.6rem;">
-        <a class="btn btn-red" href="/experiment?plan_id=${encodeURIComponent(plan.plan_id)}">[ OPEN EXPERIMENT ]</a>
-        <a class="btn btn-ghost" href="/api/plans/${encodeURIComponent(plan.plan_id)}" target="_blank">[ VIEW APPROVED PLAN ]</a>
+      <div class="btn-row space-above">
+        <a class="btn btn-ghost" href="/experiment?plan_id=${encodeURIComponent(plan.plan_id)}">Open Experiment</a>
+        <a class="btn btn-ghost" href="/api/plans/${encodeURIComponent(plan.plan_id)}" target="_blank">View Approved Plan</a>
       </div>
       <p class="sub" style="color:var(--warning);margin-top:0.4rem;">Approval prepared execution. Nothing has run — open the Experiment to Attack → Measure → Defend → Retest explicitly.</p>
       </div>`;

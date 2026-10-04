@@ -27,10 +27,10 @@ AI Dependencies ...... ${c.ai_dependencies}
 MCP Servers .......... ${c.mcp_servers}
 Trust Relationships .. ${c.trust_relationships}
 Findings ............. ${c.findings}</pre>
-      <div class="btn-row" style="margin-top:0.5rem;">
-        <a class="btn btn-red" href="${targetUrl}?environment_profile_id=${encodeURIComponent(p.environment_profile_id)}">[ SEND TO TARGET ANALYSIS ]</a>
-        <a class="btn btn-blue" href="/context?environment_profile_id=${encodeURIComponent(p.environment_profile_id)}">[ BUILD ANALYSIS CONTEXT ]</a>
-        <a class="btn btn-ghost" href="/api/environment/${encodeURIComponent(p.environment_profile_id)}" target="_blank">[ VIEW EVIDENCE (JSON) ]</a>
+      <div class="btn-row space-above-sm">
+        <a class="btn btn-ghost" href="${targetUrl}?environment_profile_id=${encodeURIComponent(p.environment_profile_id)}">Send To Target Analysis</a>
+        <a class="btn btn-blue" href="/context?environment_profile_id=${encodeURIComponent(p.environment_profile_id)}">Build Analysis Context</a>
+        <a class="btn btn-ghost" href="/api/environment/${encodeURIComponent(p.environment_profile_id)}" target="_blank">View Evidence (JSON)</a>
       </div></div>`;
 
     html += `<div class="term"><div class="term-title">AI DEPENDENCIES</div>`
@@ -52,7 +52,7 @@ Findings ............. ${c.findings}</pre>
 
     html += `<div class="term"><div class="term-title">TECHNOLOGIES / IDENTITY</div>
       <div class="ttypes">${(p.technologies||[]).map(t => `<span class="ttype">${Orion.esc(t)}</span>`).join("") || '<span class="sub">none</span>'}</div>
-      <div class="sub" style="margin-top:0.4rem;">identity: ${(p.identity_context||[]).map(i => Orion.esc(i.type)).join(", ") || "UNKNOWN"}</div></div>`;
+      <div class="sub space-above-sm">identity: ${(p.identity_context||[]).map(i => Orion.esc(i.type)).join(", ") || "UNKNOWN"}</div></div>`;
 
     root.innerHTML = html;
   }
@@ -76,7 +76,7 @@ Findings ............. ${c.findings}</pre>
     html += `<div class="term"><div class="term-title">Recent recon runs</div>`;
     if (recon.length) {
       html += recon.map(r => `<div class="recon-run-row"><div class="meta"><span class="rid">${Orion.esc(r.display_id)}</span> · ${Orion.esc(r.target)} · ${Orion.statusBadge(r.status)}</div>
-        <button class="btn btn-ghost btn-env" data-run="${Orion.esc(r.run_id)}">[ BUILD ENVIRONMENT PROFILE ]</button></div>`).join("");
+        <button class="btn btn-ghost btn-env" data-run="${Orion.esc(r.run_id)}">Build Environment Profile</button></div>`).join("");
     } else { html += '<div class="state">No recon runs yet. Launch reconnaissance above.</div>'; }
     html += `</div>`;
     root.innerHTML = html;

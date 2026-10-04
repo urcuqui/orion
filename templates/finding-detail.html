@@ -9,7 +9,7 @@
 {% if not finding %}
   <div class="section-head"><h1>{{ finding_id }}</h1></div>
   <div class="state error">Finding not found. It may have been removed.</div>
-  <div class="btn-row" style="margin-top:1rem;"><a class="btn" href="{{ url_for('findings_page') }}">▸ Back to findings</a></div>
+  <div class="btn-row space-above-lg"><a class="btn" href="{{ url_for('findings_page') }}">▸ Back to findings</a></div>
 {% else %}
   <div class="section-head {{ 'offensive' if finding.status in ('OBSERVED','CONFIRMED') else '' }}">
     <h1>{{ finding.title }}</h1>
@@ -17,19 +17,28 @@
   </div>
 
   <section class="panel"><h2 class="panel-title">What happened?</h2><p>{{ finding.description or 'No narrative description recorded. Review the observed behavior and originating evidence.' }}</p><div class="kv"><div class="k">Observed behavior</div><div class="v">{{ finding.observations.get('observed_action') or 'UNKNOWN' }}</div><div class="k">Attack</div><div class="v">{{ finding.attack_id or 'UNKNOWN' }}</div></div></section>
-  <section class="panel"><h2 class="panel-title">Why does it matter?</h2><div class="finding-grid"><div><div class="k">Severity</div>{{ status_badge(finding.severity) }}</div><div><div class="k">Evidence state</div>{{ status_badge(finding.status) }}</div><div><div class="k">Confidence</div>{{ finding.confidence }}</div><div><div class="k">Retest</div>{{ status_badge(finding.retest_status or 'NOT RETESTED') }}</div></div>
-    <dl class="kv"><dt class="k">Affected target</dt><dd class="v">{{ finding.affected_target or 'UNKNOWN' }}</dd><dt class="k">Affected component</dt><dd class="v">{{ finding.affected_component or 'UNKNOWN' }}</dd><dt class="k">Boundary crossed</dt><dd class="v">{{ finding.boundary_crossed or 'UNKNOWN' }}</dd><dt class="k">Success condition</dt><dd class="v">{{ finding.success_condition or 'UNKNOWN' }}</dd></dl>
+  <section class="panel"><h2 class="panel-title">Why does it matter?</h2><div class="finding-security-summary">
+      <div><div class="k">Severity</div>{{ status_badge(finding.severity) }}</div>
+      <div><div class="k">Finding / evidence state</div>{{ status_badge(finding.status) }}</div>
+    </div>
+    <dl class="kv security-impact"><dt class="k">Affected component</dt><dd class="v">{{ finding.affected_component or 'UNKNOWN' }}</dd><dt class="k">Boundary crossed</dt><dd class="v">{{ finding.boundary_crossed or 'UNKNOWN' }}</dd><dt class="k">Success condition</dt><dd class="v">{{ finding.success_condition or 'UNKNOWN' }}</dd></dl>
+    <dl class="finding-metadata"><div><dt>Confidence</dt><dd>{{ finding.confidence or 'UNKNOWN' }}</dd></div><div><dt>Retest</dt><dd>{{ status_badge(finding.retest_status or 'NOT RETESTED') }}</dd></div><div><dt>Affected target</dt><dd class="mono">{{ finding.affected_target or 'UNKNOWN' }}</dd></div></dl>
   </section>
   {% if finding.corroboration %}
   <div class="panel">
     <div class="panel-title">What proves it? · Corroboration</div>
     <p class="sub">One observed success is not a confirmed finding. Confirmation requires independent reproduction.</p>
-    <pre class="term-pre">Independent runs .. {{ finding.corroboration.get('independent_run_count', 0) }}
-Trials ............ {{ finding.corroboration.get('trial_count', 0) }} / {{ finding.corroboration.get('minimum_trials', 3) }} required
-Successful ........ {{ finding.corroboration.get('successful_trials', 0) }}
-Success rate ...... {{ finding.corroboration.get('success_rate', 0) }} (min {{ finding.corroboration.get('minimum_success_rate', 0.66) }})
-Criteria reproduced {{ (finding.corroboration.get('criteria_reproduced') or [])|join(', ') or '—' }}
-Confirmation ...... {{ 'ELIGIBLE' if finding.corroboration.get('confirmation_eligible') else 'NOT YET' }} — {{ finding.corroboration.get('reason') }}</pre>
+    {% set c = finding.corroboration %}
+    <dl class="kv corroboration-summary">
+      <dt class="k">Independent runs</dt><dd class="v">{{ c.get('independent_run_count', 'UNKNOWN') }}</dd>
+      <dt class="k">Successful trials</dt><dd class="v">{{ c.get('successful_trials', 'UNKNOWN') }} / {{ c.get('trial_count', 'UNKNOWN') }}</dd>
+      <dt class="k">Attack success rate</dt><dd class="v">{{ (('%.2f'|format(c.success_rate * 100)).rstrip('0').rstrip('.') ~ '%') if c.get('success_rate') is number else 'UNKNOWN' }}</dd>
+      <dt class="k">Required threshold</dt><dd class="v">{{ (('%.2f'|format(c.minimum_success_rate * 100)).rstrip('0').rstrip('.') ~ '%') if c.get('minimum_success_rate') is number else 'UNKNOWN' }}</dd>
+      <dt class="k">Minimum trials</dt><dd class="v">{{ c.get('minimum_trials', 'UNKNOWN') }}</dd>
+      <dt class="k">Criteria reproduced</dt><dd class="v">{{ (c.get('criteria_reproduced') or [])|join(', ') or 'Not recorded' }}</dd>
+    </dl>
+    <p class="confirmation-summary">{% if c.get('confirmation_eligible') is sameas true %}{{ status_badge('ELIGIBLE') }} Confirmation eligible{% elif c.get('confirmation_eligible') is sameas false %}{{ status_badge('PENDING') }} Confirmation not yet eligible{% else %}{{ status_badge('UNKNOWN') }} Confirmation eligibility unknown{% endif %}</p>
+    {% if c.get('reason') %}<p class="sub">{{ c.reason }}</p>{% endif %}
   </div>
   {% endif %}
 
@@ -61,7 +70,7 @@ Confirmation ...... {{ 'ELIGIBLE' if finding.corroboration.get('confirmation_eli
 
   <section class="panel"><h2 class="panel-title">What should I do?</h2><p>Recommended control: <span class="mono">{{ finding.recommended_controls|join(', ') or 'UNKNOWN' }}</span></p><p>Applied control: <span class="mono">{{ finding.applied_control or 'Not applied' }}</span>{% if finding.control_implementation %} · {{ finding.control_implementation }}{% endif %}</p>
     {% if finding.applied_control and not finding.retest_refs %}<p class="badge badge-applied">! CONTROL APPLIED · MITIGATION NOT VERIFIED</p>{% elif finding.retest_status %}{{ status_badge(finding.retest_status) }}{% else %}<p class="sub">A control is not validated until the original attack is retested.</p>{% endif %}
-    <div class="btn-row"><a class="btn btn-ghost" href="#finding-evidence">View evidence</a>{% if finding.provenance.get('experiment_workspace_id') %}<a class="btn" href="/experiment/{{ finding.provenance.experiment_workspace_id }}">Open experiment and retest</a>{% elif finding.provenance.get('plan_id') %}<a class="btn" href="/experiment?plan_id={{ finding.provenance.plan_id|urlencode }}">Open experiment and retest</a>{% else %}<a class="btn btn-ghost" href="/experiment">Review experiments</a>{% endif %}</div>
+    <div class="btn-row"><a class="btn btn-ghost" href="#finding-evidence">View evidence</a>{% if finding.provenance.get('experiment_workspace_id') %}<a class="btn btn-ghost" href="/experiment/{{ finding.provenance.experiment_workspace_id }}">Open experiment and retest</a>{% elif finding.provenance.get('plan_id') %}<a class="btn btn-ghost" href="/experiment?plan_id={{ finding.provenance.plan_id|urlencode }}">Open experiment and retest</a>{% else %}<a class="btn btn-ghost" href="/experiment">Review experiments</a>{% endif %}</div>
   </section>
   <div class="panel">
     <div class="panel-title">Provenance</div>
@@ -90,7 +99,7 @@ Observed boundary crossing:
   </div>
   {% endif %}
 
-  <div class="btn-row" style="margin-top:1rem;">
+  <div class="btn-row space-above-lg">
     <a class="btn" href="{{ url_for('findings_page') }}">▸ All findings</a>
   </div>
 {% endif %}

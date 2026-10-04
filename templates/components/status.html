@@ -1,5 +1,5 @@
 {% macro status_badge(status) %}
-{% set s = (status or 'UNKNOWN')|lower %}
-{% set symbols = {'confirmed':'✓', 'observed':'●', 'hypothesis':'◇', 'inferred':'≈', 'unknown':'?', 'not_applicable':'—', 'running':'●', 'pending':'○', 'blocked':'×', 'failed':'×', 'error':'×', 'mitigated':'✓', 'partially_mitigated':'!', 'not_mitigated':'×', 'approved':'✓', 'applied':'!', 'complete':'✓', 'completed':'✓'} %}
+{% set s = (status or 'UNKNOWN')|lower|replace(' ','_')|replace('-','_') %}
+{% set symbols = {'confirmed': '✓', 'observed': '●', 'hypothesis': '◇', 'inferred': '≈', 'unknown': '?', 'not_applicable': '—', 'running': '●', 'executing': '●', 'queued': '○', 'pending': '○', 'ready': '○', 'proposed': '◇', 'blocked': '×', 'failed': '×', 'error': '×', 'mitigated': '✓', 'partial': '!', 'partially_mitigated': '!', 'not_mitigated': '×', 'approved': '✓', 'applied': '!', 'complete': '✓', 'completed': '✓', 'effective': '✓', 'ineffective': '×', 'partially_effective': '!', 'not_retested': '○', 'eligible': '✓', 'available': '●', 'attack_success': '!', 'attack_blocked': '✓', 'no_attack': '—'} %}
 <span class="badge badge-{{ s }}"><span aria-hidden="true">{{ symbols.get(s, '·') }}</span> {{ status or 'UNKNOWN' }}</span>
 {% endmacro %}

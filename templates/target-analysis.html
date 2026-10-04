@@ -23,10 +23,10 @@
 </ul>
 
 <div class="btn-row" style="margin-bottom:1.25rem;">
-  <button class="btn btn-red" data-cap="recon">[ RUN RECON ]</button>
-  <button class="btn" data-cap="agent">[ ANALYZE TARGET ]</button>
-  <button class="btn btn-blue" data-cap="threat">[ REVIEW THREAT MODEL ]</button>
-  <button class="btn" data-cap="guided">[ START GUIDED ANALYSIS ]</button>
+  <button class="btn btn-ghost" data-cap="recon">Open Recon</button>
+  <button class="btn" data-cap="agent">Analyze Target</button>
+  <button class="btn btn-blue" data-cap="threat">Review Threat Model</button>
+  <button class="btn" data-cap="guided">Start Guided Analysis</button>
 </div>
 
 <!-- RECON capability -->
@@ -34,8 +34,8 @@
   <div class="term-title">[01] Reconnaissance</div>
   <p class="sub">Select a completed recon run to interpret, or launch a new one.</p>
   <div class="btn-row" style="margin-bottom:0.75rem;">
-    <a class="btn btn-red" href="{{ url_for('know_environment') }}">[ LAUNCH NEW RECON ]</a>
-    <button class="btn btn-ghost" id="refresh-recon">[ REFRESH ]</button>
+    <a class="btn btn-ghost" href="{{ url_for('know_environment') }}">Launch New Recon</a>
+    <button class="btn btn-ghost" id="refresh-recon">Refresh</button>
   </div>
   <div id="recon-runs"><div class="state">Loading recon runs…</div></div>
 
@@ -64,8 +64,8 @@
     <textarea id="ctx-input" placeholder="e.g. payments-api with a RAG component and an inference endpoint behind token auth">payments-api with an inference endpoint and a token-auth login flow</textarea>
   </label>
   <div class="btn-row">
-    <button class="btn" id="btn-analyze-ctx">[ ANALYZE TARGET ]</button>
-    <button class="btn btn-ghost" data-cap="recon">[ RUN RECON FIRST ]</button>
+    <button class="btn" id="btn-analyze-ctx">Analyze Target</button>
+    <button class="btn btn-ghost" data-cap="recon">Open Recon First</button>
   </div>
 </div>
 
@@ -79,7 +79,7 @@
       <label class="field"><span class="field-label">Target</span>
         <input type="text" id="g-target" value="demo.thm.local"></label>
       <p class="sub">Mock recon by default. Guided mode stops at <strong>REVIEW PLAN</strong> — it never auto-executes offensive tests.</p>
-      <button class="btn btn-red" id="btn-guided">[ START GUIDED ANALYSIS ]</button>
+      <button class="btn btn-ghost" id="btn-guided">Start Guided Analysis</button>
     </div>
     <div>
       <ul class="phases" id="guided-phases">

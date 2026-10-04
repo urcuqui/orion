@@ -2,8 +2,6 @@
 
 .cap { scroll-margin-top: 70px; }
 
-#capability-menu li { cursor: pointer; }
-#capability-menu li.active { border-color: var(--red); background: rgba(215,25,32,0.06); }
 
 .recon-run-row {
   display: flex; align-items: center; justify-content: space-between; gap: 1rem;
@@ -11,10 +9,9 @@
   padding: 0.6rem 0.8rem; margin-bottom: 0.5rem;
 }
 .recon-run-row .meta { font-size: 0.82rem; }
-.recon-run-row .rid { color: var(--red); font-weight: 700; }
+.recon-run-row .rid { color: var(--text-secondary); font-weight: 700; }
 
 .assessment-box { border: 1px solid var(--border-strong); background: var(--bg-deep); padding: 1.1rem; margin-bottom: 1.1rem; }
-.assessment-box .term-title { color: var(--red-bright); }
 
 
 .observed-list { list-style: none; padding: 0; margin: 0.3rem 0; font-size: 0.85rem; }
@@ -29,8 +26,8 @@
 /* --- evidence-grounded analysis rendering --- */
 .ai-surface { border: 1px solid var(--border); background: var(--panel-alt); padding: 0.75rem 0.9rem; margin-bottom: 1rem; }
 .ai-surface .st { font-weight: 700; letter-spacing: 0.06em; }
-.ai-surface.CONFIRMED { border-color: var(--red); }
-.ai-surface.CONFIRMED .st { color: var(--red-bright); }
+.ai-surface.CONFIRMED { border-color: var(--status-info); }
+.ai-surface.CONFIRMED .st { color: var(--status-info); }
 .ai-surface.POSSIBLE { border-color: var(--warning); }
 .ai-surface.POSSIBLE .st { color: var(--warning); }
 .ai-surface.NOT_OBSERVED { border-color: var(--border-strong); }
@@ -44,15 +41,15 @@
   padding: 0.5rem 0.7rem; margin-bottom: 0.45rem; }
 .analysis-item .cls { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em;
   padding: 0.05rem 0.4rem; border: 1px solid currentColor; margin-right: 0.5rem; }
-.cls-OBSERVED { color: var(--green); }
-.analysis-item.cls-OBSERVED { border-left-color: var(--green); }
-.cls-INFERRED { color: var(--blue); }
+.cls-OBSERVED { color: var(--status-info); }
+.analysis-item.cls-OBSERVED { border-left-color: var(--status-info); }
+.cls-INFERRED { color: var(--status-info); }
 .analysis-item.cls-INFERRED { border-left-color: var(--blue); }
-.cls-HYPOTHESIS { color: var(--warning); }
+.cls-HYPOTHESIS { color: var(--status-warning); }
 .analysis-item.cls-HYPOTHESIS { border-left-color: var(--warning); }
 .cls-VALIDATED { color: var(--red-bright); }
 .analysis-item.cls-VALIDATED { border-left-color: var(--red); }
-.cls-NOT_APPLICABLE { color: var(--muted); }
+.cls-NOT_APPLICABLE { color: var(--status-neutral); }
 .analysis-item.cls-NOT_APPLICABLE { border-left-color: var(--border-strong); opacity: 0.75; }
 
 .analysis-item .meta { color: var(--muted); font-size: 0.74rem; margin-top: 0.2rem; }
@@ -72,11 +69,13 @@
 /* --- AI signal strength + provenance badges --- */
 .signals { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.5rem; }
 .sig { font-size: 0.68rem; padding: 0.1rem 0.45rem; border: 1px solid currentColor; }
-.sig-STRONG { color: var(--red-bright); }
+.sig-STRONG { color: var(--status-info); }
 .sig-MEDIUM { color: var(--warning); }
 .sig-WEAK { color: var(--muted); }
 .sig .evref { color: var(--blue); }
 
 .prov { font-size: 0.6rem; letter-spacing: 0.06em; padding: 0.02rem 0.3rem; border: 1px solid currentColor; }
-.prov.obs { color: var(--green); }
-.prov.unk { color: var(--muted); }
+.prov.obs { color: var(--status-info); }
+.prov.unk { color: var(--status-unknown); }
+
+.cls-UNKNOWN { color: var(--status-unknown); }

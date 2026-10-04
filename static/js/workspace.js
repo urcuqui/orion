@@ -61,7 +61,7 @@
         html += `<div class="exp ${active ? "" : "na"}">
           <span class="eid">${Orion.esc(p.experiment_id)}</span><span class="ename">${Orion.esc(p.name)}</span>
           <span class="appl ${p.status === "READY" ? "APPLICABLE" : "INSUFFICIENT_EVIDENCE"}">${Orion.esc(p.status)}</span>
-          ${active ? '<span class="risk LOW">ACTIVE</span>' : (runnable ? `<button class="btn btn-ghost btn-select" data-eid="${Orion.esc(p.experiment_id)}">[ OPEN ]</button>` : "")}
+          ${active ? '<span class="risk LOW">ACTIVE</span>' : (runnable ? `<button class="btn btn-ghost btn-select" data-eid="${Orion.esc(p.experiment_id)}">Open</button>` : "")}
         </div>`;
       });
       html += `</div>`;
@@ -108,7 +108,7 @@
         <div class="k">Ready</div><div class="v">${c.approved || 0}</div>
         <div class="k">Needs input</div><div class="v">${c.conditional || 0}</div>
         <div class="k">Excluded</div><div class="v">${c.excluded || 0}</div></div>
-        <div class="btn-row" style="margin-top:0.5rem;"><button class="btn btn-red" id="go-attack">[ OPEN ATTACK ]</button></div>`);
+        <div class="btn-row space-above-sm"><button class="btn btn-ghost" id="go-attack">Open Attack</button></div>`);
       const g = document.getElementById("go-attack");
       if (g) g.addEventListener("click", () => { ws.current_stage = "attack"; renderStage(ws, plan, "attack"); });
       return;
@@ -122,8 +122,8 @@
         <pre class="term-pre">${(na.map(p => "- " + p.name + "  (NOT_APPLICABLE)").join("\n")) || "(none)"}</pre>
         <p class="sub">Complete the missing assessment inputs, review the analysis, then approve an eligible plan.</p>
         <div class="btn-row">
-          <a class="btn btn-red" href="/environment">[ KNOW THE ENVIRONMENT · LIVE RECON ]</a>
-          <a class="btn btn-blue" href="/target-analysis">[ KNOW YOUR TARGET ]</a>
+          <a class="btn btn-ghost" href="/environment">Know The Environment · Live Recon</a>
+          <a class="btn btn-blue" href="/target-analysis">Know Your Target</a>
         </div>`);
       return;
     }
@@ -135,8 +135,8 @@
           <div class="k">Experiment</div><div class="v">${Orion.esc(prop.name || "—")}</div>
           <div class="k">Status</div><div class="v">${Orion.statusBadge(ws.stages.attack)}</div>
           <div class="k">Run</div><div class="v">${Orion.esc(ws.attack_run_id || "—")}</div></div>
-          <div class="btn-row"><button class="btn" id="to-measure">[ VIEW MEASUREMENTS ]</button>
-            <a class="btn btn-ghost" href="/runs/${encodeURIComponent(ws.attack_run_id)}">[ VIEW EVIDENCE ]</a></div>
+          <div class="btn-row"><button class="btn btn-ghost" id="to-measure">View Measurements</button>
+            <a class="btn btn-ghost" href="/runs/${encodeURIComponent(ws.attack_run_id)}">View Evidence</a></div>
           <div id="attack-compare" style="margin-top:0.6rem;"></div>`);
         injectComparison(document.getElementById("attack-compare"), ws.attack_run_id, { demo: DEMO });
         const tm = document.getElementById("to-measure");
@@ -159,10 +159,10 @@
           .filter(k => met[k] && typeof met[k] === "object" && typeof met[k].value === "number")
           .map(k => `<tr><td>${k.replace(/_/g, " ")}</td><td>${Orion.esc(met[k].value)}${met[k].unit ? " " + Orion.esc(met[k].unit) : ""}</td></tr>`).join("");
         const fnd = m.finding;
-        const fndLine = fnd ? `<div class="sub" style="margin-top:0.5rem;">Finding: <a href="/findings/${encodeURIComponent(fnd.id)}">${Orion.esc(fnd.id)}</a> · ${Orion.statusBadge(fnd.status)} · severity ${Orion.esc(fnd.severity)}${fnd.corroboration ? " · " + Orion.esc(fnd.corroboration.reason || "") : ""}</div>` : "";
+        const fndLine = fnd ? `<div class="sub space-above-sm">Finding: <a href="/findings/${encodeURIComponent(fnd.id)}">${Orion.esc(fnd.id)}</a> · ${Orion.statusBadge(fnd.status)} · severity ${Orion.esc(fnd.severity)}${fnd.corroboration ? " · " + Orion.esc(fnd.corroboration.reason || "") : ""}</div>` : "";
         // Success criteria checklist — why Orion classified this as success (P1.5).
         const se = m.success_evaluation;
-        const critBlock = se ? `<div class="term-title" style="margin-top:0.6rem;">ATTACK SUCCESS CRITERIA</div>
+        const critBlock = se ? `<div class="term-title space-above">ATTACK SUCCESS CRITERIA</div>
           <pre class="term-pre">${se.criteria.map(c => `${c.result ? "✓" : "✗"} ${c.criterion}`).join("\n")}
 RULE ... ${se.rule}   RESULT ... ${se.result ? "SUCCESS" : "NOT MET"} (${se.satisfied}/${se.total})</pre>` : "";
         // Trust path + crossing.
@@ -179,13 +179,13 @@ Tool executed ......... ${adv.tool_executed ? "YES" : "NO"}
 Security impact ....... ${Orion.esc(adv.security_impact || "—")}</pre>` : "";
         wrap("MEASURE", `<div class="sub">status: ${Orion.statusBadge(m.status)}${m.family ? " · family: " + Orion.esc(m.family.replace(/_/g, " ")) : ""}</div>
           ${critBlock}${impactBlock}${pathBlock}
-          <div class="term-title" style="margin-top:0.6rem;">SECURITY METRICS</div>
+          <div class="term-title space-above">SECURITY METRICS</div>
           <table class="orion"><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>${rows || '<tr><td colspan=2 class="sub">no numeric metrics</td></tr>'}</tbody></table>
           ${fndLine}
-          <div class="btn-row" style="margin-top:0.5rem;">
-            <button class="btn btn-blue" id="to-defend">[ OPEN DEFEND ]</button>
-            <a class="btn btn-ghost" href="/runs/${encodeURIComponent(ws.attack_run_id)}">[ VIEW EVIDENCE ]</a>
-            <a class="btn btn-ghost" href="/agent?mission=${encodeURIComponent('Explain these measurement results and the trade-off.')}&context=${encodeURIComponent('trace=' + ws.attack_run_id)}">[ EXPLAIN RESULTS ]</a>
+          <div class="btn-row space-above-sm">
+            <button class="btn btn-ghost" id="to-defend">Open Defend</button>
+            <a class="btn btn-ghost" href="/runs/${encodeURIComponent(ws.attack_run_id)}">View Evidence</a>
+            <a class="btn btn-ghost" href="/agent?mission=${encodeURIComponent('Explain these measurement results and the trade-off.')}&context=${encodeURIComponent('trace=' + ws.attack_run_id)}">Explain Results</a>
           </div>
           <div id="measure-compare" style="margin-top:0.6rem;"></div>`);
         injectComparison(document.getElementById("measure-compare"), ws.attack_run_id, { demo: DEMO });
@@ -201,9 +201,9 @@ Security impact ....... ${Orion.esc(adv.security_impact || "—")}</pre>` : "";
 STATUS .......... ${Orion.esc(ws.stages.defend)}</pre>
         <div class="term-title">CANDIDATE CONTROL</div>
         <div id="control-list" class="atk-catalog"><div class="state">loading controls…</div></div>
-        <div class="btn-row" style="margin-top:0.4rem;"><button class="btn btn-blue" id="apply-defense">[ APPLY CONTROL ]</button>
-          <a class="btn btn-ghost" href="/agent?mission=${encodeURIComponent('Suggest candidate controls for this result.')}">[ SUGGEST CONTROLS ]</a></div>
-        <div id="defend-out" class="sub" style="margin-top:0.4rem;"></div>`);
+        <div class="btn-row space-above-sm"><button class="btn btn-primary" id="apply-defense">Apply Control</button>
+          <a class="btn btn-ghost" href="/agent?mission=${encodeURIComponent('Suggest candidate controls for this result.')}">Suggest Controls</a></div>
+        <div id="defend-out" class="sub space-above-sm"></div>`);
       try {
         const cc = await Orion.getJSON(`/api/experiment/${wsid}/controls`);
         const list = (cc.controls || []);
@@ -232,8 +232,8 @@ STATUS .......... ${Orion.esc(ws.stages.defend)}</pre>
 DEFENSE ......... ${Orion.esc(ws.defense_id || "—")}
 ATTACK CONFIG ... UNCHANGED
 STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
-        <div class="btn-row">${done ? "" : `<button class="btn btn-red" id="run-retest">[ RUN RETEST ]</button>`}
-          <a class="btn btn-ghost" href="/agent?mission=${encodeURIComponent('Analyze the defense trade-off from this retest.')}">[ ANALYZE TRADE-OFF ]</a></div>
+        <div class="btn-row">${done ? "" : `<button class="btn ${ws.attack_mode === 'agentic_live' ? 'btn-red' : 'btn-ghost'}" id="run-retest">[ RUN RETEST ]</button>`}
+          <a class="btn btn-ghost" href="/agent?mission=${encodeURIComponent('Analyze the defense trade-off from this retest.')}">Analyze Trade-Off</a></div>
         <div id="retest-out" style="margin-top:0.4rem;"></div>
         <div id="retest-images" style="margin-top:0.6rem;"></div>`);
       // Before/after visual comparison: the original adversarial example, and the
@@ -242,7 +242,7 @@ STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
         const host = document.getElementById("retest-images");
         if (!host) return;
         host.innerHTML = `<div class="term-title">BEFORE DEFENSE (original adversarial)</div><div id="rt-before"></div>
-          <div class="term-title" style="margin-top:0.5rem;">AFTER DEFENSE (hardened retest)</div><div id="rt-after"></div>`;
+          <div class="term-title space-above-sm">AFTER DEFENSE (hardened retest)</div><div id="rt-after"></div>`;
         const hadBefore = await injectComparison(document.getElementById("rt-before"), ws.attack_run_id, { demo: DEMO });
         const hadAfter = afterId ? await injectComparison(document.getElementById("rt-after"), afterId, { demo: DEMO }) : false;
         if (!hadBefore && !hadAfter) { host.innerHTML = ""; return; }   // non-image experiment
@@ -259,7 +259,7 @@ STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
         try {
           const r = await Orion.postJSON(`/api/experiment/${wsid}/retest`, {});
           let html = comparison(r.comparison, ws.attack_run_id, r.retest_run_id);
-          if (r.finding) html += `<div class="sub" style="margin-top:0.4rem;">Finding <a href="/findings/${encodeURIComponent(r.finding.id)}">${Orion.esc(r.finding.id)}</a>: ${Orion.statusBadge(r.finding.status)} · control ${Orion.statusBadge(r.finding.retest_status || "—")}</div>`;
+          if (r.finding) html += `<div class="sub space-above-sm">Finding <a href="/findings/${encodeURIComponent(r.finding.id)}">${Orion.esc(r.finding.id)}</a>: ${Orion.statusBadge(r.finding.status)} · control ${Orion.statusBadge(r.finding.retest_status || "—")}</div>`;
           document.getElementById("retest-out").innerHTML = html;
           renderRetestImages(r.retest_run_id);
         } catch (e) { Orion.setState(document.getElementById("retest-out"), "error", "[x] " + e.message); }
@@ -293,7 +293,7 @@ STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
     const family = el._family || opt.suggested_family || "traditional_ml";
 
     const tabs = `<div class="btn-row">` + FAMILY_TABS.map(([k, label]) =>
-      `<button class="btn ${family === k ? "btn-red" : "btn-ghost"}" data-fam="${k}">${label}</button>`).join("") + `</div>`;
+      `<button class="btn ${family === k ? "btn-selected" : "btn-ghost"}" data-fam="${k}" aria-pressed="${family === k}">${label}</button>`).join("") + `</div>`;
 
     let body;
     if (family === "traditional_ml") body = traditionalBody(opt, el);
@@ -302,7 +302,7 @@ STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
     el.innerHTML = `<div class="term-title">EXPERIMENT / ATTACK</div>
       <div class="term-title" style="margin-top:0.3rem;">AI SECURITY FAMILY</div>
       ${tabs}<hr class="term-rule">${body}
-      <div id="attack-out" class="sub" style="margin-top:0.4rem;"></div>`;
+      <div id="attack-out" class="sub space-above-sm"></div>`;
 
     el.querySelectorAll("[data-fam]").forEach(b => b.addEventListener("click", () => {
       el._family = b.dataset.fam; el._accessOverride = null; renderAttackChooser(el, ws, plan, prop);
@@ -342,14 +342,14 @@ STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
         <div class="k">Input image</div><div class="v"><input type="text" id="bb-image" aria-label="Input image" value="static/fake/0001_00_00_01_0.jpg" style="width:100%"></div></div>`;
     return `<div class="term-title">ATTACKER ACCESS LEVEL</div>
       <div class="btn-row">
-        <button class="btn ${wbOn ? "btn-red" : "btn-ghost"}" id="acc-wb">WHITE-BOX (weights)</button>
-        <button class="btn ${!wbOn ? "btn-red" : "btn-ghost"}" id="acc-bb">BLACK-BOX (query-only)</button></div>
+        <button class="btn ${wbOn ? "btn-selected" : "btn-ghost"}" id="acc-wb" aria-pressed="${wbOn}">WHITE-BOX (weights)</button>
+        <button class="btn ${!wbOn ? "btn-selected" : "btn-ghost"}" id="acc-bb" aria-pressed="${!wbOn}">BLACK-BOX (query-only)</button></div>
       <p class="sub">Derived: <strong>${Orion.esc((derived.access_level || "—").replace("_", "-"))}</strong> — ${Orion.esc(derived.reason || "")}</p>
       <div class="term-title">${wbOn ? "WHITE-BOX" : "BLACK-BOX"} ATTACKS — base tuning applied, override as needed</div>
       <div class="atk-catalog">${attackList}</div>
       ${wbOn ? wbInputs : bbInputs}
       ${Orion.executionBoundary({Access: wbOn ? "WHITE BOX · local weights" : "BLACK BOX · query-only endpoint", Isolation: "? UNKNOWN", Network: wbOn ? "Restrictions UNKNOWN · local model selected" : "LIVE TARGET · real requests", Filesystem: "? UNKNOWN", Authorization: wbOn ? "Local model access" : "REQUIRED"})}
-      <div class="btn-row" style="margin-top:0.4rem;"><button class="btn btn-red" id="run-atk">[ RUN ATTACK ]</button>
+      <div class="btn-row space-above-sm"><button class="btn btn-red" id="run-atk">[ RUN ATTACK ]</button>
         <span class="sub" style="align-self:center">${wbOn ? "real torch+ART attack on the weights (local)" : "real queries to the live endpoint — authorised targets only"}</span></div>`;
   }
 
@@ -411,13 +411,13 @@ STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
         <div class="k">OWASP payloads</div><div class="v"><select id="lv-owasp" aria-label="OWASP payload category" style="width:100%"><option value="">All categories</option></select></div>
         <div class="k">Trials</div><div class="v"><input type="number" id="lv-trials" aria-label="Live injection trials" placeholder="(all payloads)" min="1" max="20" style="width:140px"></div>
       </div>
-      <div class="btn-row" style="margin-top:0.4rem;"><button class="btn btn-red" id="run-live">[ CONFIRM & RUN LIVE INJECTION ]</button></div>` : "";
+      <div class="btn-row space-above-sm"><button class="btn btn-red" id="run-live">[ CONFIRM & RUN LIVE INJECTION ]</button></div>` : "";
     return `<div class="term-title">${family === "generative_ai" ? "GENERATIVE AI" : "AGENTIC"} EXPERIMENTS</div>
       <p class="sub">Controlled lab: an agent with tools over (possibly untrusted) content. Findings are derived from the recorded trace, not asserted.</p>
       <div class="atk-catalog">${items}</div>
       <div class="kv"><div class="k">Trials</div><div class="v"><input type="number" id="ag-trials" aria-label="Lab trials" value="3" min="1" max="20" style="width:120px"></div></div>
       ${Orion.executionBoundary({Execution: "Controlled lab · no live LLM / MCP", Isolation: "? UNKNOWN", Filesystem: "? UNKNOWN"})}
-      <div class="btn-row" style="margin-top:0.4rem;"><button class="btn btn-red" id="run-atk">[ RUN EXPERIMENT ]</button>
+      <div class="btn-row space-above-sm"><button class="btn btn-red" id="run-atk">[ RUN EXPERIMENT ]</button>
         <span class="sub" style="align-self:center">controlled lab (no live LLM / MCP)</span></div>
       ${live}`;
   }
@@ -469,7 +469,7 @@ STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
     const rows = keys.map(k => `<tr><td>${k.replace(/_/g, " ")}</td><td class="col-attack">${m[k].before}</td><td class="col-hardened">${m[k].after}</td><td>${m[k].delta > 0 ? "+" : ""}${m[k].delta}</td></tr>`).join("");
     return `<div class="term-title" style="color:var(--green)">BEFORE vs AFTER · SAME ATTACK</div>
       <table class="orion compare"><thead><tr><th>Metric</th><th>BEFORE</th><th>AFTER</th><th>Δ</th></tr></thead><tbody>${rows}</tbody></table>
-      <div class="btn-row" style="margin-top:0.4rem;">
+      <div class="btn-row space-above-sm">
         <a class="btn btn-ghost" href="/runs/${encodeURIComponent(beforeId)}">Original evidence</a><a class="btn btn-ghost" href="/runs/${encodeURIComponent(afterId)}">Retest evidence</a></div>`;
   }
 
@@ -485,13 +485,13 @@ STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
           .map(k => `<tr><td>${k.replace(/_/g, " ")}</td><td>${Orion.esc(met[k].value)}</td></tr>`).join("");
         html += `<table class="orion"><tbody>${rows || '<tr><td class=sub>no metrics</td></tr>'}</tbody></table>
           ${Orion.imageComparison(rec, trace, { demo: DEMO })}
-          <div class="btn-row"><a class="btn btn-blue" href="/defend/${encodeURIComponent(trace)}">[ OPEN DEFEND ]</a>
-          <a class="btn btn-ghost" href="/runs/${encodeURIComponent(trace)}">[ VIEW EVIDENCE ]</a></div>`;
+          <div class="btn-row"><a class="btn btn-ghost" href="/defend/${encodeURIComponent(trace)}">Open Defend</a>
+          <a class="btn btn-ghost" href="/runs/${encodeURIComponent(trace)}">View Evidence</a></div>`;
       } else {
         const can = (rec.hardening || []).length > 0;
         html += `<div class="sub">A defense is not validated until the attack is replayed.</div>
           <div class="btn-row">${can ? `<button class="btn btn-blue" id="compat-retest">[ RETEST SAME EXPERIMENT ]</button>` : '<span class="sub">This run declares no hardening to retest.</span>'}
-          <a class="btn btn-ghost" href="/runs/${encodeURIComponent(trace)}">[ VIEW EVIDENCE ]</a></div><div id="cr-out" style="margin-top:0.4rem;"></div>`;
+          <a class="btn btn-ghost" href="/runs/${encodeURIComponent(trace)}">View Evidence</a></div><div id="cr-out" style="margin-top:0.4rem;"></div>`;
       }
       html += `</div>`;
       root.innerHTML = html;
@@ -515,7 +515,7 @@ STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
     let html = `<div class="term"><div class="term-title">Open an experiment</div>
       <p class="sub">Experiments are created when you approve a plan (Know Yourself / Target / Analysis Context).</p>
       <div class="btn-row"><input aria-label="Plan ID" type="text" id="open-plan" placeholder="paste a plan id (ORN-PLAN-…)" style="flex:1;min-width:220px;">
-        <button class="btn btn-red" id="open-plan-btn">[ OPEN FROM PLAN ]</button></div></div>`;
+        <button class="btn btn-ghost" id="open-plan-btn">Open From Plan</button></div></div>`;
     html += `<div class="term"><div class="term-title">Recent experiments</div>`;
     if (list.length) {
       html += list.map(w => `<div class="recon-run-row"><div class="meta"><span class="rid">${Orion.esc(w.experiment_workspace_id)}</span>

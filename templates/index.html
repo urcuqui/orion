@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "components/cat.html" import cyber_cat %}
 {% from "components/status.html" import status_badge %}
 {% from "components/workspace.html" import page_header, next_action_card %}
 {% set section = 'dashboard' %}
@@ -6,11 +7,13 @@
 {% block content %}
 {{ page_header('Assessment overview', 'Know yourself. Know your target. Know the terrain. Follow the evidence.') }}
 {% if overview.errors %}<div class="state" role="status">! PARTIAL — {{ overview.errors|join(' ') }} Available records are shown below.</div>{% endif %}
-<div class="panel">
-  <h2 class="panel-title">{{ 'Current experiment assessment' if overview.current else 'Most recent profiles · select an assessment in Analysis' }}</h2>
-  {% if overview.current %}<p class="mono"><a href="/experiment/{{ overview.current.experiment_workspace_id }}">{{ overview.current.experiment_workspace_id }}</a> · {{ overview.current.active_experiment_id or 'No active experiment' }}</p>{% endif %}
-  {% for p in overview.profiles %}<div class="profile-row"><div><strong>{{ p.label }}</strong><small>{{ {'self':'Know Yourself','target':'Know Your Target','environment':'Know the Terrain'}[p.key] }}</small></div><div><a href="{{ url_for(p.endpoint) }}">{{ p.name or p.id or 'Not provided' }}</a>{% if p.id %}<small class="mono">{{ p.id }}</small>{% endif %}</div><div>{{ status_badge('AVAILABLE' if p.available else ('OPTIONAL / NOT PROVIDED' if p.key == 'environment' else 'UNKNOWN')) }}</div></div>{% endfor %}
-</div>
+<section class="panel assessment-summary" aria-label="Current assessment">
+  <div><h2 class="panel-title">{{ 'Current assessment' if overview.current else 'Assessment inputs' }}</h2>
+    {% if overview.current %}<p><a class="mono" href="/experiment/{{ overview.current.experiment_workspace_id }}">{{ overview.current.experiment_workspace_id }}</a> · {{ overview.current.active_experiment_id or 'No active experiment' }}</p><p class="sub">Current stage: {{ overview.current.current_stage|upper }} · Plan {{ status_badge(overview.current.stages.get('plan')) }}</p>
+    {% else %}<p class="sub">Select your system, target and optional environment in Analysis.</p>{% endif %}
+  </div>
+  {{ cyber_cat('primary', 'overview-sentinel') }}
+</section>
 {{ next_action_card(overview.action.label, overview.action.description, overview.action.href, 'Open experiment' if overview.current else 'Open analysis') }}
 <div class="two-col">
   <section class="panel"><h2 class="panel-title">Security posture · recorded findings</h2><p class="sub">Evidence supports conclusions. An applied control needs a retest.</p>
@@ -18,6 +21,10 @@
   </section>
   <section class="panel"><h2 class="panel-title">Attack surface</h2>{% if overview.surfaces %}<ul class="evidence-list">{% for surface in overview.surfaces %}<li><span class="mono">{{ surface.value }}</span><small class="sub"> · {{ surface.source }} profile</small></li>{% endfor %}</ul>{% else %}<p class="sub">? UNKNOWN — No linked interfaces or capabilities recorded.</p>{% endif %}<p class="sub">Review the target and source-attributed analysis to inspect observed capabilities, inferred dependencies, and hypotheses.</p><div class="btn-row"><a class="btn btn-ghost" href="/target-analysis">Inspect target</a><a class="btn btn-ghost" href="/context">Review analysis inputs</a></div></section>
 </div>
+<section class="panel context-profiles">
+  <h2 class="panel-title">Assessment context · profiles</h2>
+  {% for p in overview.profiles %}<div class="profile-row"><div><strong>{{ p.label }}</strong><small>{{ {'self':'Know Yourself','target':'Know Your Target','environment':'Know the Terrain'}[p.key] }}</small></div><div><a href="{{ url_for(p.endpoint) }}">{{ p.name or p.id or 'Not provided' }}</a>{% if p.id %}<small class="mono">{{ p.id }}</small>{% endif %}</div><div>{{ status_badge('AVAILABLE' if p.available else ('OPTIONAL / NOT PROVIDED' if p.key == 'environment' else 'UNKNOWN')) }}</div></div>{% endfor %}
+</section>
 <section class="panel"><h2 class="panel-title">EXPERIMENTATION · active / recent experiments</h2><a class="btn btn-ghost" href="/experiment">Experiment</a>
 {% if overview.workspaces %}<div class="table-scroll"><table class="orion"><caption>Persisted experiment stages</caption><thead><tr><th scope="col">Experiment</th><th scope="col">Active proposal</th><th scope="col">Current stage</th><th scope="col">Approval</th><th scope="col">Updated</th></tr></thead><tbody>{% for w in overview.workspaces %}<tr><td class="mono"><a href="/experiment/{{ w.experiment_workspace_id }}">{{ w.experiment_workspace_id }}</a></td><td class="mono">{{ w.active_experiment_id or 'UNKNOWN' }}</td><td>{{ w.current_stage|upper }}</td><td>{{ status_badge(w.stages.get('plan')) }}</td><td>{{ w.updated_at }}</td></tr>{% endfor %}</tbody></table></div>{% else %}<div class="state">NO EXPERIMENTS YET — Threat analysis can propose experiments from assessment profiles. <a href="/context">Open Analysis</a>.</div>{% endif %}
 </section>

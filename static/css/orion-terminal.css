@@ -1,7 +1,7 @@
-/* ORION retro terminal layer: CRT effects, dragon, status language.
+/* ORION retro terminal layer: CRT effects, cyber-cat identity, terminal language.
    Loaded site-wide after base.css. Effects are subtle and toggleable. */
 
-/* ---- CRT scanlines + flicker (body.crt) ---- */
+/* ---- Classic CRT scanlines; no decorative flicker ---- */
 body.crt::before {
   content: "";
   position: fixed;
@@ -26,42 +26,18 @@ body.crt::after {
   background: radial-gradient(ellipse at center, rgba(0,0,0,0) 60%, rgba(0,0,0,0.35) 100%);
   /* No decorative flicker during reading. */
 }
-@keyframes crt-flicker { 0%,97% { opacity: 1; } 98% { opacity: 0.92; } 100% { opacity: 1; } }
-/* Honour reduced-motion and the OFF toggle. */
+/* Reduced motion applies regardless of appearance. */
 @media (prefers-reduced-motion: reduce) { body.crt::after { animation: none; } }
 
-/* ---- CRT toggle control in the topbar ---- */
-.crt-toggle {
-  background: none;
-  border: 1px solid var(--border-strong);
-  color: var(--muted);
-  font-family: var(--mono);
-  font-size: 0.68rem;
-  padding: 0.2rem 0.5rem;
-  cursor: pointer;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-.crt-toggle:hover { color: var(--green); border-color: var(--green-dark); }
-
-/* ---- Dragon ASCII ---- */
-.dragon {
-  color: var(--red);
-  font-size: 0.72rem;
-  line-height: 1.05;
-  white-space: pre;
-  text-shadow: 0 0 6px rgba(215, 25, 32, 0.4);
-  margin: 0;
-}
-.dragon.sm { font-size: 0.58rem; color: var(--red-dark); }
-.dragon.watermark {
-  position: fixed;
-  right: 1rem;
-  bottom: 2.5rem;
-  opacity: 0.08;
-  z-index: 0;
-  pointer-events: none;
-}
+/* ---- Shared cyber-cat signature; two variants, defined in Jinja. ---- */
+.orion-cat { margin: 0; font-family: var(--mono); white-space: pre; line-height: 1.15; color: var(--text-muted); }
+.cat-compact { font-size: 8px; color: var(--text-terminal); }
+.cat-primary { font-size: 9px; }
+.cat-watermark { display: none; position: fixed; right: 20px; bottom: 40px; opacity: .035; pointer-events: none; z-index: 0; }
+body.classic .cat-primary { font-size: 12px; color: var(--orion-phosphor); text-shadow: 0 0 8px rgba(147,223,172,.18); }
+body.classic .cat-watermark { display: block; }
+body.demo .cat-watermark { display: none; }
+@media (max-width: 768px) { .overview-sentinel { display: none; } }
 
 /* ---- Terminal panels / boxes ---- */
 .term {
@@ -72,7 +48,8 @@ body.crt::after {
   position: relative;
 }
 .term-title {
-  color: var(--red);
+  font-family: var(--mono);
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.12em;
   font-size: 0.82rem;
@@ -102,8 +79,8 @@ body.crt::after {
 /* ---- Menu list ([01] ... style) ---- */
 .menu-list { list-style: none; margin: 0; padding: 0; }
 .menu-list li { border: 1px solid var(--border); padding: 0.75rem 0.9rem; margin-bottom: 0.6rem; background: var(--panel-alt); }
-.menu-list li:hover { border-color: var(--red); }
-.menu-list .code { color: var(--red); font-weight: 700; margin-right: 0.6rem; }
+.menu-list li:hover { border-color: var(--border-strong); }
+.menu-list .code { color: var(--text-muted); font-weight: 700; margin-right: 0.6rem; }
 .menu-list .name { color: var(--text); text-transform: uppercase; letter-spacing: 0.06em; }
 .menu-list .hint { color: var(--muted); font-size: 0.8rem; margin-top: 0.25rem; }
 
@@ -126,7 +103,7 @@ body.crt::after {
 .hyp.sev-low .sev, .hyp.sev-info .sev { color: var(--blue); }
 
 .exp { border: 1px solid var(--border); background: var(--panel-alt); padding: 0.7rem 0.85rem; margin-bottom: 0.6rem; }
-.exp .eid { color: var(--red); font-weight: 700; margin-right: 0.5rem; }
+.exp .eid { color: var(--text-secondary); font-weight: 700; margin-right: 0.5rem; }
 .exp .ename { color: var(--text); text-transform: uppercase; letter-spacing: 0.05em; }
 .exp .risk { font-size: 0.7rem; border: 1px solid currentColor; padding: 0.05rem 0.4rem; margin-left: 0.5rem; }
 .exp .risk.LOW { color: var(--green); }
@@ -140,11 +117,8 @@ body.crt::after {
 .rejected-tag { color: var(--red-bright); border-color: var(--red-bright); }
 
 /* demo mode: hide CRT + watermark, enlarge terminal output */
-body.demo .dragon.watermark { display: none; }
 body.demo.crt::before, body.demo.crt::after { display: none; }
 body.demo .term-pre, body.demo .statusline, body.demo .phases { font-size: 1.05rem; }
 
 body.classic .orion-brand { text-shadow: 0 0 10px rgba(240,106,117,.4); }
-body.classic .dragon { text-shadow: 0 0 8px rgba(240,106,117,.3); }
-body:not(.classic) .dragon.watermark { display: none; }
 body:not(.classic) .cursor { animation: none; }

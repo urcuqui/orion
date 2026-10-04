@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% set evidence_view = request.args.get('view') == 'evidence' %}
 {% set section = 'evidence' if evidence_view else 'runs' %}
-{% block title %}Evidence — Runs — ORION{% endblock %}
+{% block title %}{{ 'Evidence' if evidence_view else 'Runs' }} — ORION{% endblock %}
 
 {% block content %}
 <div class="section-head">
@@ -10,18 +10,18 @@
 </div>
 
 <div class="panel">
-  <div class="btn-row"><a class="btn btn-ghost" href="/runs">Runs</a><a class="btn btn-ghost" href="/runs?view=evidence">Evidence</a></div>
-  <label class="field" style="margin-top:12px"><span class="field-label">Search ID, scenario, target or technique</span><input type="search" id="runs-search" placeholder="Filter recorded executions"></label>
-  <div class="btn-row secondary" style="margin-bottom:0.5rem;">
-    <span class="field-label" style="align-self:center;">Type:</span>
+  <nav class="btn-row" aria-label="Observation views"><a class="btn {{ 'btn-ghost' if evidence_view else 'btn-selected' }}" href="/runs"{% if not evidence_view %} aria-current="page"{% endif %}>Runs</a><a class="btn {{ 'btn-selected' if evidence_view else 'btn-ghost' }}" href="/runs?view=evidence"{% if evidence_view %} aria-current="page"{% endif %}>Evidence</a></nav>
+  <label class="field search-field"><span class="field-label">{{ 'Search artifact, run, experiment or finding' if evidence_view else 'Search run, scenario, target or finding' }}</span><input type="search" id="runs-search" placeholder="{{ 'Filter recorded artifacts' if evidence_view else 'Filter recorded executions' }}"></label>
+  <div class="btn-row secondary filter-row">
+    <span class="field-label">Type:</span>
     <button class="btn btn-ghost flt" data-k="type" data-v="all">All</button>
     <button class="btn btn-ghost flt" data-k="type" data-v="adversarial">Adversarial</button>
     <button class="btn btn-ghost flt" data-k="type" data-v="agent">Agent</button>
     <button class="btn btn-ghost flt" data-k="type" data-v="recon">Recon</button>
     <button class="btn btn-ghost flt" data-k="type" data-v="replay">Replay</button>
   </div>
-  <div class="btn-row secondary">
-    <span class="field-label" style="align-self:center;">Result:</span>
+  <div class="btn-row secondary filter-row">
+    <span class="field-label">Result:</span>
     <button class="btn btn-ghost flt" data-k="status" data-v="all">All</button>
     <button class="btn btn-ghost flt" data-k="status" data-v="ATTACK_SUCCESS">ATTACK_SUCCESS</button>
     <button class="btn btn-ghost flt" data-k="status" data-v="ATTACK_BLOCKED">ATTACK_BLOCKED</button>
@@ -31,7 +31,7 @@
 </div>
 
 <div class="panel">
-  <div class="table-scroll" id="runs-table" aria-live="polite" data-view="{{ 'evidence' if evidence_view else 'runs' }}"><div class="state">Loading evidence…</div></div>
+  <div class="table-scroll" id="runs-table" aria-live="polite" data-view="{{ 'evidence' if evidence_view else 'runs' }}"><div class="state">{{ 'Loading artifact records…' if evidence_view else 'Loading execution history…' }}</div></div>
 </div>
 {% endblock %}
 

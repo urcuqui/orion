@@ -13,7 +13,7 @@
 {% if not record %}
   <div class="section-head"><h1>Run {{ trace_id[:8] }}</h1></div>
   <div class="state error">Evidence unavailable for this trace. It may have been cleaned or never created.</div>
-  <div class="btn-row" style="margin-top:1rem;"><a class="btn" href="{{ url_for('runs_page') }}">▸ Back to runs</a></div>
+  <div class="btn-row space-above-lg"><a class="btn" href="{{ url_for('runs_page') }}">▸ Back to runs</a></div>
 {% else %}
   {% set atk = record.attack_technique or '' %}
   {% set phase = 'retest' if record.mode == 'hardened' else (record.phase or 'attack') %}
@@ -24,20 +24,27 @@
 
 
 
-  <div class="panel">
-    <div class="btn-row" style="justify-content:space-between; align-items:center;">
-      <div>Key result: {{ status_badge(record.status) }}</div>
-      <div class="btn-row">
-        <a class="btn btn-blue" href="{{ url_for('defend_page', trace_id=trace_id) }}">[ OPEN DEFEND ]</a>
-        {% if record.hardening %}<button class="btn btn-blue" id="btn-replay" data-trace="{{ trace_id }}">[ REPLAY HARDENED ]</button>{% endif %}
-        <a class="btn btn-ghost" href="{{ url_for('agent_page') }}?mission={{ ('Explain this ' ~ (record.attack_technique or 'experiment') ~ ' result and the security trade-off.')|urlencode }}&context={{ ('trace=' ~ trace_id)|urlencode }}">[ EXPLAIN RESULT ]</a>
-        <a class="btn" href="{{ url_for('experiment_page') }}">[ NEW EXPERIMENT ]</a>
-        {% if record.provenance and record.provenance.plan_id %}<a class="btn btn-blue" href="/experiment?plan_id={{ record.provenance.plan_id }}">[ OPEN EXPERIMENT WORKSPACE ]</a>{% endif %}
-      </div>
+  <section class="panel run-action-area" aria-label="Run result and next action">
+    <div class="run-next-action"><div><div class="field-label">Key result</div>{{ status_badge(record.status) }}
+      {% if workspace %}<p class="sub">Next action: {{ workspace.next_action.label }}</p>{% endif %}
     </div>
-    {% if record.hardening %}<p class="sub">Scenario replay uses the existing synthetic teaching backend. Review its limitations before comparing it with live evidence.</p>{% endif %}
-    <div id="replay-status" class="hidden" style="margin-top:0.75rem;"></div>
-  </div>
+    {% if workspace %}
+      {% set navigation_labels = {'plan':'Review Plan', 'attack':'Open Attack', 'measure':'View Measurements', 'defend':'Open Defend', 'retest':'Open Retest', 'evidence':'View Evidence'} %}
+      <a class="btn btn-ghost" data-run-next-action href="/experiment/{{ workspace.experiment_workspace_id }}">{{ navigation_labels.get(workspace.next_action.stage, 'Open Experiment') }}</a>
+    {% else %}
+      <a class="btn btn-ghost" href="{{ url_for('defend_page', trace_id=trace_id) }}">Open Defend</a>
+    {% endif %}
+    </div>
+    <div class="btn-row run-secondary-actions">
+      {% if record.hardening %}<button class="btn btn-ghost" id="btn-replay" data-trace="{{ trace_id }}">Replay Hardened</button>{% endif %}
+      <a class="btn btn-tertiary" href="{{ url_for('agent_page') }}?mission={{ ('Explain this ' ~ (record.attack_technique or 'experiment') ~ ' result and the security trade-off.')|urlencode }}&context={{ ('trace=' ~ trace_id)|urlencode }}">Explain Result</a>
+      <a class="btn btn-tertiary" href="{{ url_for('experiment_page') }}">New Experiment</a>
+      <a class="btn btn-tertiary" href="#run-artifacts">View Evidence</a>
+      {% if not workspace and record.provenance and record.provenance.plan_id %}<a class="btn btn-tertiary" href="/experiment?plan_id={{ record.provenance.plan_id|urlencode }}">Open Experiment Workspace</a>{% endif %}
+    </div>
+    {% if record.hardening %}<p class="sub flush">Scenario replay uses the existing synthetic teaching backend. Review its limitations before comparing it with live evidence.</p>{% endif %}
+    <div id="replay-status" class="hidden" role="status" aria-live="polite"></div>
+  </section>
 
   {# ---- Image attack comparison (type-aware: renders only for image attacks) ---- #}
   {{ image_attack_comparison(record, trace_id, demo=(request.args.get('demo') == '1')) }}
@@ -46,7 +53,7 @@
   {% if finding %}
   <div class="panel">
     <div class="panel-title">Finding</div>
-    <p class="sub" style="margin:0;">This evidence is interpreted as
+    <p class="sub flush">This evidence is interpreted as
       <a href="{{ url_for('finding_detail_page', finding_id=finding.id) }}" class="mono">{{ finding.id }}</a>
       — {{ finding.title }} ({{ finding.status }}{% if finding.retest_status %} · {{ finding.retest_status }}{% endif %}).</p>
   </div>
@@ -104,7 +111,7 @@
     {% for t in record.execution_trace %}
     <div class="trace-trial">
       <h4><span class="prov-label">{{ t.source }}</span> · {{ t.type|replace('_',' ') }}</h4>
-      <pre class="term-pre">{% if t.type == 'authorization_event' %}DECISION ... <span class="{{ 'allow' if t.decision == 'ALLOW' else 'deny' }}">{{ t.decision }}</span> — {{ t.reason }}
+      <pre class="term-pre">{% if t.type == 'authorization_event' %}DECISION ... <span class="{{ 'policy-allow' if t.decision == 'ALLOW' else 'policy-deny' }}">{{ t.decision }}</span> — {{ t.reason }}
   required={{ t.required_privilege }} · effective={{ t.effective_privilege }} · identity={{ t.agent_identity }}{% elif t.type == 'tool_request' %}TOOL ...... {{ t.requested_tool or '(none)' }}  ARGS {{ t.requested_arguments }}{% elif t.type == 'agent_response' %}MODEL ..... {{ t.model }}
 FOLLOWED .. {{ t.followed_instruction }}  (instruction source: {{ t.instruction_source }})
 RATIONALE . {{ t.rationale }}{% elif t.type == 'tool_result' %}{{ t.tool }} -> {{ t.result }}{% else %}{{ t.content }}{% if t.filtered %}  [filtered by input gateway]{% endif %}{% endif %}</pre>
@@ -131,7 +138,7 @@ INSTRUCTION FOLLOWED . <span class="{{ 'deny' if t.observations.attack_success e
 RETRIEVED ...... {{ t.retrieved_content }}
 INJECTED ....... {{ t.injected_payload }}
 AGENT TOOL ..... {{ t.agent_decision.requested_tool or '(none)' }} {{ t.agent_decision.requested_arguments }}
-AUTHORIZATION .. <span class="{{ 'allow' if a.decision == 'ALLOW' else 'deny' }}">{{ a.decision }}</span> — {{ a.reason }}
+AUTHORIZATION .. <span class="{{ 'policy-allow' if a.decision == 'ALLOW' else 'policy-deny' }}">{{ a.decision }}</span> — {{ a.reason }}
 EXECUTION ...... {{ t.execution_result.output }}
 ATTACK SUCCESS . {{ t.observations.attack_success }}</pre>
     </div>
@@ -141,7 +148,7 @@ ATTACK SUCCESS . {{ t.observations.attack_success }}</pre>
   </div>
   {% endif %}
 
-  <div class="two-col">
+  <div class="two-col run-record-context">
     {# ---- Threat model ---- #}
     <div class="panel">
       <div class="panel-title">Threat Model</div>
@@ -155,7 +162,7 @@ ATTACK SUCCESS . {{ t.observations.attack_success }}</pre>
         <tr><td>Assets</td><td>{{ (tm.assets or [])|join(', ') or 'UNKNOWN' }}</td></tr>
         <tr><td>Surfaces</td><td>{{ (tm.surfaces or [])|join(', ') or 'UNKNOWN' }}</td></tr>
       </table>
-      <div class="panel-title" style="margin-top:1rem;">Attack</div>
+      <div class="panel-title space-above-lg">Attack</div>
       <table class="orion">
         <tr><td>Technique</td><td>{{ record.attack_technique or 'UNKNOWN' }}</td></tr>
         {% for k, v in (record.parameters or {}).items() %}<tr><td>{{ k }}</td><td>{{ v }}</td></tr>{% endfor %}
@@ -198,8 +205,8 @@ ATTACK SUCCESS . {{ t.observations.attack_success }}</pre>
     {% else %}<p class="sub">Results depend on the selected data and parameters; this is not a proof of security.</p>{% endif %}
   </div>
 
-  <details class="panel"><summary>Artifacts & raw records</summary><div class="btn-row" style="margin-top:12px">        <a class="btn btn-ghost" href="/api/artifacts/{{ trace_id }}/experiment.json" target="_blank">[ VIEW RAW JSON ]</a>
-        {% if report_md %}<a class="btn btn-ghost" href="/api/artifacts/{{ trace_id }}/report.md" target="_blank">[ DOWNLOAD REPORT ]</a>{% endif %}
+  <details class="panel" id="run-artifacts"><summary>Artifacts & raw records</summary><div class="btn-row space-above">        <a class="btn btn-ghost" href="/api/artifacts/{{ trace_id }}/experiment.json" target="_blank">View Raw JSON</a>
+        {% if report_md %}<a class="btn btn-ghost" href="/api/artifacts/{{ trace_id }}/report.md" target="_blank">Download Report</a>{% endif %}
 </div></details>
 
   {# ---- Full report ---- #}
