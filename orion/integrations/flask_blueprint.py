@@ -655,7 +655,13 @@ def api_experiment_controls(ws_id):
         except Exception:  # noqa: BLE001
             aid = None
     items = CC.for_attack(aid) if aid else CC._CONTROLS
-    return jsonify({"controls": [c.to_dict() for c in items]})
+    out = []
+    for c in items:
+        d = c.to_dict()
+        impl = CC.default_implementation(c.id)
+        d["implementation"] = impl.to_dict() if impl else None
+        out.append(d)
+    return jsonify({"controls": out})
 
 
 @api_bp.get("/catalog")

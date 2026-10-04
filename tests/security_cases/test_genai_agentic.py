@@ -43,7 +43,10 @@ def test_indirect_prompt_injection_succeeds(tmp_path):
     assert rec.family == "generative_ai"
     assert rec.metrics["attack_success_rate"]["value"] == 1.0
     assert rec.metrics["instruction_following_rate"]["value"] == 1.0
-    assert len(rec.execution_trace) == 3
+    # Impact (not just influence): the privileged tool actually executed.
+    assert rec.adversarial_result["tool_executed"] is True
+    assert rec.parameters["boundary_crossing"] == "Tool Authorization → Privileged Capability"
+    assert rec.parameters["success_evaluation"]["result"] is True
 
 
 def test_indirect_pi_metrics_are_genai_not_adversarial(tmp_path):
@@ -52,26 +55,40 @@ def test_indirect_pi_metrics_are_genai_not_adversarial(tmp_path):
     assert "perturbation_linf" not in rec.metrics     # not an image attack
 
 
-def test_indirect_pi_control_must_match_vector(tmp_path):
-    # export_report is an allowed tool, so tool_authorization does NOT help…
-    inef = run_agentic_experiment("ORN-ATTACK-PI-002", controls=["tool_authorization"],
-                                  trials=3, base_dir=str(tmp_path))
-    assert inef.metrics["attack_success_rate"]["value"] == 1.0
-    # …but blocking the untrusted instruction or the destination does.
-    for ctrl in ("instruction_provenance", "destination_allowlist", "human_approval"):
-        eff = run_agentic_experiment("ORN-ATTACK-PI-002", controls=[ctrl], trials=3, base_dir=str(tmp_path))
+def test_influence_persists_but_impact_is_blocked_by_tool_authorization(tmp_path):
+    # The central distinction: the agent is still influenced, but the privileged
+    # action is blocked, so the security impact is prevented (defense in depth).
+    rec = run_agentic_experiment("ORN-ATTACK-PI-002", controls=["tool_authorization"],
+                                 base_dir=str(tmp_path))
+    assert rec.adversarial_result["influence_detected"] is True      # compromise
+    assert rec.adversarial_result["tool_executed"] is False          # impact blocked
+    assert rec.metrics["attack_success_rate"]["value"] == 0.0
+    assert rec.status == "ATTACK_BLOCKED"
+
+
+def test_controls_with_no_implementation_are_ineffective(tmp_path):
+    # A control that has no implementation for this environment does not help.
+    rec = run_agentic_experiment("ORN-ATTACK-PI-002", controls=["adversarial_training"],
+                                 base_dir=str(tmp_path))
+    assert rec.metrics["attack_success_rate"]["value"] == 1.0
+    # …whereas tool authorization and the gateway filter do help.
+    for ctrl in ("tool_authorization", "least_privilege", "destination_allowlist",
+                 "instruction_provenance", "human_approval"):
+        eff = run_agentic_experiment("ORN-ATTACK-PI-002", controls=[ctrl], base_dir=str(tmp_path))
         assert eff.metrics["attack_success_rate"]["value"] == 0.0, ctrl
 
 
 # --------------------- Experiment B: tool / privilege abuse ----------------- #
 def test_tool_privilege_abuse_crosses_boundary(tmp_path):
-    rec = run_agentic_experiment("ORN-ATTACK-AG-002", trials=3, base_dir=str(tmp_path))
+    rec = run_agentic_experiment("ORN-ATTACK-AG-002", base_dir=str(tmp_path))
     assert rec.status == "ATTACK_SUCCESS"
     assert rec.family == "agentic_ai"
     assert rec.metrics["privilege_boundary_violation_rate"]["value"] == 1.0
-    tr = rec.execution_trace[0]
-    assert tr["agent_decision"]["requested_tool"] == "admin_export"
-    assert tr["authorization"]["required_privilege"] == "high"
+    # The tool selection came from the agent, observable in the trace.
+    treq = next(t for t in rec.execution_trace if t["type"] == "tool_request")
+    assert treq["requested_tool"] == "admin_export"
+    authz = next(t for t in rec.execution_trace if t["type"] == "authorization_event")
+    assert authz["required_privilege"] == "high"
 
 
 def test_tool_abuse_blocked_by_authorization(tmp_path):
@@ -170,9 +187,10 @@ def test_full_agentic_lifecycle_attack_measure_finding_defend_retest(tmp_path):
 
 def test_ineffective_control_leaves_finding_unmitigated(tmp_path):
     ws = EXP.create_from_plan(_approved_agentic_plan(tmp_path), base_dir=str(tmp_path))
-    EXP.run_agentic_attack(ws, {"attack_id": "ORN-ATTACK-PI-002", "trials": 3}, base_dir=str(tmp_path))
+    EXP.run_agentic_attack(ws, {"attack_id": "ORN-ATTACK-PI-002"}, base_dir=str(tmp_path))
     EXP.measure(ws, base_dir=str(tmp_path))
-    EXP.apply_defense(ws, {"control_id": "tool_authorization"}, base_dir=str(tmp_path))  # wrong vector
+    # A control with no implementation for this environment cannot reduce impact.
+    EXP.apply_defense(ws, {"control_id": "adversarial_training"}, base_dir=str(tmp_path))
     rr = EXP.retest(ws, base_dir=str(tmp_path))
     assert rr["finding"]["retest_status"] == "INEFFECTIVE"
     assert rr["finding"]["status"] in ("OBSERVED", "CONFIRMED")   # not mitigated

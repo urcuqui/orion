@@ -68,6 +68,18 @@
   <div class="panel">
     <div class="panel-title">Execution trace ({{ record.execution_trace|length }} trial(s))</div>
     <p class="sub">The recorded behaviour the finding is derived from — not an assertion.</p>
+    {% if record.execution_trace[0].type is defined and record.execution_trace[0].response is not defined %}
+    {# ---- real agent trace: ordered provenance components (P1.8) ---- #}
+    {% for t in record.execution_trace %}
+    <div class="trace-trial">
+      <h4><span class="prov-label">{{ t.source }}</span> · {{ t.type|replace('_',' ') }}</h4>
+      <pre class="term-pre">{% if t.type == 'authorization_event' %}DECISION ... <span class="{{ 'allow' if t.decision == 'ALLOW' else 'deny' }}">{{ t.decision }}</span> — {{ t.reason }}
+  required={{ t.required_privilege }} · effective={{ t.effective_privilege }} · identity={{ t.agent_identity }}{% elif t.type == 'tool_request' %}TOOL ...... {{ t.requested_tool or '(none)' }}  ARGS {{ t.requested_arguments }}{% elif t.type == 'agent_response' %}MODEL ..... {{ t.model }}
+FOLLOWED .. {{ t.followed_instruction }}  (instruction source: {{ t.instruction_source }})
+RATIONALE . {{ t.rationale }}{% elif t.type == 'tool_result' %}{{ t.tool }} -> {{ t.result }}{% else %}{{ t.content }}{% if t.filtered %}  [filtered by input gateway]{% endif %}{% endif %}</pre>
+    </div>
+    {% endfor %}
+    {% else %}
     {% for t in record.execution_trace %}
     {% if t.response is defined %}
     {# ---- live prompt-injection trace ---- #}
@@ -88,14 +100,13 @@ INSTRUCTION FOLLOWED . <span class="{{ 'deny' if t.observations.attack_success e
 RETRIEVED ...... {{ t.retrieved_content }}
 INJECTED ....... {{ t.injected_payload }}
 AGENT TOOL ..... {{ t.agent_decision.requested_tool or '(none)' }} {{ t.agent_decision.requested_arguments }}
-REASONING ...... {{ t.agent_decision.reasoning }}
 AUTHORIZATION .. <span class="{{ 'allow' if a.decision == 'ALLOW' else 'deny' }}">{{ a.decision }}</span> — {{ a.reason }}
-  required={{ a.required_privilege }} · effective={{ a.effective_privilege }} · identity={{ a.agent_identity }}
 EXECUTION ...... {{ t.execution_result.output }}
 ATTACK SUCCESS . {{ t.observations.attack_success }}</pre>
     </div>
     {% endif %}
     {% endfor %}
+    {% endif %}
   </div>
   {% endif %}
 

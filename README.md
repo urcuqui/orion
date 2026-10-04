@@ -1,11 +1,17 @@
 # Orion
 
-> Orion is an AI security experimentation framework that combines adversarial
-> machine learning, threat modeling, MITRE ATLAS, agent-assisted workflows,
-> security tooling, and reproducible evidence.
+> Orion is an **evidence-driven AI security experimentation framework** for
+> Traditional ML, Generative AI and Agentic AI systems. It turns system context
+> and threat models into controlled security experiments, measures attack impact,
+> validates defensive controls through retesting, and preserves the evidence chain.
 
 Orion does not exist to prove that AI can fail. It exists to **understand how it
 fails, measure the failure, and improve the system before an adversary does.**
+
+A central design principle: **model/agent compromise is not the same as system
+security impact.** An agent can be influenced by a prompt injection, but the
+finding is the *observable boundary crossing* it causes — and a control is only
+proven by retesting the same experiment.
 
 ![Orion Demo](demo.gif)
 
@@ -13,10 +19,29 @@ fails, measure the failure, and improve the system before an adversary does.**
 
 ## 1. What is Orion?
 
-Orion is a hands-on lab for breaking and defending AI models. It brings a single
-methodology to adversarial ML experiments so results are coherent,
-reproducible, measurable and evidence-driven — usable by red teams, blue teams
-and researchers.
+Orion is a hands-on framework for running security experiments against AI systems
+across three families — **Traditional ML, Generative AI, Agentic AI** — under one
+methodology, so results are coherent, reproducible, measurable and evidence-driven,
+usable by red teams, blue teams and researchers.
+
+### Security experiment families
+
+```
+Traditional ML
+├── FGSM
+├── PGD
+├── C&W
+└── Black-box Evasion
+
+Generative AI
+├── Direct Prompt Injection
+└── Indirect Prompt Injection
+
+Agentic AI
+└── Tool / Privilege Abuse
+```
+
+Only executable attacks are listed; roadmap techniques are not claimed as present.
 
 Orion is used in the talk *"Building Orion: Un framework para romper y defender
 modelos de IA."*
@@ -307,31 +332,40 @@ projection of this catalog, not a second copy.
 
 ## GenAI / Agentic experiments
 
-Orion runs **real, controlled** GenAI/agentic experiments in a deterministic lab
-(`orion.agentic`) — no live LLM or MCP required — so the methodology that works
-for adversarial ML works identically here. Verdicts are **derived from the
-recorded trace**, never asserted.
+Orion runs **real, controlled** GenAI/agentic experiments through a tool-enabled
+agent (`orion.agentic.agent`) whose **tool selection comes from a model** reading
+its context — not a fabricated constant. The default model is a deterministic
+instruction-following interpreter (testable); a live LLM can be plugged in. Tool
+calls and authorization decisions are observable, and verdicts come from the
+catalog's **executable success criteria**, never asserted.
 
-* **Indirect Prompt Injection** (`ORN-ATTACK-PI-002`): a malicious instruction
-  hidden in untrusted retrieved content tries to drive an unauthorised tool
-  action (e.g. exfiltrate via `export_report` to an external destination). Orion
-  records the user request, retrieved content, injected payload, agent decision,
-  authorization decision and execution result, and measures
-  `attack_success_rate`, `instruction_following_rate`, `policy_violation_rate`.
-* **Tool / Privilege Abuse** (`ORN-ATTACK-AG-002`): influenced reasoning attempts
-  `admin_export` (above the agent's privilege) or an approved tool against an
-  unauthorised destination. Orion records `requested_tool`, `requested_arguments`,
+* **Direct Prompt Injection** (`ORN-ATTACK-PI-001`) — the malicious instruction
+  arrives through the **user channel**; trust boundary `User Input → Instruction
+  Boundary → LLM / Agent`. Its evidence contains **no retrieved resource**.
+  (`orion.agentic.run_direct_prompt_injection`; also runnable live against a real
+  endpoint via `orion.agentic.run_live_prompt_injection` with the OWASP payload catalog.)
+* **Indirect Prompt Injection** (`ORN-ATTACK-PI-002`) — a benign user request plus
+  **untrusted retrieved content** carrying a hidden instruction; trust boundary
+  `External Content → Retrieval → Trusted Agent Context → Agent Reasoning → Tool
+  Authorization → Privileged Capability`. The flagship scenario: the agent is
+  influenced to call `admin_export`, and in a vulnerable configuration the
+  authorization boundary is crossed and the tool executes.
+  (`orion.agentic.run_indirect_prompt_injection`.)
+* **Tool / Privilege Abuse** (`ORN-ATTACK-AG-002`) — influenced reasoning attempts
+  a tool above the agent's privilege. Trace captures `requested_tool`,
   `agent_identity`, `required_privilege`, `effective_privilege`,
-  `authorization_decision`, `execution_result`, and measures
-  `unauthorized_tool_call_rate`, `privilege_boundary_violation_rate`,
-  `approval_bypass_rate`.
+  `authorization_decision`, `tool_executed`.
 
-The lab shows an honest lesson: a control only helps if its **mechanism matches
-the vector**. Against indirect-PI exfiltration, `tool_authorization` is
-*ineffective* (the tool is already allowed) while `destination_allowlist`,
-`instruction_provenance` and `human_approval` are *effective* — all computed from
-the trace, not declared. The full per-trial trace is preserved on the run and
-shown under **Evidence**.
+**Influence is not impact.** Orion separates *the agent was influenced* from *a
+security boundary was crossed*: under `tool_authorization` the agent is still
+influenced (it requests `admin_export`) but the call is **denied**, the tool does
+**not** execute, and the attack-success criteria are not met — demonstrating
+defense-in-depth. Controls are also split into **definition vs implementation**
+(`orion.catalog.controls`): a gateway injection filter is a `PARTIAL`
+implementation of instruction provenance, never claimed as full coverage. Applying
+a control never auto-mitigates a finding; only a **retest** of the same experiment
+sets control effectiveness. Every trace component carries provenance
+(`source` / `type` / `run_id`), shown under **Evidence**.
 
 ### Live endpoint extension
 
@@ -368,14 +402,19 @@ evidence — a first-class object, not the evidence itself:
 Evidence = what happened.      Finding = the security meaning of what happened.
 ```
 
-A successful attack produces an **OBSERVED** finding (never auto-CONFIRMED from a
-single run); corroboration promotes it to **CONFIRMED**. A finding records
-`severity`, `confidence`, `boundary_crossed`, `success_condition`, the
-`evidence_refs` behind it, `recommended_controls` and `framework_mappings`. After
-a retest, its `retest_status` is set honestly from the measured before/after
+A successful attack produces an **OBSERVED** finding. Promotion to **CONFIRMED**
+requires a **corroboration policy** (`orion.findings.CorroborationPolicy`,
+default: `minimum_trials=3`, `minimum_success_rate=0.66`, independent runs) to be
+met across *independent* experiment runs that reproduced the same success
+criterion against the same target — two evidence refs alone never confirm. A
+finding records `severity`, `confidence`, `boundary_crossed` (inherited from the
+attack's trust boundary), `observed_action`, the `evidence_refs` behind it,
+`corroboration` metadata, `recommended_controls` and `framework_mappings`. After a
+retest, its `retest_status` is set from the measured before/after
 (`INEFFECTIVE` / `PARTIALLY_EFFECTIVE` / `EFFECTIVE`), moving the finding to
-`MITIGATED` / `PARTIALLY_MITIGATED` or leaving it unmitigated. Findings live under
-their own **Findings** view and each shows its full provenance chain; the Evidence
+`MITIGATED` / `PARTIALLY_MITIGATED` or leaving it unmitigated. The structured
+classification is deterministic (from evidence + criteria), not LLM-generated.
+Findings live under their own **Findings** view with full provenance; the Evidence
 screen is not overloaded with this responsibility.
 
 ## 7. AI agents

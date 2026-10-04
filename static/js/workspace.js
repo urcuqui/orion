@@ -162,8 +162,27 @@
           .filter(k => met[k] && typeof met[k] === "object" && typeof met[k].value === "number")
           .map(k => `<tr><td>${k.replace(/_/g, " ")}</td><td>${Orion.esc(met[k].value)}${met[k].unit ? " " + Orion.esc(met[k].unit) : ""}</td></tr>`).join("");
         const fnd = m.finding;
-        const fndLine = fnd ? `<div class="sub" style="margin-top:0.5rem;">Finding: <a href="/findings/${encodeURIComponent(fnd.id)}">${Orion.esc(fnd.id)}</a> · ${Orion.statusBadge(fnd.status)} · severity ${Orion.esc(fnd.severity)}</div>` : "";
+        const fndLine = fnd ? `<div class="sub" style="margin-top:0.5rem;">Finding: <a href="/findings/${encodeURIComponent(fnd.id)}">${Orion.esc(fnd.id)}</a> · ${Orion.statusBadge(fnd.status)} · severity ${Orion.esc(fnd.severity)}${fnd.corroboration ? " · " + Orion.esc(fnd.corroboration.reason || "") : ""}</div>` : "";
+        // Success criteria checklist — why Orion classified this as success (P1.5).
+        const se = m.success_evaluation;
+        const critBlock = se ? `<div class="term-title" style="margin-top:0.6rem;">ATTACK SUCCESS CRITERIA</div>
+          <pre class="term-pre">${se.criteria.map(c => `${c.result ? "✓" : "✗"} ${c.criterion}`).join("\n")}
+RULE ... ${se.rule}   RESULT ... ${se.result ? "SUCCESS" : "NOT MET"} (${se.satisfied}/${se.total})</pre>` : "";
+        // Trust path + crossing.
+        const tb = m.trust_boundary || [];
+        const pathBlock = tb.length ? `<div class="term-title">TRUST PATH</div>
+          <pre class="term-pre">${tb.join("\n      ↓\n")}${m.boundary_crossing ? "\n\nBoundary crossed: " + m.boundary_crossing : ""}</pre>` : "";
+        // Influence vs impact — the central distinction.
+        const adv = m.adversarial_result || {};
+        const impactBlock = (adv.influence_detected !== undefined) ? `<div class="term-title">INFLUENCE vs IMPACT</div>
+          <pre class="term-pre">Agent influenced ...... ${adv.influence_detected ? "YES" : "NO"}
+Privileged tool ....... ${Orion.esc(adv.privileged_tool_requested || "—")}
+Authorization ......... ${Orion.esc(adv.authorization_decision || "—")}
+Tool executed ......... ${adv.tool_executed ? "YES" : "NO"}
+Security impact ....... ${Orion.esc(adv.security_impact || "—")}</pre>` : "";
         wrap("MEASURE", `<div class="sub">status: ${Orion.statusBadge(m.status)}${m.family ? " · family: " + Orion.esc(m.family.replace(/_/g, " ")) : ""}</div>
+          ${critBlock}${impactBlock}${pathBlock}
+          <div class="term-title" style="margin-top:0.6rem;">SECURITY METRICS</div>
           <table class="orion"><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>${rows || '<tr><td colspan=2 class="sub">no numeric metrics</td></tr>'}</tbody></table>
           ${fndLine}
           <div class="btn-row" style="margin-top:0.5rem;">
@@ -191,9 +210,12 @@ STATUS .......... ${Orion.esc(ws.stages.defend)}</pre>
       try {
         const cc = await Orion.getJSON(`/api/experiment/${wsid}/controls`);
         const list = (cc.controls || []);
-        document.getElementById("control-list").innerHTML = list.length ? list.map((c, i) =>
-          `<label class="atk-opt"><div><input type="radio" name="ctrl-sel" value="${Orion.esc(c.id)}" ${i === 0 ? "checked" : ""}>
-            <strong>${Orion.esc(c.name)}</strong></div><div class="sub">${Orion.esc(c.description)}</div></label>`).join("")
+        document.getElementById("control-list").innerHTML = list.length ? list.map((c, i) => {
+          const im = c.implementation;
+          const impl = im ? `<div class="sub">impl: ${Orion.esc(im.name)} · enforcement: ${Orion.esc(im.enforcement_point)} · coverage: ${Orion.esc(im.coverage)}</div>` : '<div class="sub">no implementation available in this environment</div>';
+          return `<label class="atk-opt"><div><input type="radio" name="ctrl-sel" value="${Orion.esc(c.id)}" ${i === 0 ? "checked" : ""}>
+            <strong>${Orion.esc(c.name)}</strong></div><div class="sub">${Orion.esc(c.description)}</div>${impl}</label>`;
+        }).join("")
           : '<div class="state">No catalogued controls for this attack.</div>';
       } catch (e) { document.getElementById("control-list").innerHTML = '<div class="state error">[x] ' + e.message + '</div>'; }
       document.getElementById("apply-defense").addEventListener("click", async () => {

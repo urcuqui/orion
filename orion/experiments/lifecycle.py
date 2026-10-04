@@ -56,6 +56,7 @@ class ExperimentLifecycle:
     measurement_id: Optional[str] = None
     defense_id: Optional[str] = None
     defense_control: Optional[str] = None       # catalog control id applied in DEFEND
+    defense_implementation: Optional[str] = None  # concrete control implementation id
     finding_id: Optional[str] = None            # the Finding this experiment produced
     retest_run_id: Optional[str] = None
     created_at: str = field(default_factory=_now)
@@ -416,25 +417,48 @@ def _asr(rec) -> float:
 
 
 def _ensure_finding(ws: ExperimentLifecycle, base_dir: str):
-    """Create (or corroborate) the OBSERVED finding for the attack run.
+    """Create or corroborate the finding for the attack run.
 
-    Only a *successful* attack produces a finding, and a single run is OBSERVED —
-    never auto-CONFIRMED. Returns the Finding or None.
+    Findings are keyed by (attack, target) so re-running the SAME experiment
+    accumulates independent runs. A single successful run is OBSERVED; CONFIRMED
+    only when the corroboration policy is met across independent runs. Returns the
+    Finding or None.
     """
     from orion.evidence import EvidenceStore
-    from orion.findings import FindingStore, build_finding_from_record, corroborate
-    rec = EvidenceStore(base_dir).load(ws.attack_run_id)
+    from orion.findings import (FindingStore, build_finding_from_record, corroborate,
+                                evaluate_corroboration)
+    store = EvidenceStore(base_dir)
+    rec = store.load(ws.attack_run_id)
     if rec.status != "ATTACK_SUCCESS":
         return None
     fs = FindingStore(base_dir)
-    if ws.finding_id and fs.load(ws.finding_id):
-        f = corroborate(fs.load(ws.finding_id), rec)
-        fs.save(f)
-        return f
+    attack_id = (rec.parameters or {}).get("attack_id") or rec.attack_technique
+    target = (rec.target or {}).get("model_name") or (rec.target or {}).get("task", "")
+    existing = (fs.load(ws.finding_id) if ws.finding_id else None) or \
+        fs.find_by_attack_target(attack_id, target)
+
+    if existing:
+        if rec.trace_id not in existing.evidence_refs:
+            existing.evidence_refs.append(rec.trace_id)
+        records = [store.load(t) for t in existing.evidence_refs if _safe_exists(store, t)]
+        corroborate(existing, rec, evidence_records=records)
+        fs.save(existing)
+        ws.finding_id = existing.id
+        return existing
+
     f = build_finding_from_record(rec, provenance=_chain_provenance(ws))
+    f.corroboration = evaluate_corroboration(f, [rec])
     fs.save(f)
     ws.finding_id = f.id
     return f
+
+
+def _safe_exists(store, trace_id: str) -> bool:
+    try:
+        store.load(trace_id)
+        return True
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def measure(ws: ExperimentLifecycle, base_dir: str = DEFAULT_DIR) -> Dict[str, Any]:
@@ -451,9 +475,14 @@ def measure(ws: ExperimentLifecycle, base_dir: str = DEFAULT_DIR) -> Dict[str, A
     except Exception:  # noqa: BLE001 - finding creation must not break measurement
         finding = None
     save(ws, base_dir)
+    p = rec.parameters or {}
     return {"measurement_id": ws.measurement_id, "status": rec.status,
             "metrics": rec.metrics, "family": rec.family,
             "baseline_result": rec.baseline_result, "adversarial_result": rec.adversarial_result,
+            # Explanation layer between evidence and the Finding (P1.5).
+            "success_evaluation": p.get("success_evaluation"),
+            "trust_boundary": p.get("trust_boundary"),
+            "boundary_crossing": p.get("boundary_crossing"),
             "finding_id": ws.finding_id, "finding": finding.to_dict() if finding else None}
 
 
@@ -462,13 +491,20 @@ def apply_defense(ws: ExperimentLifecycle, params: Optional[Dict[str, Any]] = No
     if ws.stages.get("measure") != COMPLETE:
         raise StageError("defend requires a completed measurement")
     ws.defense_control = (params or {}).get("control_id") or ws.defense_control
+    # Resolve the concrete implementation (definition != implementation).
+    from orion.catalog import controls as CC
+    impl = CC.get_implementation((params or {}).get("implementation_id") or "") or \
+        CC.default_implementation(ws.defense_control or "")
+    ws.defense_implementation = impl.id if impl else None
     ws.defense_id = "ORN-DEF-" + uuid.uuid4().hex[:8].upper()
     ws.stages["defend"] = APPLIED
     ws.stages["retest"] = READY
     ws.current_stage = "retest"
     save(ws, base_dir)
-    return {"defense_id": ws.defense_id, "control_id": ws.defense_control, "status": "APPLIED",
-            "note": "Defense applied. A defense is not validated until the attack is replayed (Retest)."}
+    return {"defense_id": ws.defense_id, "control_id": ws.defense_control,
+            "control_implementation": ws.defense_implementation,
+            "coverage": impl.coverage if impl else None, "status": "APPLIED",
+            "note": "Control selected and implementation applied. Not validated until Retest."}
 
 
 def _metric_comparison(before_rec, after_rec) -> Dict[str, Any]:
@@ -494,6 +530,7 @@ def _update_finding_on_retest(ws, before_rec, after_rec, base_dir):
     if not f:
         return None
     apply_retest(f, _asr(before_rec), _asr(after_rec), ws.defense_control or "control", after_rec.trace_id)
+    f.control_implementation = ws.defense_implementation
     fs.save(f)
     return f
 

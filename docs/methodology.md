@@ -76,12 +76,19 @@ every family, each from the one catalog:
 - **Traditional ML** — real white-box (torch + ART) FGSM / PGD / C&W on the
   weights, or decision-based black-box evasion against a live endpoint
   (`orion.adversarial`); access level (white/black-box) is derived and confirmed.
-- **Generative AI / Agentic AI** — controlled, deterministic lab experiments for
-  prompt injection and tool/privilege abuse (`orion.agentic`), with a full
-  per-trial execution trace. Discovered AI endpoints also become **live targets**:
-  a canary-based prompt injection can be run against a real endpoint such as
-  `/api/chat` (`orion.agentic.run_live_prompt_injection`). Results are derived from
-  the trace/response, never asserted.
+- **Generative AI / Agentic AI** — experiments run through a tool-enabled agent
+  whose tool selection comes from a model (`orion.agentic.agent`). **Direct** and
+  **Indirect** Prompt Injection are distinct execution paths with different trust
+  boundaries (user channel vs untrusted retrieved content), and tool/privilege
+  abuse is observed through the agent's actual tool calls and authorization
+  decisions. Discovered AI endpoints also become **live targets** via
+  `orion.agentic.run_live_prompt_injection` (OWASP LLM payload catalog). Attack
+  success is decided by the catalog's **executable success criteria**; results are
+  derived from the recorded trace, never asserted.
+
+> **Influence is not impact.** An agent can be compromised (it follows an injected
+> instruction) without a security boundary being crossed. The finding is the
+> observable boundary crossing, not the influence.
 
 Execution is always explicit (a human presses RUN); analysis never silently
 becomes attack execution.
@@ -99,10 +106,11 @@ its family and whether higher or lower is *better*:
 ## 5. Defend — *Apply a candidate control*
 
 Apply a control from the Control Catalog (`orion.catalog.controls` /
-`orion.defenses`): input preprocessing, confidence threshold, adversarial training
-(ML); and tool authorization, least privilege, destination allowlist, instruction
-provenance, context isolation, human approval (agentic). Orion never asserts a
-system is secure.
+`orion.defenses`). Orion separates the **ControlDefinition** (the concept) from the
+**ControlImplementation** (how a specific environment enforces it, with a declared
+`coverage` of `PARTIAL` / `SUBSTANTIAL` / `FULL`): a gateway injection filter is a
+`PARTIAL` implementation of instruction provenance, not full coverage. Selecting a
+control and applying its implementation does **not** mark a finding mitigated.
 
 > **A control is not validated until the attack is replayed.**
 
@@ -125,10 +133,15 @@ a first-class object between experimentation and reporting:
 
 > **Evidence = what happened. Finding = the security meaning of what happened.**
 
-A single successful run is **OBSERVED** (never auto-CONFIRMED); corroboration
-promotes it to **CONFIRMED**. A retest sets `retest_status` honestly and moves the
-finding to `MITIGATED` / `PARTIALLY_MITIGATED` or leaves it unmitigated. Every
-finding points back to its evidence and shows the full provenance chain.
+A single successful run is **OBSERVED**. Promotion to **CONFIRMED** requires a
+**corroboration policy** (`CorroborationPolicy`: default 3 independent trials,
+≥0.66 success rate) reproduced against the same target/criterion — not merely two
+evidence refs. The structured classification (severity, boundary crossed, observed
+action) is deterministic from the attack definition + evidence + success-criteria
+evaluation, not LLM-generated. A retest sets `retest_status` honestly
+(`INEFFECTIVE` / `PARTIALLY_EFFECTIVE` / `EFFECTIVE`) and moves the finding to
+`MITIGATED` / `PARTIALLY_MITIGATED` or leaves it unmitigated. Every finding points
+back to its evidence and shows the full provenance chain.
 
 ---
 

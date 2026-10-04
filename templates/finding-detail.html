@@ -26,10 +26,27 @@
     <pre class="term-pre" style="margin-top:0.8rem;">Boundary crossed .. {{ finding.boundary_crossed or '—' }}
 Attack ............ {{ finding.attack_id }}
 Family ............ {{ finding.family|replace('_',' ') }}
+Observed action ... {{ finding.observations.get('observed_action') or '—' }}
+Agent identity .... {{ finding.observations.get('agent_identity') or '—' }}
+Criteria .......... {{ finding.observations.get('criteria_satisfied') or '—' }} satisfied
 Success condition . {{ finding.success_condition or '—' }}
-Expected control .. {{ (finding.applied_control or (finding.recommended_controls|join(', '))) or '—' }}</pre>
+Recommended control {{ (finding.recommended_controls|join(', ')) or '—' }}
+Applied control ... {{ finding.applied_control or '—' }}{% if finding.control_implementation %} ({{ finding.control_implementation }}){% endif %}</pre>
     {% if finding.description %}<p class="sub">{{ finding.description }}</p>{% endif %}
   </div>
+
+  {% if finding.corroboration %}
+  <div class="panel">
+    <div class="panel-title">Corroboration</div>
+    <p class="sub">One observed success is not a confirmed finding. Confirmation requires independent reproduction.</p>
+    <pre class="term-pre">Independent runs .. {{ finding.corroboration.get('independent_run_count', 0) }}
+Trials ............ {{ finding.corroboration.get('trial_count', 0) }} / {{ finding.corroboration.get('minimum_trials', 3) }} required
+Successful ........ {{ finding.corroboration.get('successful_trials', 0) }}
+Success rate ...... {{ finding.corroboration.get('success_rate', 0) }} (min {{ finding.corroboration.get('minimum_success_rate', 0.66) }})
+Criteria reproduced {{ (finding.corroboration.get('criteria_reproduced') or [])|join(', ') or '—' }}
+Confirmation ...... {{ 'ELIGIBLE' if finding.corroboration.get('confirmation_eligible') else 'NOT YET' }} — {{ finding.corroboration.get('reason') }}</pre>
+  </div>
+  {% endif %}
 
   {% if finding.metrics %}
   <div class="panel">

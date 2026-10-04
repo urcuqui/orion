@@ -47,6 +47,13 @@ class FindingStore:
                 return f
         return None
 
+    def find_by_attack_target(self, attack_id: str, target: str) -> Optional[Finding]:
+        """Find an existing finding for the same attack + target (for corroboration)."""
+        for f in self.list():
+            if f.attack_id == attack_id and f.affected_target == target:
+                return f
+        return None
+
 
 def save_finding(finding: Finding, base_dir: str = DEFAULT_DIR) -> Path:
     return FindingStore(base_dir).save(finding)

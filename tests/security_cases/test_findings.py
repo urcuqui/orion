@@ -32,15 +32,30 @@ def test_finding_points_back_to_evidence(tmp_path):
     rec = _run(tmp_path)
     f = F.build_finding_from_record(rec)
     assert f.evidence_refs == [rec.trace_id]
-    assert f.boundary_crossed == "Untrusted Context → Agent → Tool"
+    # Boundary crossed comes from the attack trust boundary / observed crossing.
+    assert f.boundary_crossed == "Tool Authorization → Privileged Capability"
     assert f.success_condition  # from the attack's success_criteria
 
 
+def test_two_runs_do_not_confirm(tmp_path):
+    # Two evidence refs are NOT enough (P0.1): confirmation needs the policy met.
+    r1, r2 = _run(tmp_path), _run(tmp_path)
+    f = F.build_finding_from_record(r1)
+    F.corroborate(f, r2, evidence_records=[r1, r2])
+    assert f.status == F.OBSERVED
+    assert f.corroboration["confirmation_eligible"] is False
+
+
 def test_corroboration_promotes_to_confirmed(tmp_path):
-    f = F.build_finding_from_record(_run(tmp_path))
-    F.corroborate(f, _run(tmp_path))
+    runs = [_run(tmp_path) for _ in range(3)]
+    f = F.build_finding_from_record(runs[0])
+    for i, r in enumerate(runs[1:], start=2):
+        F.corroborate(f, r, evidence_records=runs[:i])
     assert f.status == F.CONFIRMED and f.confidence == "HIGH"
-    assert len(f.evidence_refs) == 2
+    assert f.corroboration["trial_count"] == 3
+    assert f.corroboration["success_rate"] >= 0.66
+    assert "unauthorized_tool_action" in f.corroboration["criteria_reproduced"] \
+        or f.corroboration["criteria_reproduced"]
 
 
 def test_blocked_attack_does_not_assert_a_finding(tmp_path):

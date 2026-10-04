@@ -7,16 +7,18 @@ Traditional ML, Generative AI and Agentic AI families.
 """
 from __future__ import annotations
 
-from orion.catalog import attacks, controls, metrics
+from orion.catalog import attacks, controls, criteria, metrics
 from orion.catalog.attacks import (
     AGENTIC_AI, FAMILIES, FAMILY_LABELS, GENERATIVE_AI, TRADITIONAL_ML,
     AttackDefinition,
 )
-from orion.catalog.controls import ControlDefinition
+from orion.catalog.controls import ControlDefinition, ControlImplementation
+from orion.catalog.criteria import evaluate_attack_success
 from orion.catalog.metrics import MetricDefinition
 
 __all__ = [
-    "attacks", "metrics", "controls",
-    "AttackDefinition", "MetricDefinition", "ControlDefinition",
+    "attacks", "metrics", "controls", "criteria",
+    "AttackDefinition", "MetricDefinition", "ControlDefinition", "ControlImplementation",
+    "evaluate_attack_success",
     "FAMILIES", "FAMILY_LABELS", "TRADITIONAL_ML", "GENERATIVE_AI", "AGENTIC_AI",
 ]
