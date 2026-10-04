@@ -1,0 +1,38 @@
+{#
+  Provenance chain: the lineage of a finding/run across Orion's methodology.
+
+    Know Yourself · Know Target · Know Environment → Analysis Context → Threat
+    Model → Experiment Plan → Attack Run → Measurement → Finding → Defense → Retest
+
+  Each node that has an id links to its object. Nodes without evidence render
+  dimmed, so the chain honestly shows what justified the experiment and what did
+  not. `p` is a provenance dict; `finding`/`attack_run_id`/`retest_run_id`/
+  `finding_id` are optional extras the caller can thread in.
+#}
+{% macro provenance_chain(p, attack_run_id=None, retest_run_id=None, finding_id=None, defense_id=None) %}
+{% set p = p or {} %}
+{% set nodes = [
+    ("Know Yourself", p.get('self_profile_id'), None),
+    ("Know Target", p.get('target_profile_id'), None),
+    ("Know Environment", p.get('environment_profile_id'), None),
+    ("Analysis Context", p.get('analysis_context_id'), None),
+    ("Threat Model", p.get('threat_model_id'), None),
+    ("Experiment Plan", p.get('plan_id'), ('/experiment?plan_id=' ~ p.get('plan_id')) if p.get('plan_id') else None),
+    ("Attack Run", attack_run_id or p.get('attack_run_id'), ('/runs/' ~ (attack_run_id or p.get('attack_run_id'))) if (attack_run_id or p.get('attack_run_id')) else None),
+    ("Measurement", attack_run_id or p.get('attack_run_id'), ('/runs/' ~ (attack_run_id or p.get('attack_run_id'))) if (attack_run_id or p.get('attack_run_id')) else None),
+    ("Finding", finding_id, ('/findings/' ~ finding_id) if finding_id else None),
+    ("Defense", defense_id or p.get('defense_id') or p.get('defense_control'), None),
+    ("Retest", retest_run_id or p.get('retest_of'), ('/runs/' ~ retest_run_id) if retest_run_id else None),
+] %}
+<div class="prov-chain">
+  {% for label, value, link in nodes %}
+    <div class="prov-node {{ 'on' if value else 'off' }}">
+      <div class="prov-label">{{ label }}</div>
+      {% if value and link %}<a class="prov-val" href="{{ link }}">{{ value }}</a>
+      {% elif value %}<span class="prov-val">{{ value }}</span>
+      {% else %}<span class="prov-val none">—</span>{% endif %}
+    </div>
+    {% if not loop.last %}<div class="prov-arrow">↓</div>{% endif %}
+  {% endfor %}
+</div>
+{% endmacro %}

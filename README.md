@@ -32,16 +32,40 @@ replayed?*
 
 ## 3. Methodology
 
-> **Understand → Threat Model → Attack → Measure → Harden → Retest**
+Orion is an **evidence-driven AI security experimentation framework**. One
+methodology spans every family it supports — Traditional ML, Generative AI and
+Agentic AI — organised into four phases:
+
+```
+UNDERSTAND          Know Yourself · Know Your Target · Know the Environment
+                                        ↓
+                    Analysis Context → Threat Model → Experiment Plan
+                                        ↓
+                              ⟨ Human Approval ⟩
+                                        ↓
+OPERATIONS          Attack → Measure → Defend → Retest
+                                        ↓
+ANALYSIS            Finding   (the security interpretation of the evidence)
+                                        ↓
+OBSERVABILITY       Evidence  (provenance chain: what happened, and why)
+```
 
 | Phase | What happens | Package |
 | --- | --- | --- |
-| Understand | Build **Self, Target and Environment** context → Analysis Context | `orion.know_yourself`, `orion.target_analysis`, `orion.context` / `libs.recon` |
+| **Understand** | Build **Self, Target and Environment** context → Analysis Context | `orion.know_yourself`, `orion.target_analysis`, `orion.context` |
 | Threat Model | Define assets, adversary, surfaces (from all 3 profiles) | `orion.threat_model` |
-| Attack | Run a controlled, justified attack | `orion.experiments` |
-| Measure | Quantify degradation with metrics | `orion.metrics` |
-| Harden | Apply a candidate defense | `orion.defenses` |
-| Retest | Replay the attack, compare, report | `orion.experiments` + `orion.evidence` |
+| Experiment Plan | Select applicable attack hypotheses; **human approves** | `orion.plans` |
+| **Attack** | Run a controlled, justified attack (any family) | `orion.experiments`, `orion.adversarial`, `orion.agentic` |
+| Measure | Quantify impact with **family-aware** metrics | `orion.metrics`, `orion.catalog.metrics` |
+| Defend | Apply a candidate **control** (not yet validated) | `orion.defenses`, `orion.catalog.controls` |
+| Retest | Replay the same attack under the new posture; compare | `orion.experiments` |
+| **Finding** | Interpret the evidence as a security finding | `orion.findings` |
+| **Evidence** | Preserve the full provenance chain | `orion.evidence` |
+
+Every attack, metric and control is defined once in the **unified catalog**
+(`orion.catalog`) and reused by applicability, planning, execution, metrics and
+remediation. See [Unified Catalog](#unified-catalog), [GenAI / Agentic
+experiments](#genai--agentic-experiments) and [Findings](#findings).
 
 Full write-up: [docs/methodology.md](docs/methodology.md).
 
@@ -251,6 +275,82 @@ comparison is a **reusable, type-aware artifact**, not a one-off view:
   produced no new image, it says **NO NEW IMAGE ARTIFACT** rather than
   fabricating one.
 * **Conference mode.** Append `?demo=1` to make the comparison prominent.
+
+## Unified Catalog
+
+Attacks, metrics and controls are each defined **once** in `orion.catalog` and
+referenced everywhere (applicability, threat modelling, planning, execution,
+metrics, remediation) — no duplicated metadata across the app.
+
+* **Attacks** (`orion.catalog.attacks`) — one `AttackDefinition` per technique,
+  across three families, with a common schema (`family`, `applicable_targets`,
+  `required_capabilities`, `required_access`, `parameters`, `success_criteria`,
+  `supported_metrics`, `recommended_controls`, `framework_mappings`):
+
+  ```
+  Traditional ML   FGSM · PGD · C&W · Black-box Evasion
+  Generative AI    Direct Prompt Injection · Indirect Prompt Injection
+  Agentic AI       Tool Poisoning · Privilege / Tool Abuse
+  ```
+
+* **Metrics** (`orion.catalog.metrics`) — each declares its family and whether
+  higher or lower is *better*, so Measure renders per experiment type and
+  before/after retests are scored consistently (image L∞/robust-accuracy;
+  GenAI refusal/policy-violation/instruction-following; agentic
+  unauthorized-tool-call/privilege-boundary/approval-bypass rates).
+* **Controls** (`orion.catalog.controls`) — replayable defenses incl. the
+  agentic ones (`tool_authorization`, `least_privilege`, `destination_allowlist`,
+  `instruction_provenance`, `context_isolation`, `human_approval`).
+
+The adversarial **access-level** chooser (white-box vs black-box) is a thin
+projection of this catalog, not a second copy.
+
+## GenAI / Agentic experiments
+
+Orion runs **real, controlled** GenAI/agentic experiments in a deterministic lab
+(`orion.agentic`) — no live LLM or MCP required — so the methodology that works
+for adversarial ML works identically here. Verdicts are **derived from the
+recorded trace**, never asserted.
+
+* **Indirect Prompt Injection** (`ORN-ATTACK-PI-002`): a malicious instruction
+  hidden in untrusted retrieved content tries to drive an unauthorised tool
+  action (e.g. exfiltrate via `export_report` to an external destination). Orion
+  records the user request, retrieved content, injected payload, agent decision,
+  authorization decision and execution result, and measures
+  `attack_success_rate`, `instruction_following_rate`, `policy_violation_rate`.
+* **Tool / Privilege Abuse** (`ORN-ATTACK-AG-002`): influenced reasoning attempts
+  `admin_export` (above the agent's privilege) or an approved tool against an
+  unauthorised destination. Orion records `requested_tool`, `requested_arguments`,
+  `agent_identity`, `required_privilege`, `effective_privilege`,
+  `authorization_decision`, `execution_result`, and measures
+  `unauthorized_tool_call_rate`, `privilege_boundary_violation_rate`,
+  `approval_bypass_rate`.
+
+The lab shows an honest lesson: a control only helps if its **mechanism matches
+the vector**. Against indirect-PI exfiltration, `tool_authorization` is
+*ineffective* (the tool is already allowed) while `destination_allowlist`,
+`instruction_provenance` and `human_approval` are *effective* — all computed from
+the trace, not declared. The full per-trial trace is preserved on the run and
+shown under **Evidence**.
+
+## Findings
+
+A **Finding** (`orion.findings`) is Orion's *security interpretation* of the
+evidence — a first-class object, not the evidence itself:
+
+```
+Evidence = what happened.      Finding = the security meaning of what happened.
+```
+
+A successful attack produces an **OBSERVED** finding (never auto-CONFIRMED from a
+single run); corroboration promotes it to **CONFIRMED**. A finding records
+`severity`, `confidence`, `boundary_crossed`, `success_condition`, the
+`evidence_refs` behind it, `recommended_controls` and `framework_mappings`. After
+a retest, its `retest_status` is set honestly from the measured before/after
+(`INEFFECTIVE` / `PARTIALLY_EFFECTIVE` / `EFFECTIVE`), moving the finding to
+`MITIGATED` / `PARTIALLY_MITIGATED` or leaving it unmitigated. Findings live under
+their own **Findings** view and each shows its full provenance chain; the Evidence
+screen is not overloaded with this responsibility.
 
 ## 7. AI agents
 

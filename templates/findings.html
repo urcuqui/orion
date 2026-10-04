@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% from "components/status.html" import status_badge %}
+{% set section = 'findings' %}
+{% block title %}Findings — ORION{% endblock %}
+
+{% block content %}
+<div class="section-head">
+  <h1>Findings</h1>
+  <p class="sub">A finding is the <em>security interpretation</em> of evidence — not the evidence itself.
+    Each points back to the runs that justify it, and to whether a control actually improved security.</p>
+</div>
+
+{% if not findings %}
+  <div class="panel"><div class="state">No findings yet. Run an experiment and open Measure — a successful
+    attack produces an <strong>OBSERVED</strong> finding you can corroborate, defend and retest.</div></div>
+{% else %}
+<div class="panel">
+  <table class="orion findings-table">
+    <thead><tr><th>ID</th><th>Finding</th><th>Family</th><th>Severity</th><th>Confidence</th>
+      <th>Status</th><th>Retest</th><th>Evidence</th></tr></thead>
+    <tbody>
+      {% for f in findings %}
+      <tr>
+        <td class="mono"><a href="{{ url_for('finding_detail_page', finding_id=f.id) }}">{{ f.id }}</a></td>
+        <td>{{ f.title }}</td>
+        <td class="sub">{{ f.family|replace('_',' ') }}</td>
+        <td>{{ status_badge(f.severity) }}</td>
+        <td>{{ f.confidence }}</td>
+        <td>{{ status_badge(f.status) }}</td>
+        <td>{% if f.retest_status %}{{ status_badge(f.retest_status) }}{% else %}<span class="sub">—</span>{% endif %}</td>
+        <td class="sub">{{ f.evidence_refs|length }} run(s)</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

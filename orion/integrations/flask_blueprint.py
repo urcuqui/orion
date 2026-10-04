@@ -609,16 +609,68 @@ def api_experiment_measure(ws_id):
     return _experiment_stage(ws_id, lambda ws: measure(ws, ARTIFACT_DIR))
 
 
+@api_bp.post("/experiment/<ws_id>/attack-agentic")
+def api_experiment_attack_agentic(ws_id):
+    """Run a controlled GenAI / Agentic experiment (prompt injection, tool abuse)."""
+    from orion.experiments import run_agentic_attack
+    payload = request.get_json(silent=True) or {}
+    return _experiment_stage(ws_id, lambda ws: run_agentic_attack(ws, payload, ARTIFACT_DIR))
+
+
 @api_bp.post("/experiment/<ws_id>/defend")
 def api_experiment_defend(ws_id):
     from orion.experiments import apply_defense
-    return _experiment_stage(ws_id, lambda ws: apply_defense(ws, ARTIFACT_DIR))
+    payload = request.get_json(silent=True) or {}
+    return _experiment_stage(ws_id, lambda ws: apply_defense(ws, payload, ARTIFACT_DIR))
 
 
 @api_bp.post("/experiment/<ws_id>/retest")
 def api_experiment_retest(ws_id):
     from orion.experiments import retest
     return _experiment_stage(ws_id, lambda ws: retest(ws, ARTIFACT_DIR))
+
+
+@api_bp.get("/experiment/<ws_id>/controls")
+def api_experiment_controls(ws_id):
+    """Candidate controls for the current attack (from the unified control catalog)."""
+    from orion.experiments import load_workspace
+    from orion.catalog import controls as CC, attacks as CAT
+    ws = load_workspace(ws_id, ARTIFACT_DIR)
+    if ws is None:
+        return jsonify({"error": "unknown workspace"}), 404
+    aid = ws.attack_catalog_id
+    if not aid and ws.attack_run_id:
+        try:
+            rec = EvidenceStore(ARTIFACT_DIR).load(ws.attack_run_id)
+            a = CAT.get(rec.parameters.get("attack_id")) or CAT.get(rec.attack_technique)
+            aid = a.id if a else None
+        except Exception:  # noqa: BLE001
+            aid = None
+    items = CC.for_attack(aid) if aid else CC._CONTROLS
+    return jsonify({"controls": [c.to_dict() for c in items]})
+
+
+@api_bp.get("/catalog")
+def api_catalog():
+    """The unified attack catalog grouped by AI security family."""
+    from orion.catalog import attacks as CAT
+    return jsonify({"families": CAT.grouped_by_family(),
+                    "family_labels": CAT.FAMILY_LABELS})
+
+
+@api_bp.get("/findings")
+def api_findings():
+    from orion.findings import list_findings
+    return jsonify({"findings": [f.to_dict() for f in list_findings(ARTIFACT_DIR)]})
+
+
+@api_bp.get("/findings/<finding_id>")
+def api_finding_detail(finding_id):
+    from orion.findings import load_finding
+    f = load_finding(finding_id, ARTIFACT_DIR)
+    if f is None:
+        return jsonify({"error": "unknown finding"}), 404
+    return jsonify(f.to_dict())
 
 
 @api_bp.get("/plans/<plan_id>/handoff")

@@ -285,6 +285,29 @@ table.compare td.col-hardened { color: var(--green); }
 .atk-tune { font-size: 0.72rem; color: var(--muted); display: inline-flex; align-items: center; gap: 0.3rem; }
 .atk-tune input { width: 90px; }
 
+/* ------------------------------ Findings ------------------------------- */
+.finding-grid { display: grid; grid-template-columns: repeat(4, auto); gap: 1.4rem; align-items: start; }
+.finding-grid .k { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 0.25rem; }
+.findings-table td, .findings-table th { vertical-align: middle; }
+.evidence-list { list-style: none; padding: 0; margin: 0; }
+.evidence-list li { padding: 0.3rem 0; border-bottom: 1px solid var(--border); }
+
+/* --------------------------- Provenance chain -------------------------- */
+.prov-chain { display: flex; flex-direction: column; align-items: stretch; gap: 0; max-width: 540px; }
+.prov-node { border: 1px solid var(--border); background: var(--panel-alt); padding: 0.45rem 0.7rem; display: flex; justify-content: space-between; gap: 1rem; }
+.prov-node.off { opacity: 0.45; }
+.prov-node.on { border-color: var(--green-dark, var(--border)); }
+.prov-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.prov-val { font-family: var(--mono, monospace); font-size: 0.78rem; }
+.prov-val.none { color: var(--muted); }
+.prov-arrow { text-align: center; color: var(--muted); line-height: 1; padding: 0.12rem 0; }
+
+/* ---------------------- Agentic execution trace ------------------------ */
+.trace-trial { border: 1px solid var(--border); background: var(--panel-alt); padding: 0.6rem 0.8rem; margin-bottom: 0.6rem; }
+.trace-trial h4 { margin: 0 0 0.4rem; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.trace-trial .allow { color: var(--green, #5cff8a); }
+.trace-trial .deny { color: var(--red); }
+
 /* ---------------- States (idle/loading/empty/error) ---------------- */
 .state { padding: 1.5rem; text-align: center; color: var(--muted); font-size: 0.9rem; border: 1px dashed var(--border); }
 .state.error { color: var(--red); border-color: var(--red-dark); }

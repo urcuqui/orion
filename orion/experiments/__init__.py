@@ -17,7 +17,7 @@ from orion.experiments.base import ExperimentMode, ExperimentOutcome
 from orion.experiments.runner import run_scenario, replay, compare
 from orion.experiments.lifecycle import (
     ExperimentLifecycle, StageError, create_from_plan, select_experiment,
-    run_attack, run_blackbox_attack, run_whitebox_attack, attack_options,
+    run_attack, run_blackbox_attack, run_whitebox_attack, run_agentic_attack, attack_options,
     measure, apply_defense, retest, next_action,
     save as save_workspace, load as load_workspace, list_workspaces,
 )
@@ -25,7 +25,7 @@ from orion.experiments.lifecycle import (
 __all__ = [
     "ExperimentMode", "ExperimentOutcome", "run_scenario", "replay", "compare",
     "ExperimentLifecycle", "StageError", "create_from_plan", "select_experiment",
-    "run_attack", "run_blackbox_attack", "run_whitebox_attack", "attack_options",
+    "run_attack", "run_blackbox_attack", "run_whitebox_attack", "run_agentic_attack", "attack_options",
     "measure", "apply_defense", "retest", "next_action",
     "save_workspace", "load_workspace", "list_workspaces",
 ]

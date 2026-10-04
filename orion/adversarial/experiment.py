@@ -51,10 +51,13 @@ def run_adversarial_experiment(
     }
 
     weights_name = Path(weights_path).name
+    from orion.catalog import attacks as _CAT
+    _ad = _CAT.get(attack)
     record = ExperimentRecord(
         scenario_name=scenario_name,
         phase="attack",
         mode="attack",
+        family="traditional_ml",
         target={
             "task": "image_classification",
             "access": "white_box",
@@ -65,6 +68,7 @@ def run_adversarial_experiment(
         threat_model=tm,
         attack_technique=f"{attack} (white-box)",
         parameters={"nb_classes": int(num_outputs), "input_shape": "3x224x224",
+                    "attack_id": _ad.id if _ad else attack,
                     "tuning": {k: v for k, v in params.items()}},
         baseline_result={
             "prediction": res.baseline_prediction,

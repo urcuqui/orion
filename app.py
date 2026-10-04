@@ -128,7 +128,28 @@ def run_detail_page(trace_id):
             report_md = report_path.read_text(encoding='utf-8')
     except Exception:
         record = None
-    return render_template('run-detail.html', trace_id=trace_id, record=record, report_md=report_md)
+    finding = None
+    try:
+        from orion.findings import FindingStore
+        f = FindingStore('artifacts').find_by_evidence(trace_id)
+        finding = f.to_dict() if f else None
+    except Exception:
+        finding = None
+    return render_template('run-detail.html', trace_id=trace_id, record=record,
+                           report_md=report_md, finding=finding)
+
+@app.route('/findings')
+def findings_page():
+    from orion.findings import list_findings
+    findings = [f.to_dict() for f in list_findings('artifacts')]
+    return render_template('findings.html', findings=findings)
+
+@app.route('/findings/<finding_id>')
+def finding_detail_page(finding_id):
+    from orion.findings import load_finding
+    f = load_finding(finding_id, 'artifacts')
+    return render_template('finding-detail.html',
+                           finding=f.to_dict() if f else None, finding_id=finding_id)
 
 @app.route('/red-team')
 def red_team_page():

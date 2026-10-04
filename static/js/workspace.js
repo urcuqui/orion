@@ -156,11 +156,16 @@
       try {
         const m = await Orion.postJSON(`/api/experiment/${wsid}/measure`, {});
         const met = m.metrics || {};
-        const rows = ["clean_accuracy", "robust_accuracy", "attack_success_rate", "perturbation_linf", "confidence_shift"]
-          .filter(k => met[k] && typeof met[k].value !== "undefined")
-          .map(k => `<tr><td>${k.replace(/_/g, " ")}</td><td>${Orion.esc(met[k].value)}</td></tr>`).join("");
-        wrap("MEASURE", `<div class="sub">status: ${Orion.statusBadge(m.status)}</div>
+        // Family-aware: render every numeric metric the experiment produced
+        // (image-adversarial, GenAI or agentic), not a fixed adversarial-ML list.
+        const rows = Object.keys(met)
+          .filter(k => met[k] && typeof met[k] === "object" && typeof met[k].value === "number")
+          .map(k => `<tr><td>${k.replace(/_/g, " ")}</td><td>${Orion.esc(met[k].value)}${met[k].unit ? " " + Orion.esc(met[k].unit) : ""}</td></tr>`).join("");
+        const fnd = m.finding;
+        const fndLine = fnd ? `<div class="sub" style="margin-top:0.5rem;">Finding: <a href="/findings/${encodeURIComponent(fnd.id)}">${Orion.esc(fnd.id)}</a> · ${Orion.statusBadge(fnd.status)} · severity ${Orion.esc(fnd.severity)}</div>` : "";
+        wrap("MEASURE", `<div class="sub">status: ${Orion.statusBadge(m.status)}${m.family ? " · family: " + Orion.esc(m.family.replace(/_/g, " ")) : ""}</div>
           <table class="orion"><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>${rows || '<tr><td colspan=2 class="sub">no numeric metrics</td></tr>'}</tbody></table>
+          ${fndLine}
           <div class="btn-row" style="margin-top:0.5rem;">
             <button class="btn btn-blue" id="to-defend">[ OPEN DEFEND ]</button>
             <a class="btn btn-ghost" href="/runs/${encodeURIComponent(ws.attack_run_id)}">[ VIEW EVIDENCE ]</a>
@@ -174,17 +179,27 @@
     }
 
     if (stage === "defend") {
-      const hardening = (plan.hardening || []).map(d => d.name || d).filter(Boolean);
-      wrap("DEFEND", `<div class="sub">A defense is not validated until the attack is replayed (Retest).</div>
-        <pre class="term-pre">FAILURE ......... ${Orion.esc(prop.name || "attack")} (see Measure)
-PROPOSED DEFENSE  ${hardening.length ? Orion.esc(hardening.join(", ")) : "scenario hardening (input preprocessing / confidence threshold)"}
+      wrap("DEFEND", `<div class="sub">A defense is not validated until the attack is replayed (Retest).
+        Pick the control whose <em>mechanism</em> matches the attack's vector — the Retest will tell you if it worked.</div>
+        <pre class="term-pre">FAILURE ......... ${Orion.esc(prop.name || ws.attack_catalog_id || "attack")} (see Measure)
 STATUS .......... ${Orion.esc(ws.stages.defend)}</pre>
-        <div class="btn-row"><button class="btn btn-blue" id="apply-defense">[ APPLY DEFENSE ]</button>
+        <div class="term-title">CANDIDATE CONTROL</div>
+        <div id="control-list" class="atk-catalog"><div class="state">loading controls…</div></div>
+        <div class="btn-row" style="margin-top:0.4rem;"><button class="btn btn-blue" id="apply-defense">[ APPLY CONTROL ]</button>
           <a class="btn btn-ghost" href="/agent?mission=${encodeURIComponent('Suggest candidate controls for this result.')}">[ SUGGEST CONTROLS ]</a></div>
         <div id="defend-out" class="sub" style="margin-top:0.4rem;"></div>`);
+      try {
+        const cc = await Orion.getJSON(`/api/experiment/${wsid}/controls`);
+        const list = (cc.controls || []);
+        document.getElementById("control-list").innerHTML = list.length ? list.map((c, i) =>
+          `<label class="atk-opt"><div><input type="radio" name="ctrl-sel" value="${Orion.esc(c.id)}" ${i === 0 ? "checked" : ""}>
+            <strong>${Orion.esc(c.name)}</strong></div><div class="sub">${Orion.esc(c.description)}</div></label>`).join("")
+          : '<div class="state">No catalogued controls for this attack.</div>';
+      } catch (e) { document.getElementById("control-list").innerHTML = '<div class="state error">[x] ' + e.message + '</div>'; }
       document.getElementById("apply-defense").addEventListener("click", async () => {
-        Orion.setState(document.getElementById("defend-out"), "running", "applying defense…");
-        try { await Orion.postJSON(`/api/experiment/${wsid}/defend`, {}); loadWorkspace(wsid); }
+        const sel = document.querySelector('input[name="ctrl-sel"]:checked');
+        Orion.setState(document.getElementById("defend-out"), "running", "applying control…");
+        try { await Orion.postJSON(`/api/experiment/${wsid}/defend`, { control_id: sel ? sel.value : null }); loadWorkspace(wsid); }
         catch (e) { Orion.setState(document.getElementById("defend-out"), "error", "[x] " + e.message); }
       });
       return;
@@ -218,7 +233,9 @@ STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
         Orion.setState(document.getElementById("retest-out"), "running", "replaying same attack with new posture…");
         try {
           const r = await Orion.postJSON(`/api/experiment/${wsid}/retest`, {});
-          document.getElementById("retest-out").innerHTML = comparison(r.comparison, ws.attack_run_id, r.retest_run_id);
+          let html = comparison(r.comparison, ws.attack_run_id, r.retest_run_id);
+          if (r.finding) html += `<div class="sub" style="margin-top:0.4rem;">Finding <a href="/findings/${encodeURIComponent(r.finding.id)}">${Orion.esc(r.finding.id)}</a>: ${Orion.statusBadge(r.finding.status)} · control ${Orion.statusBadge(r.finding.retest_status || "—")}</div>`;
+          document.getElementById("retest-out").innerHTML = html;
           renderRetestImages(r.retest_run_id);
         } catch (e) { Orion.setState(document.getElementById("retest-out"), "error", "[x] " + e.message); }
       });
@@ -234,32 +251,56 @@ STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
   // ATTACK stage: derive access level, then offer the matching attack catalog
   // with base tuning. White-box runs the real torch+ART attack on the weights;
   // black-box runs the decision-based query evasion against the live endpoint.
+  const FAMILY_TABS = [["traditional_ml", "Traditional ML"], ["generative_ai", "Generative AI"], ["agentic_ai", "Agentic AI"]];
+
   async function renderAttackChooser(el, ws, plan, prop) {
     const wsid = ws.experiment_workspace_id;
-    el.innerHTML = `<div class="term-title">EXPERIMENT / ATTACK</div><div class="state">deriving access level…</div>`;
+    el.innerHTML = `<div class="term-title">EXPERIMENT / ATTACK</div><div class="state">loading attack catalog…</div>`;
     let opt;
     try { opt = await Orion.getJSON(`/api/experiment/${wsid}/attack-options`); }
     catch (e) { Orion.setState(el, "error", "[x] " + e.message); return; }
+    const families = opt.families || {};
+    const family = el._family || "traditional_ml";
+
+    const tabs = `<div class="btn-row">` + FAMILY_TABS.map(([k, label]) =>
+      `<button class="btn ${family === k ? "btn-red" : "btn-ghost"}" data-fam="${k}">${label}</button>`).join("") + `</div>`;
+
+    let body;
+    if (family === "traditional_ml") body = traditionalBody(opt, el);
+    else body = agenticBody(families[family] || [], family);
+
+    el.innerHTML = `<div class="term-title">EXPERIMENT / ATTACK</div>
+      <div class="term-title" style="margin-top:0.3rem;">AI SECURITY FAMILY</div>
+      ${tabs}<hr class="term-rule">${body}
+      <div id="attack-out" class="sub" style="margin-top:0.4rem;"></div>`;
+
+    el.querySelectorAll("[data-fam]").forEach(b => b.addEventListener("click", () => {
+      el._family = b.dataset.fam; el._accessOverride = null; renderAttackChooser(el, ws, plan, prop);
+    }));
+
+    if (family === "traditional_ml") wireTraditional(el, ws, plan, prop, opt);
+    else wireAgentic(el, ws, wsid);
+  }
+
+  function tuningInputs(a) {
+    const bp = a.base_params || {};
+    return Object.keys(bp).map(k =>
+      `<label class="atk-tune">${k} <input type="number" step="any" data-atk="${Orion.esc(a.id)}" data-param="${Orion.esc(k)}" value="${Orion.esc(bp[k])}"></label>`).join("");
+  }
+
+  function traditionalBody(opt, el) {
     const derived = opt.derived || {};
     const access = el._accessOverride || derived.access_level || "white_box";
     const cat = opt.catalog || {};
     const liveUrl = opt.live_url || "";
     const wbOn = access === "white_box";
-
-    function tuningInputs(a) {
-      const bp = a.base_params || {};
-      return Object.keys(bp).map(k =>
-        `<label class="atk-tune">${k} <input type="number" step="any" data-atk="${Orion.esc(a.id)}" data-param="${Orion.esc(k)}" value="${Orion.esc(bp[k])}"></label>`).join("");
-    }
-    function attackList(level) {
-      const list = cat[level] || [];
-      if (!list.length) return `<div class="state">No ${level.replace("_", "-")} attacks catalogued for this modality.</div>`;
-      return list.map((a, i) => `<label class="atk-opt">
+    const list = cat[access] || [];
+    const attackList = list.length ? list.map((a, i) => `<label class="atk-opt">
         <div><input type="radio" name="atk-sel" value="${Orion.esc(a.id)}" data-backend="${Orion.esc(a.backend)}" ${i === 0 ? "checked" : ""}>
           <strong>${Orion.esc(a.name)}</strong></div>
         <div class="sub">${Orion.esc(a.about)}</div>
-        <div class="atk-tuning">${tuningInputs(a)}</div></label>`).join("");
-    }
+        <div class="atk-tuning">${tuningInputs(a)}</div></label>`).join("")
+      : `<div class="state">No ${access.replace("_", "-")} attacks catalogued for this modality.</div>`;
     const wbInputs = `<div class="kv">
         <div class="k">Weights path</div><div class="v"><input type="text" id="wb-weights" value="weights/vit_teacher.pth" style="width:100%"></div>
         <div class="k">Input image</div><div class="v"><input type="text" id="wb-image" value="static/fake/0001_00_00_01_0.jpg" style="width:100%"></div>
@@ -269,26 +310,25 @@ STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
         <div class="k">Endpoint path</div><div class="v"><input type="text" id="bb-path" value="/" style="width:100%"></div>
         <div class="k">File field</div><div class="v"><input type="text" id="bb-field" value="image" style="width:120px"></div>
         <div class="k">Input image</div><div class="v"><input type="text" id="bb-image" value="static/fake/0001_00_00_01_0.jpg" style="width:100%"></div></div>`;
-
-    el.innerHTML = `<div class="term-title">EXPERIMENT / ATTACK</div>
-      <div class="kv"><div class="k">Experiment</div><div class="v">${Orion.esc(prop.name || "—")}</div></div>
-      <div class="term-title" style="margin-top:0.5rem;">ATTACKER ACCESS LEVEL</div>
+    return `<div class="term-title">ATTACKER ACCESS LEVEL</div>
       <div class="btn-row">
         <button class="btn ${wbOn ? "btn-red" : "btn-ghost"}" id="acc-wb">WHITE-BOX (weights)</button>
         <button class="btn ${!wbOn ? "btn-red" : "btn-ghost"}" id="acc-bb">BLACK-BOX (query-only)</button></div>
       <p class="sub">Derived: <strong>${Orion.esc((derived.access_level || "—").replace("_", "-"))}</strong> — ${Orion.esc(derived.reason || "")}</p>
-      <hr class="term-rule">
       <div class="term-title">${wbOn ? "WHITE-BOX" : "BLACK-BOX"} ATTACKS — base tuning applied, override as needed</div>
-      <div class="atk-catalog">${attackList(access)}</div>
+      <div class="atk-catalog">${attackList}</div>
       ${wbOn ? wbInputs : bbInputs}
       <div class="btn-row" style="margin-top:0.4rem;"><button class="btn btn-red" id="run-atk">[ RUN ATTACK ]</button>
-        <span class="sub" style="align-self:center">${wbOn ? "real torch+ART attack on the weights (local)" : "real queries to the live endpoint — authorised targets only"}</span></div>
-      <div id="attack-out" class="sub" style="margin-top:0.4rem;"></div>`;
+        <span class="sub" style="align-self:center">${wbOn ? "real torch+ART attack on the weights (local)" : "real queries to the live endpoint — authorised targets only"}</span></div>`;
+  }
 
-    document.getElementById("acc-wb").addEventListener("click", () => { el._accessOverride = "white_box"; renderAttackChooser(el, ws, plan, prop); });
-    document.getElementById("acc-bb").addEventListener("click", () => { el._accessOverride = "black_box"; renderAttackChooser(el, ws, plan, prop); });
-
+  function wireTraditional(el, ws, plan, prop, opt) {
+    const wsid = ws.experiment_workspace_id;
+    const wb = document.getElementById("acc-wb"), bb = document.getElementById("acc-bb");
+    if (wb) wb.addEventListener("click", () => { el._accessOverride = "white_box"; renderAttackChooser(el, ws, plan, prop); });
+    if (bb) bb.addEventListener("click", () => { el._accessOverride = "black_box"; renderAttackChooser(el, ws, plan, prop); });
     const run = document.getElementById("run-atk");
+    if (!run) return;
     run.addEventListener("click", async () => {
       const sel = el.querySelector('input[name="atk-sel"]:checked');
       if (!sel) return;
@@ -302,8 +342,7 @@ STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
           await Orion.postJSON(`/api/experiment/${wsid}/attack-whitebox`, {
             weights_path: document.getElementById("wb-weights").value,
             image: document.getElementById("wb-image").value,
-            num_outputs: document.getElementById("wb-num").value || null,
-            attack: id, params });
+            num_outputs: document.getElementById("wb-num").value || null, attack: id, params });
           loadWorkspace(wsid);
         } catch (e) { Orion.setState(out, "error", "[x] " + e.message); }
       } else {
@@ -317,6 +356,37 @@ STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
           loadWorkspace(wsid);
         } catch (e) { Orion.setState(out, "error", "[x] " + e.message); }
       }
+    });
+  }
+
+  function agenticBody(list, family) {
+    if (!list.length) return `<div class="state">No ${family.replace("_", " ")} attacks catalogued.</div>`;
+    const items = list.map((a, i) => `<label class="atk-opt">
+      <div><input type="radio" name="atk-sel" value="${Orion.esc(a.id)}" ${i === 0 ? "checked" : ""}>
+        <strong>${Orion.esc(a.name)}</strong> <span class="sub">${Orion.esc(a.id)}</span></div>
+      <div class="sub">${Orion.esc(a.description)}</div>
+      <div class="sub">success: ${Orion.esc((a.success_criteria || []).join(", "))}</div></label>`).join("");
+    return `<div class="term-title">${family === "generative_ai" ? "GENERATIVE AI" : "AGENTIC"} EXPERIMENTS — controlled lab</div>
+      <p class="sub">Deterministic lab: an agent with tools over (possibly untrusted) content. Findings are derived from the recorded trace, not asserted.</p>
+      <div class="atk-catalog">${items}</div>
+      <div class="kv"><div class="k">Trials</div><div class="v"><input type="number" id="ag-trials" value="3" min="1" max="20" style="width:120px"></div></div>
+      <div class="btn-row" style="margin-top:0.4rem;"><button class="btn btn-red" id="run-atk">[ RUN EXPERIMENT ]</button>
+        <span class="sub" style="align-self:center">controlled lab (no live LLM / MCP)</span></div>`;
+  }
+
+  function wireAgentic(el, ws, wsid) {
+    const run = document.getElementById("run-atk");
+    if (!run) return;
+    run.addEventListener("click", async () => {
+      const sel = el.querySelector('input[name="atk-sel"]:checked');
+      if (!sel) return;
+      const out = document.getElementById("attack-out");
+      Orion.setState(out, "running", `running ${sel.value} in the controlled lab …`);
+      try {
+        await Orion.postJSON(`/api/experiment/${wsid}/attack-agentic`, {
+          attack_id: sel.value, trials: document.getElementById("ag-trials").value || 3 });
+        loadWorkspace(wsid);
+      } catch (e) { Orion.setState(out, "error", "[x] " + e.message); }
     });
   }
 

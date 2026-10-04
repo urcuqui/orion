@@ -53,6 +53,11 @@ class ExperimentRecord:
     status: str = ExperimentStatus.NO_ATTACK.value
     limitations: List[str] = field(default_factory=list)
     artifacts: Dict[str, str] = field(default_factory=dict)  # label -> relative path
+    # Per-trial execution trace for GenAI / agentic experiments (what was observed).
+    execution_trace: List[Dict[str, Any]] = field(default_factory=list)
+    # Family of the attack (traditional_ml | generative_ai | agentic_ai) so the
+    # Measure screen renders the right metrics instead of assuming adversarial ML.
+    family: str = ""
     notes: str = ""
     # Traceability: analysis_id -> threat_model_id -> plan_id -> experiment_id -> run_id.
     provenance: Dict[str, Any] = field(default_factory=dict)
@@ -79,6 +84,8 @@ class ExperimentRecord:
             "status": self.status,
             "limitations": self.limitations,
             "artifacts": self.artifacts,
+            "execution_trace": self.execution_trace,
+            "family": self.family,
             "notes": self.notes,
         }
 

@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% from "components/status.html" import status_badge %}
+{% from "components/metric.html" import metric_card %}
+{% from "components/provenance_chain.html" import provenance_chain %}
+{% set section = 'findings' %}
+{% block title %}{{ finding_id }} — Finding — ORION{% endblock %}
+
+{% block content %}
+{% if not finding %}
+  <div class="section-head"><h1>{{ finding_id }}</h1></div>
+  <div class="state error">Finding not found. It may have been removed.</div>
+  <div class="btn-row" style="margin-top:1rem;"><a class="btn" href="{{ url_for('findings_page') }}">▸ Back to findings</a></div>
+{% else %}
+  <div class="section-head {{ 'offensive' if finding.status in ('OBSERVED','CONFIRMED') else '' }}">
+    <h1><span class="mono">{{ finding.id }}</span></h1>
+    <p class="sub">{{ finding.title }}</p>
+  </div>
+
+  <div class="panel">
+    <div class="finding-grid">
+      <div><div class="k">Severity</div>{{ status_badge(finding.severity) }}</div>
+      <div><div class="k">Confidence</div><strong>{{ finding.confidence }}</strong></div>
+      <div><div class="k">Status</div>{{ status_badge(finding.status) }}</div>
+      <div><div class="k">Retest</div>{% if finding.retest_status %}{{ status_badge(finding.retest_status) }}{% else %}<span class="sub">not retested</span>{% endif %}</div>
+    </div>
+    <pre class="term-pre" style="margin-top:0.8rem;">Boundary crossed .. {{ finding.boundary_crossed or '—' }}
+Attack ............ {{ finding.attack_id }}
+Family ............ {{ finding.family|replace('_',' ') }}
+Success condition . {{ finding.success_condition or '—' }}
+Expected control .. {{ (finding.applied_control or (finding.recommended_controls|join(', '))) or '—' }}</pre>
+    {% if finding.description %}<p class="sub">{{ finding.description }}</p>{% endif %}
+  </div>
+
+  {% if finding.metrics %}
+  <div class="panel">
+    <div class="panel-title">Metrics</div>
+    <div class="metric-grid">
+      {% for k, m in finding.metrics.items() %}
+        {% if m is mapping and 'value' in m and m.value is not sameas true and m.value is not sameas false %}
+          {{ metric_card(k, m.value, m.unit if m.unit is defined else '') }}
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="panel">
+    <div class="panel-title">Evidence</div>
+    <p class="sub">A finding is only as strong as the runs behind it.</p>
+    <ul class="evidence-list">
+      {% for ref in finding.evidence_refs %}
+        <li><a class="mono" href="{{ url_for('run_detail_page', trace_id=ref) }}">{{ ref }}</a> <span class="sub">attack</span></li>
+      {% endfor %}
+      {% for ref in finding.retest_refs %}
+        <li><a class="mono" href="{{ url_for('run_detail_page', trace_id=ref) }}">{{ ref }}</a> <span class="sub">retest</span></li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Provenance</div>
+    <p class="sub">Why Orion ran this, what justified it, and whether the retest improved security.</p>
+    {{ provenance_chain(finding.provenance,
+        attack_run_id=(finding.evidence_refs[0] if finding.evidence_refs else None),
+        retest_run_id=(finding.retest_refs[0] if finding.retest_refs else None),
+        finding_id=finding.id, defense_id=finding.applied_control) }}
+  </div>
+
+  {% if finding.framework_mappings %}
+  <div class="panel">
+    <div class="panel-title">Framework Mappings</div>
+    <pre class="term-pre">{% for fw, ids in finding.framework_mappings.items() %}{{ fw }}: {{ ids|join(', ') }}
+{% endfor %}</pre>
+  </div>
+  {% endif %}
+
+  <div class="btn-row" style="margin-top:1rem;">
+    <a class="btn" href="{{ url_for('findings_page') }}">▸ All findings</a>
+  </div>
+{% endif %}
+{% endblock %}

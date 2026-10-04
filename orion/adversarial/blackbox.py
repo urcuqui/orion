@@ -151,7 +151,7 @@ def run_blackbox_evasion(url: str, path: str = "/", field: str = "image",
 
     record = ExperimentRecord(
         scenario_name="blackbox-evasion",
-        phase="attack", mode="attack",
+        phase="attack", mode="attack", family="traditional_ml",
         target={"task": "image_classification", "access": "black_box",
                 "model_name": f"{parsed.netloc}{path}", "model_version": "live-service"},
         model_version="live-service",
@@ -160,7 +160,8 @@ def run_blackbox_evasion(url: str, path: str = "/", field: str = "image",
                                     "access": "black_box", "budget": "low"}},
         attack_technique="Black-box query evasion (decision-based)",
         parameters={"endpoint": target, "field": field, "epsilon": epsilon,
-                    "max_queries": max_queries, "seed": seed},
+                    "max_queries": max_queries, "seed": seed,
+                    "attack_id": "ORN-ATTACK-EVA-BB"},
         baseline_result={"decision": f"{baseline_sig[0]}:{baseline_sig[1]}"},
         adversarial_result={"decision": f"{adv_sig[0]}:{adv_sig[1]}"},
         metrics={

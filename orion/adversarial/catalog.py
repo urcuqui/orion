@@ -1,44 +1,33 @@
-"""Attack catalog keyed by attacker *access level*, with base tuning.
+"""Access-level view over the unified Attack Catalog (white-box vs black-box).
 
-The access level is the operational form of the threat model's
-``adversary.knowledge``: owning the weights (white-box) unlocks gradient-based
-attacks; a query-only live service (black-box) unlocks decision-based ones.
-Each entry ships sensible **base tuning** so a run is one click away, while the
-console still lets an analyst override every parameter.
+This is a thin projection of ``orion.catalog.attacks`` for the image-modality
+adversarial-ML attacks, grouped by the attacker's access level. The attack
+metadata (names, base tuning, descriptions) lives once in the unified catalog —
+this module only reshapes it for the ATTACK-stage chooser and derives the
+default access level from the plan's origin.
 """
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-WHITE_BOX = "white_box"
-BLACK_BOX = "black_box"
+from orion.catalog import attacks as _unified
+from orion.catalog.attacks import BLACK_BOX, GRAY_BOX, WHITE_BOX  # noqa: F401
 
-# modality -> access level -> list of attack specs
-_IMAGE_ATTACKS: Dict[str, List[Dict[str, Any]]] = {
-    WHITE_BOX: [
-        {"id": "CarliniL2", "name": "Carlini & Wagner (L2)", "access": WHITE_BOX,
-         "backend": "whitebox_image", "base_params": {"max_iter": 10, "confidence": 0.0},
-         "about": "Strong minimal-L2 optimization attack; the standard white-box benchmark."},
-        {"id": "PGD", "name": "Projected Gradient Descent (L∞)", "access": WHITE_BOX,
-         "backend": "whitebox_image", "base_params": {"eps": 0.03, "eps_step": 0.005, "max_iter": 20},
-         "about": "Iterative L∞ gradient attack; strong, widely-used baseline."},
-        {"id": "FGSM", "name": "Fast Gradient Sign Method (L∞)", "access": WHITE_BOX,
-         "backend": "whitebox_image", "base_params": {"eps": 0.03},
-         "about": "Single-step L∞ attack; fast but weaker than PGD/C&W."},
-    ],
-    BLACK_BOX: [
-        {"id": "HopSkipJump", "name": "Decision-based query evasion", "access": BLACK_BOX,
-         "backend": "blackbox_query", "base_params": {"epsilon": 0.05, "max_queries": 20},
-         "about": "Decision-based: needs only the endpoint's top label, no gradients."},
-    ],
-}
+
+def _as_option(a: _unified.AttackDefinition) -> Dict[str, Any]:
+    """Project a unified attack into the chooser's shape (engine key as id)."""
+    return {"id": a.engine or a.id, "name": a.name, "access": a.required_access[0] if a.required_access else WHITE_BOX,
+            "backend": a.backend, "base_params": dict(a.parameters), "about": a.description,
+            "catalog_id": a.id}
 
 
 def attacks_for(access_level: str, modality: str = "image") -> List[Dict[str, Any]]:
     """Attacks available for an access level (image modality for now)."""
-    if modality != "image":
-        return []
-    return [dict(a) for a in _IMAGE_ATTACKS.get(access_level, [])]
+    out = []
+    for a in _unified.by_family(_unified.TRADITIONAL_ML):
+        if a.modality == modality and access_level in a.required_access:
+            out.append(_as_option(a))
+    return out
 
 
 def catalog(modality: str = "image") -> Dict[str, List[Dict[str, Any]]]:
@@ -47,10 +36,9 @@ def catalog(modality: str = "image") -> Dict[str, List[Dict[str, Any]]]:
 
 
 def find_attack(attack_id: str, modality: str = "image") -> Optional[Dict[str, Any]]:
-    for level in (WHITE_BOX, BLACK_BOX):
-        for a in _IMAGE_ATTACKS.get(level, []):
-            if a["id"].lower() == (attack_id or "").lower():
-                return dict(a)
+    a = _unified.get(attack_id)
+    if a and a.modality == modality:
+        return _as_option(a)
     return None
 
 

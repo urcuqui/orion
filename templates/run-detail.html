@@ -4,6 +4,7 @@
 {% from "components/metric.html" import metric_card %}
 {% from "components/atlas.html" import atlas_item %}
 {% from "components/image_attack_comparison.html" import image_attack_comparison %}
+{% from "components/provenance_chain.html" import provenance_chain %}
 {% set section = 'evidence' %}
 {% block title %}Run {{ trace_id[:8] }} — ORION{% endblock %}
 {% block head %}<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>{% endblock %}
@@ -25,18 +26,11 @@
 
   {% if record.provenance %}
   <div class="panel">
-    <div class="panel-title">Provenance</div>
-    <p class="sub" style="margin:0;">
-      {% if record.provenance.source_type %}source: {{ record.provenance.source_type }} · {% endif %}
-      {% if record.provenance.self_profile_id %}self: {{ record.provenance.self_profile_id }} · {% endif %}
-      {% if record.provenance.target_profile_id %}target: {{ record.provenance.target_profile_id }} · {% endif %}
-      {% if record.provenance.environment_profile_id %}env: {{ record.provenance.environment_profile_id }} · {% endif %}
-      {% if record.provenance.analysis_context_id %}context: {{ record.provenance.analysis_context_id }} · {% endif %}
-      {% if record.provenance.threat_model_id %}tm: {{ record.provenance.threat_model_id }} · {% endif %}
-      {% if record.provenance.plan_id %}plan: {{ record.provenance.plan_id }} · {% endif %}
-      {% if record.provenance.experiment_id %}experiment: {{ record.provenance.experiment_id }} · {% endif %}
-      run: {{ trace_id[:8] }}
-    </p>
+    <div class="panel-title">Provenance chain</div>
+    <p class="sub">Why Orion ran this, and what justified it.</p>
+    {{ provenance_chain(record.provenance, attack_run_id=trace_id,
+        retest_run_id=(trace_id if record.provenance.get('source_type') == 'experiment_retest' else None),
+        defense_id=record.provenance.get('defense_id')) }}
   </div>
   {% endif %}
 
@@ -58,6 +52,39 @@
 
   {# ---- Image attack comparison (type-aware: renders only for image attacks) ---- #}
   {{ image_attack_comparison(record, trace_id, demo=(request.args.get('demo') == '1')) }}
+
+  {# ---- Finding link (if this run justifies one) ---- #}
+  {% if finding %}
+  <div class="panel">
+    <div class="panel-title">Finding</div>
+    <p class="sub" style="margin:0;">This evidence is interpreted as
+      <a href="{{ url_for('finding_detail_page', finding_id=finding.id) }}" class="mono">{{ finding.id }}</a>
+      — {{ finding.title }} ({{ finding.status }}{% if finding.retest_status %} · {{ finding.retest_status }}{% endif %}).</p>
+  </div>
+  {% endif %}
+
+  {# ---- Agentic / GenAI execution trace (per-trial observable evidence) ---- #}
+  {% if record.execution_trace %}
+  <div class="panel">
+    <div class="panel-title">Execution trace ({{ record.execution_trace|length }} trial(s))</div>
+    <p class="sub">The recorded behaviour the finding is derived from — not an assertion.</p>
+    {% for t in record.execution_trace %}
+    {% set a = t.authorization or {} %}
+    <div class="trace-trial">
+      <h4>Trial {{ t.trial }} · {{ t.vector }} injection</h4>
+      <pre class="term-pre">USER REQUEST ... {{ t.user_request }}
+RETRIEVED ...... {{ t.retrieved_content }}
+INJECTED ....... {{ t.injected_payload }}
+AGENT TOOL ..... {{ t.agent_decision.requested_tool or '(none)' }} {{ t.agent_decision.requested_arguments }}
+REASONING ...... {{ t.agent_decision.reasoning }}
+AUTHORIZATION .. <span class="{{ 'allow' if a.decision == 'ALLOW' else 'deny' }}">{{ a.decision }}</span> — {{ a.reason }}
+  required={{ a.required_privilege }} · effective={{ a.effective_privilege }} · identity={{ a.agent_identity }}
+EXECUTION ...... {{ t.execution_result.output }}
+ATTACK SUCCESS . {{ t.observations.attack_success }}</pre>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
 
   {# ---- Baseline vs Adversarial ---- #}
   {% if record.baseline_result or record.adversarial_result %}

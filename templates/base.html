@@ -20,6 +20,7 @@
       <span class="nav-sep">·</span>
       <a href="{{ url_for('experiment_page') }}" class="{{ 'active' if sec == 'experiment' }}">Experiment</a>
       <span class="nav-sep">·</span>
+      <a href="{{ url_for('findings_page') }}" class="{{ 'active' if sec == 'findings' }}">Findings</a>
       <a href="{{ url_for('runs_page') }}" class="{{ 'active' if sec == 'evidence' }}">Evidence</a>
     </nav>
     <button class="crt-toggle" id="crt-toggle" title="toggle CRT effects">CRT: ON</button>

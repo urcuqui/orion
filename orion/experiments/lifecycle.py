@@ -51,8 +51,12 @@ class ExperimentLifecycle:
         "plan": PROPOSED, "attack": PENDING, "measure": PENDING,
         "defend": PENDING, "retest": PENDING})
     attack_run_id: Optional[str] = None
+    attack_mode: Optional[str] = None          # adversarial | agentic
+    attack_catalog_id: Optional[str] = None    # unified catalog attack id (agentic)
     measurement_id: Optional[str] = None
     defense_id: Optional[str] = None
+    defense_control: Optional[str] = None       # catalog control id applied in DEFEND
+    finding_id: Optional[str] = None            # the Finding this experiment produced
     retest_run_id: Optional[str] = None
     created_at: str = field(default_factory=_now)
     updated_at: str = field(default_factory=_now)
@@ -149,6 +153,7 @@ def run_attack(ws: ExperimentLifecycle, base_dir: str = DEFAULT_DIR) -> Dict[str
         raise StageError("attack requires an approved plan")      # fail-closed
     if not ws.active_experiment_id:
         raise StageError("no active experiment selected")
+    ws.attack_mode = "adversarial"
     ws.stages["attack"] = RUNNING
     save(ws, base_dir)
     try:
@@ -176,6 +181,7 @@ def run_blackbox_attack(ws: ExperimentLifecycle, params: Dict[str, Any],
     url = (params or {}).get("url")
     if not url:
         raise StageError("a live target URL is required for a black-box attack")
+    ws.attack_mode = "adversarial"
     provenance = {
         "source_type": "blackbox_attack", "plan_id": ws.plan_id,
         "experiment_id": ws.active_experiment_id, "analysis_context_id": ws.analysis_context_id,
@@ -220,8 +226,52 @@ def attack_options(ws: ExperimentLifecycle, base_dir: str = DEFAULT_DIR) -> Dict
     live = bool(url and str(url).startswith("http"))
     derived = derive_access_level(self_profile_id=ws.self_profile_id,
                                   target_url=url if live else None)
+    from orion.catalog import attacks as CAT
     return {"derived": derived, "catalog": catalog("image"),
-            "live_url": url if live else None}
+            "live_url": url if live else None,
+            "families": CAT.grouped_by_family()}
+
+
+def run_agentic_attack(ws: ExperimentLifecycle, params: Dict[str, Any],
+                       base_dir: str = DEFAULT_DIR) -> Dict[str, Any]:
+    """Run a controlled GenAI / Agentic experiment (prompt injection, tool abuse)."""
+    from orion import plans as PL
+    from orion.catalog import attacks as CAT
+    plan = PL.load_plan(ws.plan_id, base_dir)
+    if plan is None or not plan.approved_by_human:
+        raise StageError("agentic attack requires an approved plan")
+    attack_id = (params or {}).get("attack_id")
+    attack = CAT.get(attack_id)
+    if attack is None or attack.family == CAT.TRADITIONAL_ML:
+        raise StageError("a GenAI/agentic attack id is required")
+    trials = int((params or {}).get("trials", 3))
+    provenance = {
+        "source_type": "agentic_attack", "plan_id": ws.plan_id,
+        "experiment_id": ws.active_experiment_id, "analysis_context_id": ws.analysis_context_id,
+        "self_profile_id": ws.self_profile_id, "target_profile_id": ws.target_profile_id,
+        "environment_profile_id": ws.environment_profile_id, "threat_model_id": ws.threat_model_id,
+        "experiment_workspace_id": ws.experiment_workspace_id, "attack_id": attack.id,
+    }
+    ws.attack_mode = "agentic"
+    ws.attack_catalog_id = attack.id
+    ws.stages["attack"] = RUNNING
+    save(ws, base_dir)
+    try:
+        from orion.agentic import run_agentic_experiment
+        rec = run_agentic_experiment(attack.id, trials=trials, base_dir=base_dir,
+                                     provenance=provenance)
+    except Exception:
+        ws.stages["attack"] = FAILED
+        save(ws, base_dir)
+        raise
+    ws.attack_run_id = rec.trace_id
+    ws.measurement_id = rec.trace_id
+    ws.stages["attack"] = COMPLETE
+    ws.stages["measure"] = READY
+    ws.current_stage = "measure"
+    save(ws, base_dir)
+    return {"trace_id": rec.trace_id, "status": rec.status, "mode": "agentic",
+            "attack": attack.name, "family": attack.family}
 
 
 def run_whitebox_attack(ws: ExperimentLifecycle, params: Dict[str, Any],
@@ -238,6 +288,7 @@ def run_whitebox_attack(ws: ExperimentLifecycle, params: Dict[str, Any],
         raise StageError("white-box attack requires a model weights path")
     if not image:
         raise StageError("white-box attack requires an input image")
+    ws.attack_mode = "adversarial"
     attack = params.get("attack", "CarliniL2")
     provenance = {
         "source_type": "whitebox_attack", "plan_id": ws.plan_id,
@@ -269,6 +320,42 @@ def run_whitebox_attack(ws: ExperimentLifecycle, params: Dict[str, Any],
             "attack": attack, "num_outputs": int(num_outputs)}
 
 
+def _chain_provenance(ws: ExperimentLifecycle) -> Dict[str, Any]:
+    return {"plan_id": ws.plan_id, "experiment_id": ws.active_experiment_id,
+            "analysis_context_id": ws.analysis_context_id, "self_profile_id": ws.self_profile_id,
+            "target_profile_id": ws.target_profile_id, "environment_profile_id": ws.environment_profile_id,
+            "threat_model_id": ws.threat_model_id, "experiment_workspace_id": ws.experiment_workspace_id}
+
+
+def _asr(rec) -> float:
+    v = (rec.metrics.get("attack_success_rate", {}) or {}).get("value")
+    if v is not None:
+        return float(v)
+    return 1.0 if rec.status == "ATTACK_SUCCESS" else 0.0
+
+
+def _ensure_finding(ws: ExperimentLifecycle, base_dir: str):
+    """Create (or corroborate) the OBSERVED finding for the attack run.
+
+    Only a *successful* attack produces a finding, and a single run is OBSERVED —
+    never auto-CONFIRMED. Returns the Finding or None.
+    """
+    from orion.evidence import EvidenceStore
+    from orion.findings import FindingStore, build_finding_from_record, corroborate
+    rec = EvidenceStore(base_dir).load(ws.attack_run_id)
+    if rec.status != "ATTACK_SUCCESS":
+        return None
+    fs = FindingStore(base_dir)
+    if ws.finding_id and fs.load(ws.finding_id):
+        f = corroborate(fs.load(ws.finding_id), rec)
+        fs.save(f)
+        return f
+    f = build_finding_from_record(rec, provenance=_chain_provenance(ws))
+    fs.save(f)
+    ws.finding_id = f.id
+    return f
+
+
 def measure(ws: ExperimentLifecycle, base_dir: str = DEFAULT_DIR) -> Dict[str, Any]:
     if ws.stages.get("attack") != COMPLETE or not ws.attack_run_id:
         raise StageError("measure requires a completed attack")
@@ -277,22 +364,57 @@ def measure(ws: ExperimentLifecycle, base_dir: str = DEFAULT_DIR) -> Dict[str, A
     ws.stages["measure"] = COMPLETE
     ws.stages["defend"] = READY
     ws.current_stage = "defend"
+    finding = None
+    try:
+        finding = _ensure_finding(ws, base_dir)
+    except Exception:  # noqa: BLE001 - finding creation must not break measurement
+        finding = None
     save(ws, base_dir)
     return {"measurement_id": ws.measurement_id, "status": rec.status,
-            "metrics": rec.metrics, "baseline_result": rec.baseline_result,
-            "adversarial_result": rec.adversarial_result}
+            "metrics": rec.metrics, "family": rec.family,
+            "baseline_result": rec.baseline_result, "adversarial_result": rec.adversarial_result,
+            "finding_id": ws.finding_id, "finding": finding.to_dict() if finding else None}
 
 
-def apply_defense(ws: ExperimentLifecycle, base_dir: str = DEFAULT_DIR) -> Dict[str, Any]:
+def apply_defense(ws: ExperimentLifecycle, params: Optional[Dict[str, Any]] = None,
+                  base_dir: str = DEFAULT_DIR) -> Dict[str, Any]:
     if ws.stages.get("measure") != COMPLETE:
         raise StageError("defend requires a completed measurement")
+    ws.defense_control = (params or {}).get("control_id") or ws.defense_control
     ws.defense_id = "ORN-DEF-" + uuid.uuid4().hex[:8].upper()
     ws.stages["defend"] = APPLIED
     ws.stages["retest"] = READY
     ws.current_stage = "retest"
     save(ws, base_dir)
-    return {"defense_id": ws.defense_id, "status": "APPLIED",
+    return {"defense_id": ws.defense_id, "control_id": ws.defense_control, "status": "APPLIED",
             "note": "Defense applied. A defense is not validated until the attack is replayed (Retest)."}
+
+
+def _metric_comparison(before_rec, after_rec) -> Dict[str, Any]:
+    """Before/after over the numeric metrics both runs share (for agentic runs)."""
+    out: Dict[str, Any] = {}
+    for k, bm in (before_rec.metrics or {}).items():
+        am = (after_rec.metrics or {}).get(k)
+        if not (isinstance(bm, dict) and isinstance(am, dict)):
+            continue
+        b, a = bm.get("value"), am.get("value")
+        if isinstance(b, bool) or isinstance(a, bool) or not isinstance(b, (int, float)) or not isinstance(a, (int, float)):
+            continue
+        out[k] = {"before": b, "after": a, "delta": round(a - b, 4)}
+    return {"metrics": out}
+
+
+def _update_finding_on_retest(ws, before_rec, after_rec, base_dir):
+    from orion.findings import FindingStore, apply_retest
+    if not ws.finding_id:
+        return None
+    fs = FindingStore(base_dir)
+    f = fs.load(ws.finding_id)
+    if not f:
+        return None
+    apply_retest(f, _asr(before_rec), _asr(after_rec), ws.defense_control or "control", after_rec.trace_id)
+    fs.save(f)
+    return f
 
 
 def retest(ws: ExperimentLifecycle, base_dir: str = DEFAULT_DIR) -> Dict[str, Any]:
@@ -300,38 +422,56 @@ def retest(ws: ExperimentLifecycle, base_dir: str = DEFAULT_DIR) -> Dict[str, An
         raise StageError("retest requires an applied defense (posture change)")  # fail-closed
     if not ws.attack_run_id:
         raise StageError("retest requires a previous attack configuration")
-    from orion.experiments import replay, compare
+    from orion.evidence import EvidenceStore
+    store = EvidenceStore(base_dir)
+    before_rec = store.load(ws.attack_run_id)
     ws.stages["retest"] = RUNNING
     save(ws, base_dir)
+
+    retest_provenance = {
+        "source_type": "experiment_retest", "defense_id": ws.defense_id,
+        "defense_control": ws.defense_control, "retest_of": ws.attack_run_id,
+        **_chain_provenance(ws),
+    }
+
     try:
-        hardened = replay(ws.attack_run_id, mode="hardened", base_dir=base_dir)
+        if ws.attack_mode == "agentic":
+            # Replay the SAME agentic attack with the applied control.
+            from orion.agentic import run_agentic_experiment
+            controls = [ws.defense_control] if ws.defense_control else []
+            after_rec = run_agentic_experiment(
+                ws.attack_catalog_id, controls=controls,
+                trials=int((before_rec.parameters or {}).get("trials", 3)),
+                mode="hardened", base_dir=base_dir, provenance=retest_provenance)
+        else:
+            from orion.experiments import replay
+            after_rec = replay(ws.attack_run_id, mode="hardened", base_dir=base_dir)
+            after_rec.provenance = retest_provenance
+            store.save(after_rec)
     except Exception:
         ws.stages["retest"] = FAILED
         save(ws, base_dir)
         raise
-    ws.retest_run_id = hardened.trace_id
-    # Stamp provenance so the retest run links back through the whole chain.
-    try:
-        from orion.evidence import EvidenceStore
-        store = EvidenceStore(base_dir)
-        rec = store.load(hardened.trace_id)
-        rec.provenance = {
-            "source_type": "experiment_retest", "plan_id": ws.plan_id,
-            "experiment_id": ws.active_experiment_id, "analysis_context_id": ws.analysis_context_id,
-            "self_profile_id": ws.self_profile_id, "target_profile_id": ws.target_profile_id,
-            "environment_profile_id": ws.environment_profile_id, "threat_model_id": ws.threat_model_id,
-            "defense_id": ws.defense_id, "retest_of": ws.attack_run_id,
-            "experiment_workspace_id": ws.experiment_workspace_id,
-        }
-        store.save(rec)
-    except Exception:  # noqa: BLE001
-        pass
+
+    ws.retest_run_id = after_rec.trace_id
     ws.stages["retest"] = COMPLETE
     ws.current_stage = "retest"
+
+    finding = None
+    try:
+        finding = _update_finding_on_retest(ws, before_rec, after_rec, base_dir)
+    except Exception:  # noqa: BLE001
+        finding = None
     save(ws, base_dir)
-    # Comparison is a *result* of retest (original measurement vs retest measurement).
-    cmp = compare(ws.attack_run_id, ws.retest_run_id, base_dir=base_dir)
-    return {"retest_run_id": ws.retest_run_id, "status": hardened.status, "comparison": cmp}
+
+    # Comparison is a *result* of retest (original vs retest measurement).
+    if ws.attack_mode == "agentic":
+        cmp = _metric_comparison(before_rec, after_rec)
+    else:
+        from orion.experiments import compare
+        cmp = compare(ws.attack_run_id, ws.retest_run_id, base_dir=base_dir)
+    return {"retest_run_id": ws.retest_run_id, "status": after_rec.status, "comparison": cmp,
+            "finding_id": ws.finding_id, "finding": finding.to_dict() if finding else None}
 
 
 # --------------------------------------------------------------------------- #
