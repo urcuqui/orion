@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% set evidence_view = request.args.get('view') == 'evidence' %}
 {% set section = 'evidence' if evidence_view else 'runs' %}
-{% block title %}Evidence — ORION{% endblock %}
+{% block title %}{{ 'Evidence' if evidence_view else 'Runs' }} — ORION{% endblock %}
 
 {% block content %}
 <div class="section-head">
-  <h1>{{ 'Evidence · Artifacts' if evidence_view else 'Evidence · Executions' }}</h1>
+  <h1>{{ 'Evidence · Records & Artifacts' if evidence_view else 'Runs · Execution History' }}</h1>
   <p class="sub">{{ 'Inspect the records and artifacts proving what happened. Each links to its originating execution; findings provide the security interpretation.' if evidence_view else 'A run is an execution. Inspect its result, measurements, related finding, and evidence.' }}</p>
 </div>
 

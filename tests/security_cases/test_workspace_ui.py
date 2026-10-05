@@ -53,8 +53,10 @@ def test_observation_routes_remain_distinct_views_without_new_api():
     with app.test_client() as client:
         runs = client.get('/runs').data.decode()
         evidence = client.get('/runs?view=evidence').data.decode()
-        assert 'Evidence · Executions' in runs
-        assert 'Evidence · Artifacts' in evidence
+        # Runs identifies as Runs (executions); Evidence as records/artifacts.
+        assert 'Runs · Execution History' in runs
+        assert 'Evidence · Records' in evidence         # "Records & Artifacts" (& is escaped)
+        assert 'Evidence · Executions' not in runs
         assert 'data-view="runs"' in runs
         assert 'data-view="evidence"' in evidence
         assert 'aria-current="page"' in runs and 'aria-current="page"' in evidence
