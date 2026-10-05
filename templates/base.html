@@ -7,6 +7,23 @@
   <title>{% block title %}ORION{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/orion-terminal.css') }}">
+  {# Resolve appearance + color scheme before paint to avoid a dark→light flash.
+     Presentation only; sets data attributes, no application logic. #}
+  <script>
+    (function () {
+      try {
+        var demo = new URLSearchParams(location.search).get('demo') === '1';
+        var ap = localStorage.getItem('orion.appearance') === 'classic' ? 'classic' : 'analyst';
+        var cs = localStorage.getItem('orion.colorScheme') || 'dark';
+        if (demo) { ap = 'classic'; }
+        if (ap === 'classic') { cs = 'dark'; }
+        if (cs === 'system') { cs = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark'; }
+        var el = document.documentElement;
+        el.setAttribute('data-orion-appearance', ap);
+        el.setAttribute('data-orion-color-scheme', cs);
+      } catch (e) {}
+    })();
+  </script>
   {% block head %}{% endblock %}
 </head>
 <body data-orion-appearance="{{ 'classic' if request.args.get('demo') == '1' else 'analyst' }}">
@@ -36,7 +53,12 @@
     </nav>
     <div class="sidebar-note">Analysis proposes.<br>Humans approve.</div>
     <label class="appearance-control" for="orion-appearance">Appearance
-      <select id="orion-appearance"><option value="analyst">Analyst</option><option value="classic">Classic</option></select>
+      <select id="orion-appearance" aria-label="Appearance" title="Analyst Dark: dark technical workstation · Analyst Light: technical-paper workstation for bright rooms · Classic CRT: original retro terminal">
+        <option value="analyst-dark">Analyst Dark</option>
+        <option value="analyst-light">Analyst Light</option>
+        <option value="classic">Classic CRT</option>
+        <option value="analyst-system">Analyst System</option>
+      </select>
     </label>
   </aside>
   <header class="orion-topbar">

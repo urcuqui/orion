@@ -10,6 +10,12 @@
   --status-critical: #ff7f8a; --status-high: #f06a75; --status-warning: #efbe70;
   --status-success: #93dfac; --status-info: #90bbec; --status-neutral: #b8c2ce; --status-unknown: #c4afd9;
   --action-primary: #93dfac; --action-secondary: #90bbec; --action-danger: #f06a75;
+  --action-primary-hover: #b0ebc2;
+  /* Offensive / defensive framing tokens (semantic, theme-aware). */
+  --border-offensive: var(--red-dark); --border-defensive: #16407a;
+  --surface-offensive-subtle: rgba(240,106,117,.08); --surface-defensive-subtle: rgba(41,121,255,.10);
+  --text-offensive: var(--orion-crimson); --text-defensive: var(--status-info);
+  color-scheme: dark;
   --spacing-xs: .25rem; --spacing-sm: .5rem; --spacing-md: 1rem; --spacing-lg: 1.5rem; --spacing-xl: 2rem;
   --bg: var(--surface-page); --bg-deep: var(--surface-terminal); --panel: var(--surface-panel);
   --panel-alt: var(--surface-raised); --border: var(--border-subtle);
@@ -20,6 +26,28 @@
   --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 }
+
+/* ---------------- Analyst Light color scheme ----------------
+   Technical paper / security-research workstation, not a white SaaS dashboard.
+   Overrides semantic tokens only; every derived alias (--green, --red, --bg…)
+   re-resolves automatically, so components need no per-theme styles. */
+[data-orion-color-scheme="light"] {
+  --surface-page: #f3f1eb; --surface-panel: #faf9f5; --surface-raised: #ece9e1;
+  --surface-terminal: #e6e3da; --surface-hover: #e0dccf;
+  --border-subtle: #d8d3c6; --border-default: #c0b9a8; --border-strong: #948c7c;
+  --text-primary: #23272c; --text-secondary: #474d55; --text-muted: #5f6771;
+  --text-terminal: #2f6b43;
+  --orion-crimson: #9e2b36; --orion-phosphor: #2f6b43; --orion-amber: #8a5a06;
+  --status-critical: #b3242f; --status-high: #9e2b36; --status-warning: #8a5a06;
+  --status-success: #2f6b43; --status-info: #275b9e; --status-neutral: #5f6771; --status-unknown: #6b4a9e;
+  --action-primary: #2f6b43; --action-secondary: #275b9e; --action-danger: #9e2b36;
+  --action-primary-hover: #265537;
+  --red-dark: #c99aa0; --green-dark: #9ab8a5;
+  --border-offensive: #c99aa0; --border-defensive: #9db2d6;
+  --surface-offensive-subtle: rgba(158,43,54,.07); --surface-defensive-subtle: rgba(39,91,158,.08);
+  color-scheme: light;
+}
+[data-orion-color-scheme="light"] ::selection { background: #d9d2bf; color: #23272c; }
 
 * { box-sizing: border-box; }
 
@@ -77,8 +105,8 @@ a:hover { text-decoration: underline; }
   padding: 16px;
   margin-bottom: 16px;
 }
-.panel.offensive { border-color: var(--red-dark); }
-.panel.defensive { border-color: #16407a; }
+.panel.offensive { border-color: var(--border-offensive); }
+.panel.defensive { border-color: var(--border-defensive); }
 .panel-title {
   color: var(--text-secondary);
   font-family: var(--mono);
@@ -94,9 +122,9 @@ a:hover { text-decoration: underline; }
 .panel-title::before { content: "// "; color: var(--dim); }
 
 /* ---------------- Buttons ---------------- */
-.btn-blue { color: var(--blue-bright); border-color: #16407a; }
-.btn-blue:hover { background: rgba(41, 121, 255, 0.12); }
-.btn-ghost:hover { background: rgba(255,255,255,0.05); }
+.btn-blue { color: var(--text-defensive); border-color: var(--border-defensive); }
+.btn-blue:hover { background: var(--surface-defensive-subtle); }
+.btn-ghost:hover { background: var(--surface-hover); }
 .btn-row { display: flex; gap: 0.6rem; flex-wrap: wrap; }
 
 /* ---------------- Forms ---------------- */
@@ -354,7 +382,7 @@ input[type="search"] { background: var(--surface-terminal); color: var(--text-pr
 .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; padding: 8px 12px; background: var(--surface-terminal); color: var(--text-secondary); border: 1px solid var(--border-default); font: 600 12px var(--ui); text-transform: none; letter-spacing: .01em; cursor: pointer; transition: background .15s; }
 .btn:hover { background: var(--surface-hover); text-decoration: none; }
 .btn-primary { color: var(--surface-terminal); background: var(--action-primary); border-color: var(--action-primary); font-weight: 700; }
-.btn-primary:hover { background: #b0ebc2; }
+.btn-primary:hover { background: var(--action-primary-hover); }
 .btn-red { color: var(--action-danger); border-color: var(--red-dark); background: var(--surface-terminal); }
 .btn-red:hover { background: rgba(240,106,117,.12); }
 .btn-selected, .btn[aria-pressed="true"] { color: var(--text-primary); background: var(--surface-hover); border-color: var(--border-strong); box-shadow: inset 0 -2px var(--orion-phosphor); }

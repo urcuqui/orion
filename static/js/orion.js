@@ -10,23 +10,56 @@
 
   const Orion = {};
 
-  // Appearance affects presentation only. Analyst is the default.
+  // Appearance = STYLE (analyst|classic) + COLOR SCHEME (dark|light|system).
+  // Presentation only; never touches lifecycle, evidence or security state.
   (function initAppearance() {
-    let appearance = "analyst";
-    try { appearance = localStorage.getItem("orion.appearance") === "classic" ? "classic" : "analyst"; } catch (_) {}
+    function read(k, d) { try { return localStorage.getItem(k) || d; } catch (_) { return d; } }
+    function write(k, v) { try { localStorage.setItem(k, v); } catch (_) {} }
+    const mq = window.matchMedia ? window.matchMedia("(prefers-color-scheme: light)") : null;
+    function sysScheme() { return mq && mq.matches ? "light" : "dark"; }
+
+    let appearance = read("orion.appearance", "analyst") === "classic" ? "classic" : "analyst";
+    let colorScheme = read("orion.colorScheme", "dark");       // dark | light | system
     if (demoMode) appearance = "classic";
-    function apply() {
-      document.body.dataset.orionAppearance = appearance;
+
+    function resolvedScheme() {
+      if (appearance === "classic") return "dark";             // Classic stays dark CRT
+      if (colorScheme === "system") return sysScheme();
+      return colorScheme === "light" ? "light" : "dark";
     }
-    apply();
-    const select = document.getElementById("orion-appearance");
-    if (select) {
-      select.value = appearance;
-      select.addEventListener("change", () => {
-        appearance = select.value; apply();
-        try { localStorage.setItem("orion.appearance", appearance); } catch (_) {}
+    function apply() {
+      const scheme = resolvedScheme();
+      [document.documentElement, document.body].forEach((el) => {
+        if (!el) return;
+        el.setAttribute("data-orion-appearance", appearance);
+        el.setAttribute("data-orion-color-scheme", scheme);
       });
     }
+    function presetValue() {
+      if (appearance === "classic") return "classic";
+      if (colorScheme === "light") return "analyst-light";
+      if (colorScheme === "system") return "analyst-system";
+      return "analyst-dark";
+    }
+    apply();
+
+    const select = document.getElementById("orion-appearance");
+    if (select) {
+      select.value = presetValue();
+      select.addEventListener("change", () => {
+        switch (select.value) {
+          case "classic": appearance = "classic"; colorScheme = "dark"; break;
+          case "analyst-light": appearance = "analyst"; colorScheme = "light"; break;
+          case "analyst-system": appearance = "analyst"; colorScheme = "system"; break;
+          default: appearance = "analyst"; colorScheme = "dark";
+        }
+        write("orion.appearance", appearance);
+        write("orion.colorScheme", colorScheme);
+        apply();
+      });
+    }
+    // Follow OS scheme changes while on Analyst System.
+    if (mq) { try { mq.addEventListener("change", () => { if (appearance === "analyst" && colorScheme === "system") apply(); }); } catch (_) {} }
   })();
 
   // Compact navigation is progressive enhancement: visible without JavaScript.
