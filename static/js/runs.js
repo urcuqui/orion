@@ -1,4 +1,4 @@
-/* Runs emphasize execution; Evidence emphasizes artifacts of that execution.
+/* Evidence contains Executions and Artifacts: two projections of recorded evidence.
    Both are read-only projections of the same existing persisted records. */
 (function () {
   "use strict";
@@ -60,7 +60,7 @@
         <td>${typeOf(file)}</td><td class="evidence-source">${Orion.esc(provenance.source_type || record.scenario_name || r.scenario || "UNKNOWN")}</td>
         <td>${runLink(r.trace_id)}</td>${hasExperiments ? `<td>${experimentLink(experimentId(r))}</td>` : ''}${hasFindings ? `<td>${findingLink(findingsByRun.get(r.trace_id))}</td>` : ''}<td>${Orion.statusBadge(r.status)}</td>${hasProvenance ? `<td>${lineage(provenance)}</td>` : ''}</tr>`);
     });
-    if (!rows.length) return `<div class="state">${loading ? 'Loading artifact records…' : 'No artifact records could be loaded.'} Execution summaries remain available in <a href="/runs">Runs</a>.</div>`;
+    if (!rows.length) return `<div class="state">${loading ? 'Loading artifact records…' : 'No artifact records could be loaded.'} Execution summaries remain available in <a href="/runs">Executions</a>.</div>`;
     return `<table class="orion evidence-catalog"><caption>Recorded artifacts, their sources, and originating executions</caption><thead><tr><th scope="col">Evidence / artifact</th><th scope="col">Type</th><th scope="col">Source</th><th scope="col">Run</th>${hasExperiments ? '<th scope="col">Experiment</th>' : ''}${hasFindings ? '<th scope="col">Finding</th>' : ''}<th scope="col">Result</th>${hasProvenance ? '<th scope="col">Provenance</th>' : ''}</tr></thead><tbody>${rows.join("")}</tbody></table>`;
   }
   function render() {

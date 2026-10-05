@@ -1,4 +1,4 @@
-{% from "components/cat.html" import cyber_cat %}
+{% from "components/dragon.html" import dragon_sentinel %}
 <!doctype html>
 <html lang="en">
 <head>
@@ -9,24 +9,24 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/orion-terminal.css') }}">
   {% block head %}{% endblock %}
 </head>
-<body>
+<body data-orion-appearance="{{ 'classic' if request.args.get('demo') == '1' else 'analyst' }}">
   {% set sec = section|default('') %}
   <a class="skip-link" href="#main-workspace">Skip to workspace</a>
-  <aside class="orion-sidebar" aria-label="Workspace navigation">
+  <aside class="orion-sidebar" id="workflow-navigation" aria-label="Workspace navigation">
     <a class="orion-brand" href="{{ url_for('index') }}">ORION<span class="cursor">_</span></a>
     <div class="brand-caption">AI SECURITY VALIDATION</div>
-    {{ cyber_cat('compact') }}
+    {{ dragon_sentinel('compact') }}
     <nav class="orion-nav" aria-label="Primary">
       {% set groups = [
         ('Overview', [('dashboard','index','Overview','')]),
-        ('Assess', [('you','know_yourself_page','System','Know Yourself'), ('target','target_analysis_page','Target','Know Your Target'), ('env','environment_page','Environment','Know The Environment'), ('analysis','analysis_context_page','Analysis','Understand the Battlefield')]),
+        ('Assess', [('you','know_yourself_page','System','Know Yourself'), ('target','target_analysis_page','Target','Know Your Target'), ('env','environment_page','Environment','Know the Terrain'), ('analysis','analysis_context_page','Analysis','Understand the Battlefield')]),
         ('Validate', [('experiment','experiment_page','Experiments',''), ('findings','findings_page','Findings','')]),
-        ('Observe', [('runs','runs_page','Runs',''), ('evidence','runs_page','Evidence','')])
+        ('Observe', [('evidence','runs_page','Evidence','')])
       ] %}
       {% for group, items in groups %}
       <div class="nav-group"><div class="nav-label">{{ group }}</div>
         {% for key, endpoint, label, subtitle in items %}
-        <a href="{{ url_for(endpoint) }}{{ '?view=evidence' if key == 'evidence' else '' }}" class="{{ 'active' if sec == key else '' }}" {% if sec == key %}aria-current="page"{% endif %}>
+        <a href="{{ url_for(endpoint) }}" class="{{ 'active' if sec == key else '' }}"{% if key == 'env' %} title="Know The Environment"{% endif %} {% if sec == key %}aria-current="page"{% endif %}>
           <span class="nav-marker" aria-hidden="true">{{ '›' if sec == key else '·' }}</span>
           <span>{{ label }}{% if subtitle %}<small>{{ subtitle }}</small>{% endif %}</span>
         </a>
@@ -40,6 +40,7 @@
     </label>
   </aside>
   <header class="orion-topbar">
+    <button class="btn nav-toggle" id="nav-toggle" aria-expanded="true" aria-controls="workflow-navigation">ORION_ · Menu</button>
     <div><div class="workspace-label">ORION // AI SECURITY VALIDATION WORKSPACE</div>
       <div class="terminal-path">operator@orion:~{{ request.path if request.path != '/' else '/overview' }} $ <span class="cursor" aria-hidden="true">_</span></div>
     </div>
@@ -49,7 +50,7 @@
     {% block content %}{% endblock %}
   </main>
 
-  {{ cyber_cat('primary', 'cat-watermark') }}
+  {{ dragon_sentinel('expanded', 'dragon-watermark') }}
 
   <footer class="orion-footer">
     ORION // AI SECURITY VALIDATION WORKSPACE &mdash; Know yourself. Know the target. Know the terrain.

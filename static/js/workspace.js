@@ -232,7 +232,7 @@ STATUS .......... ${Orion.esc(ws.stages.defend)}</pre>
 DEFENSE ......... ${Orion.esc(ws.defense_id || "—")}
 ATTACK CONFIG ... UNCHANGED
 STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
-        <div class="btn-row">${done ? "" : `<button class="btn ${ws.attack_mode === 'agentic_live' ? 'btn-red' : 'btn-ghost'}" id="run-retest">[ RUN RETEST ]</button>`}
+        <div class="btn-row">${done ? "" : `<button class="btn ${ws.attack_mode === 'agentic_live' ? 'btn-red' : 'btn-local'}" id="run-retest">[ RUN RETEST ]</button>`}
           <a class="btn btn-ghost" href="/agent?mission=${encodeURIComponent('Analyze the defense trade-off from this retest.')}">Analyze Trade-Off</a></div>
         <div id="retest-out" style="margin-top:0.4rem;"></div>
         <div id="retest-images" style="margin-top:0.6rem;"></div>`);
@@ -254,7 +254,7 @@ STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
         let original;
         try { original = await Orion.getJSON("/api/runs/" + encodeURIComponent(ws.attack_run_id)); }
         catch (e) { Orion.setState(document.getElementById("retest-out"), "error", "Original execution record unavailable: " + e.message); return; }
-        if (ws.attack_mode === "agentic_live" && !await Orion.confirmExecution({title: "RUN LIVE RETEST", fields: {Target: (original.parameters || {}).url || (original.target || {}).model_name, Endpoint: (original.parameters || {}).endpoint || "UNKNOWN", "Original run": ws.attack_run_id, Control: ws.defense_id, Network: "LIVE TARGET", Authorization: "REQUIRED", Configuration: "Same recorded attack configuration"}})) return;
+        if (ws.attack_mode === "agentic_live" && !await Orion.confirmExecution({title: "RUN LIVE RETEST", fields: {Target: (original.parameters || {}).url || (original.target || {}).model_name, Endpoint: (original.parameters || {}).endpoint || "UNKNOWN", Access: "BLACK BOX · query-only endpoint", "Maximum requests": (original.parameters || {}).trials || "All recorded payloads · exact count UNKNOWN", "Original run": ws.attack_run_id, Control: ws.defense_id, Network: "LIVE TARGET", Authorization: "REQUIRED", Configuration: "Same recorded attack configuration"}})) return;
         Orion.setState(document.getElementById("retest-out"), "running", "replaying same attack with new posture…");
         try {
           const r = await Orion.postJSON(`/api/experiment/${wsid}/retest`, {});
@@ -348,8 +348,8 @@ STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
       <div class="term-title">${wbOn ? "WHITE-BOX" : "BLACK-BOX"} ATTACKS — base tuning applied, override as needed</div>
       <div class="atk-catalog">${attackList}</div>
       ${wbOn ? wbInputs : bbInputs}
-      ${Orion.executionBoundary({Access: wbOn ? "WHITE BOX · local weights" : "BLACK BOX · query-only endpoint", Isolation: "? UNKNOWN", Network: wbOn ? "Restrictions UNKNOWN · local model selected" : "LIVE TARGET · real requests", Filesystem: "? UNKNOWN", Authorization: wbOn ? "Local model access" : "REQUIRED"})}
-      <div class="btn-row space-above-sm"><button class="btn btn-red" id="run-atk">[ RUN ATTACK ]</button>
+      ${Orion.executionBoundary({"External effect": wbOn ? "Local model execution · further effects UNKNOWN" : "! LIVE NETWORK · target receives real requests", Network: wbOn ? "Restrictions UNKNOWN · local model selected" : "LIVE TARGET · real requests", Authorization: wbOn ? "? UNKNOWN · local model access required" : "REQUIRED · operator must be authorized", Isolation: "? UNKNOWN", Filesystem: "? UNKNOWN", Access: wbOn ? "WHITE BOX · local weights" : "BLACK BOX · query-only endpoint"})}
+      <div class="btn-row space-above-sm"><button class="btn ${wbOn ? 'btn-local' : 'btn-red'}" id="run-atk">${wbOn ? 'Run local attack' : 'Run live attack'}</button>
         <span class="sub" style="align-self:center">${wbOn ? "real torch+ART attack on the weights (local)" : "real queries to the live endpoint — authorised targets only"}</span></div>`;
   }
 
@@ -411,13 +411,14 @@ STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
         <div class="k">OWASP payloads</div><div class="v"><select id="lv-owasp" aria-label="OWASP payload category" style="width:100%"><option value="">All categories</option></select></div>
         <div class="k">Trials</div><div class="v"><input type="number" id="lv-trials" aria-label="Live injection trials" placeholder="(all payloads)" min="1" max="20" style="width:140px"></div>
       </div>
+      ${Orion.executionBoundary({"External effect": "! LIVE NETWORK · target receives real requests", Network: "LIVE TARGET", Authorization: "REQUIRED · operator must be authorized", Isolation: "? UNKNOWN", Filesystem: "? UNKNOWN", Access: "BLACK BOX · query-only endpoint"})}
       <div class="btn-row space-above-sm"><button class="btn btn-red" id="run-live">[ CONFIRM & RUN LIVE INJECTION ]</button></div>` : "";
     return `<div class="term-title">${family === "generative_ai" ? "GENERATIVE AI" : "AGENTIC"} EXPERIMENTS</div>
       <p class="sub">Controlled lab: an agent with tools over (possibly untrusted) content. Findings are derived from the recorded trace, not asserted.</p>
       <div class="atk-catalog">${items}</div>
       <div class="kv"><div class="k">Trials</div><div class="v"><input type="number" id="ag-trials" aria-label="Lab trials" value="3" min="1" max="20" style="width:120px"></div></div>
-      ${Orion.executionBoundary({Execution: "Controlled lab · no live LLM / MCP", Isolation: "? UNKNOWN", Filesystem: "? UNKNOWN"})}
-      <div class="btn-row space-above-sm"><button class="btn btn-red" id="run-atk">[ RUN EXPERIMENT ]</button>
+      ${Orion.executionBoundary({"External effect": "Controlled lab · no live LLM / MCP", Network: "No live LLM / MCP calls · restrictions UNKNOWN", Authorization: "? UNKNOWN", Isolation: "? UNKNOWN", Filesystem: "? UNKNOWN", Access: "Controlled lab tools"})}
+      <div class="btn-row space-above-sm"><button class="btn btn-local" id="run-atk">Run controlled experiment</button>
         <span class="sub" style="align-self:center">controlled lab (no live LLM / MCP)</span></div>
       ${live}`;
   }
@@ -451,7 +452,7 @@ STATUS .......... ${Orion.esc(ws.stages.retest)}</pre>
         const payload = {
           attack_id: sel ? sel.value : "ORN-ATTACK-PI-001", url: document.getElementById("lv-url").value, endpoint: ep,
           owasp: document.getElementById("lv-owasp").value || null, trials: document.getElementById("lv-trials").value || null };
-        if (!await Orion.confirmExecution({fields: {Target: payload.url, Endpoint: payload.endpoint, Attack: payload.attack_id, Trials: payload.trials || "All selected payloads", Network: "LIVE TARGET", Authorization: "REQUIRED"}})) return;
+        if (!await Orion.confirmExecution({fields: {Target: payload.url, Endpoint: payload.endpoint, Attack: payload.attack_id, Access: "BLACK BOX · query-only endpoint", "Maximum requests": payload.trials || "All selected payloads · exact count UNKNOWN", Network: "LIVE TARGET", Authorization: "REQUIRED"}})) return;
         const out = document.getElementById("attack-out");
         Orion.setState(out, "running", `running OWASP LLM injection against ${ep} …`);
         try {

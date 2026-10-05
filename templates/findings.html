@@ -17,25 +17,27 @@
 <div class="panel">
   <div class="filters" id="finding-filters">
     <label>Search<input type="search" id="finding-search" placeholder="Finding, target, family or control"></label>
-    {% for key in ['status','severity','retest','family'] %}<label>{{ key|title }}<select data-filter="{{ key }}"><option value="">All</option></select></label>{% endfor %}
+    {% for key in ['status','severity','retest','family','target'] %}<label>{{ key|title }}<select data-filter="{{ key }}"><option value="">All</option></select></label>{% endfor %}
   </div>
   <div id="finding-count" class="sub" role="status"></div>
   <div class="table-scroll"><table class="orion findings-table">
-    <thead><tr><th>ID</th><th>Finding</th><th>Family</th><th>Severity</th><th>Confidence</th>
-      <th>Status</th><th>Target</th><th>Control</th><th>Retest</th><th>Evidence</th><th>Last observed</th></tr></thead>
+    <caption>Recorded findings · security interpretation of evidence</caption>
+    <thead><tr>{% for label in ['Finding','Severity','Status','Target','Evidence','Retest','Last observed'] %}<th scope="col">{{ label }}</th>{% endfor %}</tr></thead>
     <tbody>
       {% for f in findings %}
-      <tr data-finding-row data-status="{{ f.status }}" data-severity="{{ f.severity }}" data-retest="{{ f.retest_status or 'NOT RETESTED' }}" data-family="{{ f.family }}">
-        <td class="mono"><a href="{{ url_for('finding_detail_page', finding_id=f.id) }}">{{ f.id }}</a></td>
-        <td>{{ f.title }}</td>
-        <td class="sub">{{ f.family|replace('_',' ') }}</td>
+      <tr data-finding-row data-status="{{ f.status }}" data-severity="{{ f.severity }}" data-retest="{{ f.retest_status or 'NOT RETESTED' }}" data-family="{{ f.family }}" data-target="{{ f.affected_target or 'UNKNOWN' }}">
+        <td><a class="finding-title" href="{{ url_for('finding_detail_page', finding_id=f.id) }}">{{ f.title }}</a>
+          <div class="sub finding-secondary">{{ f.family|replace('_',' ') or 'UNKNOWN family' }}</div>
+          <details class="finding-secondary"><summary>Details</summary><dl>
+            <dt>ID</dt><dd class="mono">{{ f.id }}</dd><dt>Confidence</dt><dd>{{ f.confidence }}</dd>
+            <dt>Control</dt><dd>{{ f.applied_control or 'Not applied' }}</dd>
+          </dl></details></td>
         <td>{{ status_badge(f.severity) }}</td>
-        <td>{{ f.confidence }}</td>
         <td>{{ status_badge(f.status) }}</td>
         <td class="mono">{{ f.affected_target or 'UNKNOWN' }}</td>
-        <td>{{ f.applied_control or 'Not applied' }}</td>
-        <td>{% if f.retest_status %}{{ status_badge(f.retest_status) }}{% else %}<span class="sub">○ NOT RETESTED</span>{% endif %}</td>
-        <td class="sub"><a href="{{ url_for('finding_detail_page', finding_id=f.id) }}#finding-evidence">{{ f.evidence_refs|length }} run(s)</a></td><td class="mono">{{ f.updated_at }}</td>
+        <td class="sub"><a href="{{ url_for('finding_detail_page', finding_id=f.id) }}#finding-evidence">{{ f.evidence_refs|length }} run(s)</a></td>
+        <td>{{ status_badge(f.retest_status or 'NOT RETESTED') }}</td>
+        <td><time datetime="{{ f.updated_at }}">{{ f.updated_at }}</time></td>
       </tr>
       {% endfor %}
     </tbody>
@@ -44,17 +46,4 @@
 {% endif %}
 {% endblock %}
 
-{% block scripts %}<script>
-(function () {
-  const filters = document.getElementById("finding-filters"); if (!filters) return;
-  const rows = Array.from(document.querySelectorAll("[data-finding-row]"));
-  const search = document.getElementById("finding-search");
-  const selects = Array.from(filters.querySelectorAll("select"));
-  selects.forEach(s => Array.from(new Set(rows.map(r => r.dataset[s.dataset.filter]))).sort().forEach(value => { const o = document.createElement("option"); o.value = value; o.textContent = value; s.appendChild(o); }));
-  function update() {
-    rows.forEach(r => { r.hidden = !r.textContent.toLowerCase().includes(search.value.toLowerCase()) || selects.some(s => s.value && r.dataset[s.dataset.filter] !== s.value); });
-    document.getElementById("finding-count").textContent = `${rows.filter(r => !r.hidden).length} of ${rows.length} findings shown`;
-  }
-  search.addEventListener("input", update); selects.forEach(s => s.addEventListener("change", update)); update();
-})();
-</script>{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/findings.js') }}"></script>{% endblock %}

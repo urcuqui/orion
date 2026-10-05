@@ -161,8 +161,10 @@ def findings_page():
 def finding_detail_page(finding_id):
     from orion.findings import load_finding
     f = load_finding(finding_id, 'artifacts')
+    from orion.workspace_view import finding_workspace
     return render_template('finding-detail.html',
-                           finding=f.to_dict() if f else None, finding_id=finding_id)
+                           finding=f.to_dict() if f else None, finding_id=finding_id,
+                           workspace=finding_workspace(f))
 
 @app.route('/red-team')
 def red_team_page():

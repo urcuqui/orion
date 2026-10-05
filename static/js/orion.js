@@ -16,8 +16,7 @@
     try { appearance = localStorage.getItem("orion.appearance") === "classic" ? "classic" : "analyst"; } catch (_) {}
     if (demoMode) appearance = "classic";
     function apply() {
-      document.body.classList.toggle("classic", appearance === "classic");
-      document.body.classList.toggle("crt", appearance === "classic");
+      document.body.dataset.orionAppearance = appearance;
     }
     apply();
     const select = document.getElementById("orion-appearance");
@@ -28,6 +27,24 @@
         try { localStorage.setItem("orion.appearance", appearance); } catch (_) {}
       });
     }
+  })();
+
+  // Compact navigation is progressive enhancement: visible without JavaScript.
+  (function initNavigation() {
+    const button = document.getElementById("nav-toggle");
+    const nav = document.getElementById("workflow-navigation");
+    if (!button || !nav) return;
+    const narrow = window.matchMedia("(max-width: 768px)");
+    function setOpen(open) {
+      button.setAttribute("aria-expanded", String(open));
+      nav.classList.toggle("nav-collapsed", !open);
+    }
+    setOpen(!narrow.matches);
+    narrow.addEventListener("change", () => setOpen(!narrow.matches));
+    button.addEventListener("click", () => setOpen(button.getAttribute("aria-expanded") !== "true"));
+    nav.addEventListener("keydown", event => {
+      if (event.key === "Escape" && narrow.matches) { setOpen(false); button.focus(); }
+    });
   })();
 
   // Native dialog: explicit external-execution confirmation, cancel/Escape,
@@ -57,7 +74,9 @@
   };
 
   Orion.executionBoundary = function (fields) {
-    return `<div class="term-title space-above-lg">EXECUTION BOUNDARY</div><dl class="kv">${Object.entries(fields).map(([k,v]) => `<dt class="k">${Orion.esc(k)}</dt><dd class="v">${Orion.esc(v)}</dd>`).join("")}</dl>`;
+    const order = ["External effect", "Network", "Authorization", "Isolation", "Filesystem", "Access"];
+    const entries = order.map(key => [key, fields[key] || "? UNKNOWN"]);
+    return `<section class="execution-boundary" aria-label="Execution boundary"><h3 class="term-title">EXECUTION BOUNDARY</h3><dl class="kv">${entries.map(([key,value]) => `<dt class="k">${Orion.esc(key)}</dt><dd class="v">${Orion.esc(value)}</dd>`).join("")}</dl></section>`;
   };
 
   Orion.provenanceChain = function (ws) {

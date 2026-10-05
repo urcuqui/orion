@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "components/methodology.html" import methodology_bar %}
-{% from "components/status.html" import status_badge %}
+{% from "components/status.html" import status_badge, policy_decision %}
 {% from "components/metric.html" import metric_card %}
 {% from "components/atlas.html" import atlas_item %}
 {% from "components/image_attack_comparison.html" import image_attack_comparison %}
@@ -111,7 +111,7 @@
     {% for t in record.execution_trace %}
     <div class="trace-trial">
       <h4><span class="prov-label">{{ t.source }}</span> · {{ t.type|replace('_',' ') }}</h4>
-      <pre class="term-pre">{% if t.type == 'authorization_event' %}DECISION ... <span class="{{ 'policy-allow' if t.decision == 'ALLOW' else 'policy-deny' }}">{{ t.decision }}</span> — {{ t.reason }}
+      <pre class="term-pre">{% if t.type == 'authorization_event' %}POLICY DECISION ... {{ policy_decision(t.decision) }} — {{ t.reason }}
   required={{ t.required_privilege }} · effective={{ t.effective_privilege }} · identity={{ t.agent_identity }}{% elif t.type == 'tool_request' %}TOOL ...... {{ t.requested_tool or '(none)' }}  ARGS {{ t.requested_arguments }}{% elif t.type == 'agent_response' %}MODEL ..... {{ t.model }}
 FOLLOWED .. {{ t.followed_instruction }}  (instruction source: {{ t.instruction_source }})
 RATIONALE . {{ t.rationale }}{% elif t.type == 'tool_result' %}{{ t.tool }} -> {{ t.result }}{% else %}{{ t.content }}{% if t.filtered %}  [filtered by input gateway]{% endif %}{% endif %}</pre>
@@ -138,9 +138,9 @@ INSTRUCTION FOLLOWED . <span class="{{ 'deny' if t.observations.attack_success e
 RETRIEVED ...... {{ t.retrieved_content }}
 INJECTED ....... {{ t.injected_payload }}
 AGENT TOOL ..... {{ t.agent_decision.requested_tool or '(none)' }} {{ t.agent_decision.requested_arguments }}
-AUTHORIZATION .. <span class="{{ 'policy-allow' if a.decision == 'ALLOW' else 'policy-deny' }}">{{ a.decision }}</span> — {{ a.reason }}
+POLICY DECISION ... {{ policy_decision(a.decision) }} — {{ a.reason }}
 EXECUTION ...... {{ t.execution_result.output }}
-ATTACK SUCCESS . {{ t.observations.attack_success }}</pre>
+SECURITY OUTCOME . {{ status_badge('ATTACK_SUCCESS' if t.observations.attack_success is sameas true else ('ATTACK NOT SUCCEEDED' if t.observations.attack_success is sameas false else 'UNKNOWN')) }}</pre>
     </div>
     {% endif %}
     {% endfor %}

@@ -68,3 +68,23 @@ def overview(base_dir='artifacts'):
     return {'profiles': profiles, 'current': current.to_dict() if current else None,
             'workspaces': workspaces[:6], 'findings': findings, 'runs': runs[:6],
             'action': action, 'errors': errors, 'surfaces': surfaces[:8]}
+
+
+def finding_workspace(finding, base_dir='artifacts'):
+    """Read a linked workspace only if it still belongs to this finding.
+
+    A stale provenance ID must not offer another experiment's next action.
+    This presentation lookup never creates workspaces or changes lifecycle state.
+    """
+    if not finding:
+        return None
+    workspace_id = (finding.provenance or {}).get('experiment_workspace_id')
+    if not workspace_id:
+        return None
+    try:
+        ws = load(workspace_id, base_dir)
+    except (ValueError, OSError, TypeError):
+        return None
+    if ws and (ws.finding_id == finding.id or ws.attack_run_id in finding.evidence_refs):
+        return ws.to_dict()
+    return None

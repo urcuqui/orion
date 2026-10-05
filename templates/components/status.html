@@ -3,3 +3,7 @@
 {% set symbols = {'confirmed': '✓', 'observed': '●', 'hypothesis': '◇', 'inferred': '≈', 'unknown': '?', 'not_applicable': '—', 'running': '●', 'executing': '●', 'queued': '○', 'pending': '○', 'ready': '○', 'proposed': '◇', 'blocked': '×', 'failed': '×', 'error': '×', 'mitigated': '✓', 'partial': '!', 'partially_mitigated': '!', 'not_mitigated': '×', 'approved': '✓', 'applied': '!', 'complete': '✓', 'completed': '✓', 'effective': '✓', 'ineffective': '×', 'partially_effective': '!', 'not_retested': '○', 'eligible': '✓', 'available': '●', 'attack_success': '!', 'attack_blocked': '✓', 'no_attack': '—'} %}
 <span class="badge badge-{{ s }}"><span aria-hidden="true">{{ symbols.get(s, '·') }}</span> {{ status or 'UNKNOWN' }}</span>
 {% endmacro %}
+
+{% macro policy_decision(decision) %}
+<span class="policy-decision"><span aria-hidden="true">{{ '×' if decision == 'DENY' else ('✓' if decision == 'ALLOW' else '?') }}</span> {{ decision or 'UNKNOWN' }}</span>
+{% endmacro %}

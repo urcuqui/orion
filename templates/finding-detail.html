@@ -22,7 +22,7 @@
       <div><div class="k">Finding / evidence state</div>{{ status_badge(finding.status) }}</div>
     </div>
     <dl class="kv security-impact"><dt class="k">Affected component</dt><dd class="v">{{ finding.affected_component or 'UNKNOWN' }}</dd><dt class="k">Boundary crossed</dt><dd class="v">{{ finding.boundary_crossed or 'UNKNOWN' }}</dd><dt class="k">Success condition</dt><dd class="v">{{ finding.success_condition or 'UNKNOWN' }}</dd></dl>
-    <dl class="finding-metadata"><div><dt>Confidence</dt><dd>{{ finding.confidence or 'UNKNOWN' }}</dd></div><div><dt>Retest</dt><dd>{{ status_badge(finding.retest_status or 'NOT RETESTED') }}</dd></div><div><dt>Affected target</dt><dd class="mono">{{ finding.affected_target or 'UNKNOWN' }}</dd></div></dl>
+    <dl class="finding-metadata"><div><dt>Confidence</dt><dd>{{ finding.confidence or 'UNKNOWN' }}</dd></div><div><dt>Retest</dt><dd>{{ status_badge(finding.retest_status or ('UNKNOWN' if finding.retest_refs or (workspace and workspace.retest_run_id) else 'NOT RETESTED')) }}</dd></div><div><dt>Affected target</dt><dd class="mono">{{ finding.affected_target or 'UNKNOWN' }}</dd></div></dl>
   </section>
   {% if finding.corroboration %}
   <div class="panel">
@@ -68,9 +68,24 @@
     </ul>
   </div>
 
-  <section class="panel"><h2 class="panel-title">What should I do?</h2><p>Recommended control: <span class="mono">{{ finding.recommended_controls|join(', ') or 'UNKNOWN' }}</span></p><p>Applied control: <span class="mono">{{ finding.applied_control or 'Not applied' }}</span>{% if finding.control_implementation %} · {{ finding.control_implementation }}{% endif %}</p>
-    {% if finding.applied_control and not finding.retest_refs %}<p class="badge badge-applied">! CONTROL APPLIED · MITIGATION NOT VERIFIED</p>{% elif finding.retest_status %}{{ status_badge(finding.retest_status) }}{% else %}<p class="sub">A control is not validated until the original attack is retested.</p>{% endif %}
-    <div class="btn-row"><a class="btn btn-ghost" href="#finding-evidence">View evidence</a>{% if finding.provenance.get('experiment_workspace_id') %}<a class="btn btn-ghost" href="/experiment/{{ finding.provenance.experiment_workspace_id }}">Open experiment and retest</a>{% elif finding.provenance.get('plan_id') %}<a class="btn btn-ghost" href="/experiment?plan_id={{ finding.provenance.plan_id|urlencode }}">Open experiment and retest</a>{% else %}<a class="btn btn-ghost" href="/experiment">Review experiments</a>{% endif %}</div>
+  <section class="next-action-card remediation" aria-labelledby="finding-remediation">
+    <h2 id="finding-remediation" class="panel-title">What should I do?</h2>
+    {% set applied = finding.applied_control or (workspace.defense_control if workspace else None) %}
+    {% set control_applied = applied or (workspace and workspace.stages.get('defend') == 'APPLIED') %}
+    <dl class="kv">
+      <dt class="k">Recommended control</dt><dd class="v">{{ finding.recommended_controls|join(', ') or 'UNKNOWN' }}</dd>
+      <dt class="k">Applied control</dt><dd class="v">{{ applied or 'Not recorded' }}</dd>
+      <dt class="k">Control status</dt><dd class="v">{{ status_badge('APPLIED' if control_applied else 'UNKNOWN') }}</dd>
+      <dt class="k">Verification</dt><dd class="v">{{ status_badge(finding.retest_status or ('UNKNOWN' if finding.retest_refs or (workspace and workspace.retest_run_id) else 'NOT RETESTED')) }}</dd>
+      {% if finding.control_implementation or (workspace and workspace.defense_implementation) %}<dt class="k">Implementation</dt><dd class="v">{{ finding.control_implementation or workspace.defense_implementation }}</dd>{% endif %}
+    </dl>
+    {% if control_applied and not finding.retest_refs %}<p class="verification-warning">! CONTROL APPLIED · MITIGATION NOT VERIFIED</p>{% endif %}
+    <p class="sub">Applying a control does not prove mitigation. Retest the original attack to verify its effectiveness.</p>
+    {% if workspace %}
+    <div class="eyebrow">NEXT ACTION</div><h3>{{ workspace.next_action.label }}</h3>
+    <a class="btn" href="/experiment/{{ workspace.experiment_workspace_id }}">{{ 'Open experiment and retest' if workspace.next_action.stage == 'retest' and not workspace.retest_run_id else 'Open experiment' }}</a>
+    {% else %}<p class="sub">? Linked experiment state unavailable. Review experiments to locate the originating execution.</p><a class="btn btn-ghost" href="/experiment">Review experiments</a>{% endif %}
+    <a class="btn btn-tertiary" href="#finding-evidence">View evidence</a>
   </section>
   <div class="panel">
     <div class="panel-title">Provenance</div>

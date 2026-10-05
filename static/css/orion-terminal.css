@@ -1,8 +1,8 @@
-/* ORION retro terminal layer: CRT effects, cyber-cat identity, terminal language.
+/* ORION retro terminal layer: CRT effects, Dragon Sentinel identity, terminal language.
    Loaded site-wide after base.css. Effects are subtle and toggleable. */
 
 /* ---- Classic CRT scanlines; no decorative flicker ---- */
-body.crt::before {
+body[data-orion-appearance="classic"]::before {
   content: "";
   position: fixed;
   inset: 0;
@@ -17,7 +17,7 @@ body.crt::before {
   );
   mix-blend-mode: multiply;
 }
-body.crt::after {
+body[data-orion-appearance="classic"]::after {
   content: "";
   position: fixed;
   inset: 0;
@@ -27,16 +27,16 @@ body.crt::after {
   /* No decorative flicker during reading. */
 }
 /* Reduced motion applies regardless of appearance. */
-@media (prefers-reduced-motion: reduce) { body.crt::after { animation: none; } }
+@media (prefers-reduced-motion: reduce) { body[data-orion-appearance="classic"]::after { animation: none; } }
 
-/* ---- Shared cyber-cat signature; two variants, defined in Jinja. ---- */
-.orion-cat { margin: 0; font-family: var(--mono); white-space: pre; line-height: 1.15; color: var(--text-muted); }
-.cat-compact { font-size: 8px; color: var(--text-terminal); }
-.cat-primary { font-size: 9px; }
-.cat-watermark { display: none; position: fixed; right: 20px; bottom: 40px; opacity: .035; pointer-events: none; z-index: 0; }
-body.classic .cat-primary { font-size: 12px; color: var(--orion-phosphor); text-shadow: 0 0 8px rgba(147,223,172,.18); }
-body.classic .cat-watermark { display: block; }
-body.demo .cat-watermark { display: none; }
+/* ---- Shared Dragon Sentinel signature; two variants, defined in Jinja. ---- */
+.dragon-sentinel { margin: 0; font-family: var(--mono); white-space: pre; line-height: 1.15; color: var(--text-muted); }
+.dragon-compact { font-size: 10px; color: var(--text-muted); }
+.dragon-expanded { font-size: 11px; }
+.dragon-watermark { display: none; position: fixed; right: 20px; bottom: 40px; opacity: .035; pointer-events: none; z-index: 0; }
+body[data-orion-appearance="classic"] .dragon-expanded { font-size: 12px; color: var(--orion-phosphor); text-shadow: 0 0 8px rgba(147,223,172,.18); }
+body[data-orion-appearance="classic"] .dragon-watermark { display: block; }
+body.demo .dragon-watermark { display: none; }
 @media (max-width: 768px) { .overview-sentinel { display: none; } }
 
 /* ---- Terminal panels / boxes ---- */
@@ -117,8 +117,8 @@ body.demo .cat-watermark { display: none; }
 .rejected-tag { color: var(--red-bright); border-color: var(--red-bright); }
 
 /* demo mode: hide CRT + watermark, enlarge terminal output */
-body.demo.crt::before, body.demo.crt::after { display: none; }
+body.demo[data-orion-appearance="classic"]::before, body.demo[data-orion-appearance="classic"]::after { display: none; }
 body.demo .term-pre, body.demo .statusline, body.demo .phases { font-size: 1.05rem; }
 
-body.classic .orion-brand { text-shadow: 0 0 10px rgba(240,106,117,.4); }
-body:not(.classic) .cursor { animation: none; }
+body[data-orion-appearance="classic"] .orion-brand { text-shadow: 0 0 10px rgba(240,106,117,.4); }
+body[data-orion-appearance="analyst"] .cursor { animation: none; }

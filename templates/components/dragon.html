@@ -1,0 +1,14 @@
+{# Dragon Sentinel: branding only; meaningful ORION text lives outside the art. #}
+{% macro dragon_sentinel(variant='compact', extra_class='') %}
+<pre class="dragon-sentinel dragon-{{ variant }} {{ extra_class }}" aria-hidden="true">{% if variant == 'expanded' %}        /\    /\
+     __/  \__/  \__
+    /   ◉      ◉   \
+   &lt;       /\       &gt;
+    \_____/  \_____/
+         \    /
+          \__/{% else %}      /\    /\
+     /  \__/  \
+    &lt;  ◉    ◉  &gt;
+     \   /\   /
+      \_/  \_/{% endif %}</pre>
+{% endmacro %}

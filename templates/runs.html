@@ -1,16 +1,16 @@
 {% extends "base.html" %}
 {% set evidence_view = request.args.get('view') == 'evidence' %}
-{% set section = 'evidence' if evidence_view else 'runs' %}
-{% block title %}{{ 'Evidence' if evidence_view else 'Runs' }} — ORION{% endblock %}
+{% set section = 'evidence' %}
+{% block title %}Evidence — ORION{% endblock %}
 
 {% block content %}
 <div class="section-head">
-  <h1>{{ 'Evidence · records & artifacts' if evidence_view else 'Runs · execution history' }}</h1>
+  <h1>{{ 'Evidence · Artifacts' if evidence_view else 'Evidence · Executions' }}</h1>
   <p class="sub">{{ 'Inspect the records and artifacts proving what happened. Each links to its originating execution; findings provide the security interpretation.' if evidence_view else 'A run is an execution. Inspect its result, measurements, related finding, and evidence.' }}</p>
 </div>
 
 <div class="panel">
-  <nav class="btn-row" aria-label="Observation views"><a class="btn {{ 'btn-ghost' if evidence_view else 'btn-selected' }}" href="/runs"{% if not evidence_view %} aria-current="page"{% endif %}>Runs</a><a class="btn {{ 'btn-selected' if evidence_view else 'btn-ghost' }}" href="/runs?view=evidence"{% if evidence_view %} aria-current="page"{% endif %}>Evidence</a></nav>
+  <nav class="btn-row" aria-label="Observation views"><a class="btn {{ 'btn-ghost' if evidence_view else 'btn-selected' }}" href="/runs"{% if not evidence_view %} aria-current="page"{% endif %}>Executions</a><a class="btn {{ 'btn-selected' if evidence_view else 'btn-ghost' }}" href="/runs?view=evidence"{% if evidence_view %} aria-current="page"{% endif %}>Artifacts</a></nav>
   <label class="field search-field"><span class="field-label">{{ 'Search artifact, run, experiment or finding' if evidence_view else 'Search run, scenario, target or finding' }}</span><input type="search" id="runs-search" placeholder="{{ 'Filter recorded artifacts' if evidence_view else 'Filter recorded executions' }}"></label>
   <div class="btn-row secondary filter-row">
     <span class="field-label">Type:</span>

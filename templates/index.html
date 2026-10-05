@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "components/cat.html" import cyber_cat %}
+{% from "components/dragon.html" import dragon_sentinel %}
 {% from "components/status.html" import status_badge %}
 {% from "components/workspace.html" import page_header, next_action_card %}
 {% set section = 'dashboard' %}
@@ -12,7 +12,7 @@
     {% if overview.current %}<p><a class="mono" href="/experiment/{{ overview.current.experiment_workspace_id }}">{{ overview.current.experiment_workspace_id }}</a> · {{ overview.current.active_experiment_id or 'No active experiment' }}</p><p class="sub">Current stage: {{ overview.current.current_stage|upper }} · Plan {{ status_badge(overview.current.stages.get('plan')) }}</p>
     {% else %}<p class="sub">Select your system, target and optional environment in Analysis.</p>{% endif %}
   </div>
-  {{ cyber_cat('primary', 'overview-sentinel') }}
+  {{ dragon_sentinel('expanded', 'overview-sentinel') }}
 </section>
 {{ next_action_card(overview.action.label, overview.action.description, overview.action.href, 'Open experiment' if overview.current else 'Open analysis') }}
 <div class="two-col">
@@ -28,5 +28,5 @@
 <section class="panel"><h2 class="panel-title">EXPERIMENTATION · active / recent experiments</h2><a class="btn btn-ghost" href="/experiment">Experiment</a>
 {% if overview.workspaces %}<div class="table-scroll"><table class="orion"><caption>Persisted experiment stages</caption><thead><tr><th scope="col">Experiment</th><th scope="col">Active proposal</th><th scope="col">Current stage</th><th scope="col">Approval</th><th scope="col">Updated</th></tr></thead><tbody>{% for w in overview.workspaces %}<tr><td class="mono"><a href="/experiment/{{ w.experiment_workspace_id }}">{{ w.experiment_workspace_id }}</a></td><td class="mono">{{ w.active_experiment_id or 'UNKNOWN' }}</td><td>{{ w.current_stage|upper }}</td><td>{{ status_badge(w.stages.get('plan')) }}</td><td>{{ w.updated_at }}</td></tr>{% endfor %}</tbody></table></div>{% else %}<div class="state">NO EXPERIMENTS YET — Threat analysis can propose experiments from assessment profiles. <a href="/context">Open Analysis</a>.</div>{% endif %}
 </section>
-<section class="panel"><h2 class="panel-title">Recent activity · execution records</h2>{% if overview.runs %}<ul class="evidence-list">{% for r in overview.runs %}<li><a class="mono" href="/runs/{{ r.trace_id }}">{{ r.trace_id[:8] ~ "…" ~ r.trace_id[-6:] if r.trace_id|length > 16 else r.trace_id }}</a> · {{ r.scenario or r.type }} {{ status_badge(r.status) }} <small class="sub">{{ r.timestamp }}</small></li>{% endfor %}</ul>{% else %}<div class="state">No executions recorded. Explicitly run an approved experiment to produce evidence.</div>{% endif %}<a class="btn btn-ghost" href="/runs">Open runs</a></section>
+<section class="panel"><h2 class="panel-title">Recent activity · execution records</h2>{% if overview.runs %}<ul class="evidence-list">{% for r in overview.runs %}<li><a class="mono" href="/runs/{{ r.trace_id }}">{{ r.trace_id[:8] ~ "…" ~ r.trace_id[-6:] if r.trace_id|length > 16 else r.trace_id }}</a> · {{ r.scenario or r.type }} {{ status_badge(r.status) }} <small class="sub">{{ r.timestamp }}</small></li>{% endfor %}</ul>{% else %}<div class="state">No executions recorded. Explicitly run an approved experiment to produce evidence.</div>{% endif %}<a class="btn btn-ghost" href="/runs">Open executions</a></section>
 {% endblock %}
