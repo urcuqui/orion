@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% set evidence_view = request.args.get('view') == 'evidence' %}
-{% set section = 'evidence' %}
+{% set section = 'evidence' if evidence_view else 'runs' %}
 {% block title %}Evidence — ORION{% endblock %}
 
 {% block content %}

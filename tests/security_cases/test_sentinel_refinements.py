@@ -17,13 +17,14 @@ def test_shared_sentinel_variants_are_decorative_and_legacy_names_are_retired():
     assert not Path('templates/components/dragon.html').exists()
 
 
-def test_shell_has_one_evidence_destination_and_preserves_console():
+def test_shell_has_distinct_runs_and_evidence_destinations_and_preserves_console():
     with app.test_client() as client:
         body = client.get('/findings').data.decode()
         demo = client.get('/?demo=1').data.decode()
     nav = body.split('<nav class="orion-nav"')[1].split('</nav>')[0]
     assert nav.count('href="/runs"') == 1
-    assert '>Runs<' not in nav
+    assert nav.count('href="/runs?view=evidence"') == 1
+    assert '>Runs<' in nav and '>Evidence<' in nav
     assert 'data-orion-appearance="analyst"' in body
     assert 'data-orion-appearance="classic"' in demo
     assert 'ORION // AI SECURITY VALIDATION WORKSPACE' in body
@@ -124,3 +125,38 @@ def test_allow_and_deny_are_neutral_independently_of_run_outcome(monkeypatch):
         record.status = 'UNKNOWN'
         html = client.get('/runs/QA-POLICY').data.decode()
         assert 'badge-unknown' in html and 'badge-attack_blocked' not in html
+
+
+
+def test_observation_sidebar_active_states_are_independent():
+    from html.parser import HTMLParser
+
+    class PrimaryLinks(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.primary = False
+            self.links = {}
+
+        def handle_starttag(self, tag, attrs):
+            attrs = dict(attrs)
+            if tag == 'nav' and attrs.get('aria-label') == 'Primary':
+                self.primary = True
+            elif tag == 'a' and self.primary:
+                self.links[attrs['href']] = attrs
+
+        def handle_endtag(self, tag):
+            if tag == 'nav':
+                self.primary = False
+
+    with app.test_client() as client:
+        for path, active in [('/runs', '/runs'), ('/runs?view=runs', '/runs'),
+                             ('/runs?view=evidence', '/runs?view=evidence'),
+                             ('/runs/QA-MISSING', '/runs')]:
+            parser = PrimaryLinks()
+            parser.feed(client.get(path).data.decode())
+            assert '/runs' in parser.links and '/runs?view=evidence' in parser.links
+            assert [href for href, attrs in parser.links.items()
+                    if attrs.get('aria-current') == 'page'] == [active]
+            assert 'active' in parser.links[active]['class'].split()
+            other = '/runs' if active.endswith('evidence') else '/runs?view=evidence'
+            assert 'active' not in parser.links[other]['class'].split()

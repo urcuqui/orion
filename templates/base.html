@@ -21,12 +21,12 @@
         ('Overview', [('dashboard','index','Overview','')]),
         ('Assess', [('you','know_yourself_page','System','Know Yourself'), ('target','target_analysis_page','Target','Know Your Target'), ('env','environment_page','Environment','Know the Terrain'), ('analysis','analysis_context_page','Analysis','Understand the Battlefield')]),
         ('Validate', [('experiment','experiment_page','Experiments',''), ('findings','findings_page','Findings','')]),
-        ('Observe', [('evidence','runs_page','Evidence','')])
+        ('Observe', [('runs','runs_page','Runs',''), ('evidence','runs_page','Evidence','')])
       ] %}
       {% for group, items in groups %}
       <div class="nav-group"><div class="nav-label">{{ group }}</div>
         {% for key, endpoint, label, subtitle in items %}
-        <a href="{{ url_for(endpoint) }}" class="{{ 'active' if sec == key else '' }}"{% if key == 'env' %} title="Know The Environment"{% endif %} {% if sec == key %}aria-current="page"{% endif %}>
+        <a href="{{ url_for(endpoint, view='evidence') if key == 'evidence' else url_for(endpoint) }}" class="{{ 'active' if sec == key else '' }}"{% if key == 'env' %} title="Know The Environment"{% endif %} {% if sec == key %}aria-current="page"{% endif %}>
           <span class="nav-marker" aria-hidden="true">{{ '›' if sec == key else '·' }}</span>
           <span>{{ label }}{% if subtitle %}<small>{{ subtitle }}</small>{% endif %}</span>
         </a>
