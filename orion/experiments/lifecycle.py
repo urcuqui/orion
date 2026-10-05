@@ -77,13 +77,11 @@ class ExperimentLifecycle:
 # Persistence
 # --------------------------------------------------------------------------- #
 def save(ws: ExperimentLifecycle, base_dir: str = DEFAULT_DIR) -> Path:
+    """Persist only the workspace; application orchestration handles membership."""
     ws.updated_at = _now()
     wdir = Path(base_dir) / ws.experiment_workspace_id
     wdir.mkdir(parents=True, exist_ok=True)
     (wdir / "workspace.json").write_text(json.dumps(ws.to_dict(), indent=2, default=str), encoding="utf-8")
-    if ws.assessment_id:
-        from orion.assessments.service import record_workspace
-        record_workspace(ws, base_dir)
     return wdir
 
 

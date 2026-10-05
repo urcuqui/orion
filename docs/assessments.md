@@ -32,7 +32,7 @@ Example (illustrative IDs):
 }
 ```
 
-Status transitions are explicit: DRAFT → ACTIVE → COMPLETED → ARCHIVED; DRAFT/ACTIVE can also be archived. Same-state updates are supported. Archives reject metadata edits; completed Assessments reject new relationships. Completion neither mitigates Findings nor certifies security. Assessment status is not an execution authorization mechanism: already-linked workspaces retain their existing lifecycle gates.
+Status transitions are explicit: DRAFT → ACTIVE → COMPLETED → ARCHIVED; DRAFT/ACTIVE can also be archived. Same-state updates are supported. Archives reject user metadata edits and manual links; system synchronization from already-linked workspaces remains allowed. Completed Assessments reject new manual relationships. Completion neither mitigates Findings nor certifies security. Assessment status is not an execution authorization mechanism: already-linked workspaces retain their existing lifecycle gates.
 
 Scope is user-supplied, not inferred from an attack or timestamp. The UI accepts surfaces, access model, included/excluded capabilities and notes; the API supports additional scope keys. Missing scope/profile information remains UNKNOWN. A DRAFT can be created with only a name; optional inputs are not fabricated. Activation and completion are explicit analyst declarations, not computed security decisions.
 
@@ -55,6 +55,7 @@ Standalone records load as before with `assessment_id=None` or absent provenance
 | GET / POST | `/api/assessments` | List / create |
 | GET / PATCH | `/api/assessments/<id>` | Read / metadata, scope, status and explicit links |
 | GET | `/api/assessments/<id>/summary` | Resolve related records, factual counts and next action |
+| GET | `/api/assessments/<id>/integrity` | Read-only relationship validation |
 | POST | `/api/assessments/<id>/experiments` | Create a workspace from `plan_id`, optional `proposal_id` |
 
 PATCH can link `experiment_ids`, `finding_ids`, `plan_ids`, `analysis_context_ids` and `threat_model_ids`. Missing linked experiments/findings/plans/contexts are rejected before an update is persisted. Threat-model IDs are retained as version references and resolved from their source plans/context; unavailable sources are reported explicitly.
@@ -90,3 +91,46 @@ These are examples, not seeded results. Applied controls do not contribute verif
 - Some Assessment-related Findings can include evidence from other Assessments because existing corroboration is global. This remains visible through original Run/Finding provenance.
 - Assessment status and linkage provide organization, not RBAC, tenant isolation, authorization or a new safety policy.
 - Deferred: security regression products, reproducibility bundles, adaptive retesting, experiment matrices, PDF reporting, scheduling, CI/CD integrations, new attacks and severity models.
+
+## Relationship consistency and integrity validation
+
+`AssessmentService.validate_integrity(id)` (also available as `validate_assessment_integrity(id, base_dir)` in `orion.assessments.integrity`) checks both directions of Assessment/workspace membership and current/historical Run provenance. `GET /api/assessments/<id>/integrity` exposes the same read-only result:
+
+```json
+{"assessment_id": "ORN-ASMT-0042", "valid": true, "issues": []}
+```
+
+A mismatch is reported with identifiers and deterministic issue codes:
+
+```json
+{
+  "assessment_id": "ORN-ASMT-0042",
+  "valid": false,
+  "issues": [{
+    "code": "EXPERIMENT_ASSESSMENT_MISMATCH",
+    "severity": "ERROR",
+    "experiment_id": "ORN-EXP-001",
+    "message": "Workspace references another Assessment."
+  }]
+}
+```
+
+Checks include missing/corrupt Assessment and workspace records, missing forward/back-references, conflicting Assessment ownership, Run/workspace ownership conflicts, missing referenced Runs and Runs without resolvable workspaces. Historical Runs are found by explicit provenance, not filenames/timestamps. Catalog records with unreadable content generate warnings when their membership cannot be established. A legacy Run with no Assessment provenance produces `RUN_ASSESSMENT_PROVENANCE_MISSING` as a WARNING: it may predate this layer or indicate incomplete propagation. `valid` means no ERROR issues; warnings remain visible and do not certify complete provenance. Missing Assessments return an invalid structured result; invalid identifier syntax is rejected.
+
+Validation does not save, repair, reassign ownership or change evidence. No reconciliation operation is introduced. Active Assessment Next Action considers all reference/integrity errors before proposing experiment actions; closed Assessments retain evidence review as their next action. The existing deterministic experiment next action remains authoritative inside each workspace.
+
+## Synchronization and failure model
+
+`orion.experiments.lifecycle.save()` now writes only the workspace. The public `orion.experiments` operations invoke the domain operation and then `sync_assessment_membership(ws, base_dir)`. The public `save_workspace()` remains a compatibility alias for `persist_workspace_and_sync_assessment()`, preserving existing application callers. Standalone operations skip synchronization and do not require an Assessment.
+
+Synchronization deduplicates workspace, plan, context, threat-model and Finding IDs, retains control pointers, and annotates the current Run/Retest provenance in place. Repeated synchronization does not rewrite unchanged Assessment timestamps or duplicate references. Conflicting Run ownership is rejected rather than reassigned. Lower-level lifecycle callers intentionally persist independently; callers coordinating an assessed operation must invoke synchronization explicitly or use the public orchestration API.
+
+There are **no cross-object transactions**. If a workspace write succeeds and Assessment persistence fails, the workspace remains saved and the exception reaches the caller; integrity checking reports the missing relationship. If Assessment persistence succeeds and a subsequent Run provenance write fails, those successful writes also remain. The exception is surfaced and validation reports missing/conflicting/unavailable provenance. A missing legacy child remains unavailable and is reported on integrity/summary reads. A domain-operation failure retains its existing lifecycle error handling and successful writes; orchestration does not silently repair it. Successful retry of an unambiguous synchronization is idempotent, but validation itself never performs that retry. No successful Experiment, Evidence or Finding data is deleted or rolled back to simulate a transaction.
+
+## Archived semantics and shared domain objects
+
+**Assessment is a live aggregation of security objects, not an immutable snapshot.** COMPLETED declares that the intended activity is finished. ARCHIVED marks the Assessment as no longer actively operated; its list/detail remain available for reviewing evidence. Archived user edits to name, description, scope, target and manual relationships are blocked. System-derived synchronization may still record late Run provenance, discovered Findings and control/retest pointers from an **already-linked** workspace. It cannot attach a new workspace to an archived Assessment.
+
+Shared Findings and independent Evidence retain their existing domain behavior. A Finding linked into several Assessments remains one record; later corroboration/status updates appear in all of them, including archived ones. Completion/archive do not modify Finding status, Retest results or control verification. ARCHIVED is not an execution authorization gate for already-linked workspaces.
+
+**For immutable historical reproduction, use a future Reproducibility Bundle rather than relying on ARCHIVED state.** That bundle is not implemented here. Corroboration criteria reproduction, success signatures, per-criterion rates and confirmation redesign remain follow-ups for the Security Regression Tests milestone. Severity evolution also remains deferred; this consistency pass changes neither model.

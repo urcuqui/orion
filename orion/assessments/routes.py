@@ -49,6 +49,11 @@ def api_summary(assessment_id):
     return api_result(lambda: service().summary(assessment_id))
 
 
+@assessment_bp.get('/api/assessments/<assessment_id>/integrity')
+def api_integrity(assessment_id):
+    return api_result(lambda: service().validate_integrity(assessment_id))
+
+
 @assessment_bp.post('/api/assessments/<assessment_id>/experiments')
 def api_create_experiment(assessment_id):
     def create():

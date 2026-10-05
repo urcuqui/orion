@@ -112,7 +112,7 @@ class AssessmentService:
         if assessment.status == 'COMPLETED' and any(set(data.get(k, [])) - set(getattr(assessment, k)) for k in reference_fields):
             raise ValueError('completed assessment cannot add relationships')
         if assessment.status == 'ARCHIVED' and any(k != 'status' for k in data):
-            raise ValueError('archived assessment is read-only')
+            raise ValueError('archived assessment metadata and manual links are read-only')
         for key, value in data.items():
             if key in reference_fields:
                 # Additive references retain historical threat models/plans.
@@ -136,6 +136,10 @@ class AssessmentService:
 
     def archive(self, assessment_id):
         return self.update(assessment_id, {'status': 'ARCHIVED'})
+
+    def validate_integrity(self, assessment_id):
+        from .integrity import validate_assessment_integrity
+        return validate_assessment_integrity(assessment_id, self.base_dir)
 
     def create_experiment(self, assessment_id, plan_id, proposal_id=None):
         from orion import plans
@@ -254,6 +258,15 @@ class AssessmentService:
                    'awaiting_retest': count(sum(c['awaiting_retest'] for c in controls), unknown_findings),
                    'verified_mitigations': count(sum(f.get('retest_status') == 'EFFECTIVE' for f in findings), unknown_findings),
                    'unresolved': count(sum(f['status'] not in ('MITIGATED', 'NOT_REPRODUCIBLE') for f in findings), unknown_findings)}
+        threat_models = []
+        for ref in assessment.threat_model_ids:
+            sources = [c for c in contexts if c and (c.get('threat_model') or {}).get('threat_model_id') == ref]
+            sources += [p.to_dict() for p in resolved_plans if p and p.threat_model_id == ref]
+            threat_models.append({'id': ref, 'available': bool(sources)})
+            if not sources:
+                errors.append({'kind': 'threat_model', 'id': ref, 'error': 'source context/plan unavailable'})
+        integrity = self.validate_integrity(assessment_id)
+        errors.extend({'kind': 'integrity', 'id': issue.get('experiment_id') or issue.get('run_id'), 'error': issue['message']} for issue in integrity['issues'] if issue['severity'] == 'ERROR')
         action = {'label': 'Review assessment', 'href': '/assessments/' + assessment_id}
         if assessment.status in ('COMPLETED', 'ARCHIVED'):
             action['label'] = 'Review recorded evidence'
@@ -265,8 +278,8 @@ class AssessmentService:
         elif not assessment.analysis_context_ids and not assessment.plan_ids:
             from urllib.parse import urlencode
             action = {'label': 'Run analysis', 'href': '/context?' + urlencode({'self_profile_id': assessment.system_profile_id, 'target_profile_id': assessment.target_id, 'environment_profile_id': assessment.environment_id or ''})}
-        elif errors:
-            action = {'label': 'Review unavailable references', 'href': '#assessment-provenance'}
+        elif not experiments and resolved_plans and any(p and not p.approved_by_human for p in resolved_plans):
+            action = {'label': 'Create experiment to review plan', 'href': '#assessment-links'}
         else:
             pending = next((ws for ws in experiments if ws.get('defense_id') and not ws.get('retest_run_id')), None)
             pending = pending or next((ws for ws in experiments if ws['stages'].get('retest') != 'COMPLETE'), None)
@@ -283,15 +296,6 @@ class AssessmentService:
             ws['family'] = record.get('family') or (proposal.branch if proposal else None)
             ws['result'] = record.get('status')
             ws['retest_result'] = runs.get(ws.get('retest_run_id'), {}).get('status')
-        threat_models = []
-        for ref in assessment.threat_model_ids:
-            sources = [c for c in contexts if c and (c.get('threat_model') or {}).get('threat_model_id') == ref]
-            sources += [p.to_dict() for p in resolved_plans if p and p.threat_model_id == ref]
-            threat_models.append({'id': ref, 'available': bool(sources)})
-            if not sources:
-                errors.append({'kind': 'threat_model', 'id': ref, 'error': 'source context/plan unavailable'})
-        if errors and assessment.status in ('DRAFT', 'ACTIVE') and action['href'] != '#assessment-edit':
-            action = {'label': 'Review unavailable references', 'href': '#assessment-provenance'}
         return {'assessment': assessment.to_dict(), 'profiles': profiles, 'next_action': action,
                 'experiments': {'total': count(len(experiments), unknown_exp), 'known_total': len(experiments),
                                 'planned': count(sum(ws['stages'].get('attack') not in ('RUNNING', 'COMPLETE') for ws in experiments), unknown_exp),
@@ -305,7 +309,7 @@ class AssessmentService:
                             'not_mitigated': count(sum(f.get('retest_status') == 'INEFFECTIVE' for f in findings), unknown_findings)},
                 'posture': posture, 'experiment_records': experiments, 'finding_records': findings,
                 'run_records': list(runs.values()), 'control_records': controls, 'threat_models': threat_models,
-                'errors': errors}
+                'errors': errors, 'integrity': integrity}
 
 
 def record_workspace(ws, base_dir):
@@ -314,6 +318,25 @@ def record_workspace(ws, base_dir):
         return
     service = AssessmentService(base_dir)
     assessment = service.get(ws.assessment_id)
+    if assessment.status == 'ARCHIVED' and ws.experiment_workspace_id not in assessment.experiment_ids:
+        raise ValueError('archived assessment cannot acquire a new experiment through synchronization')
+    from orion.evidence import EvidenceStore
+    evidence = EvidenceStore(base_dir)
+    records = []
+    for trace in (ws.attack_run_id, ws.retest_run_id):
+        if trace:
+            identifier(trace)
+            try:
+                record = evidence.load(trace)
+            except (ValueError, TypeError, OSError):
+                continue  # Read-only integrity/summary reports unavailable legacy children.
+            provenance = record.provenance or {}
+            if provenance.get('assessment_id') not in (None, ws.assessment_id):
+                raise ValueError('run belongs to another assessment')
+            if provenance.get('experiment_workspace_id') not in (None, ws.experiment_workspace_id):
+                raise ValueError('run belongs to another workspace')
+            records.append(record)
+    before = assessment.to_dict()
     # Lifecycle mutations remain available for linked workspaces; archive is
     # assessment metadata, not an execution authorization mechanism.
     for field, value in [('experiment_ids', ws.experiment_workspace_id), ('plan_ids', ws.plan_id),
@@ -322,19 +345,11 @@ def record_workspace(ws, base_dir):
             getattr(assessment, field).append(value)
     if ws.defense_id:
         assessment.control_refs[ws.defense_id] = {'experiment_id': ws.experiment_workspace_id, 'finding_id': ws.finding_id, 'control': ws.defense_control, 'implementation': ws.defense_implementation, 'attack_run_id': ws.attack_run_id, 'retest_run_id': ws.retest_run_id}
-    assessment.updated_at = now()
-    service.repository.save(assessment)
-    from orion.evidence import EvidenceStore
-    evidence = EvidenceStore(base_dir)
-    for trace in (ws.attack_run_id, ws.retest_run_id):
-        if trace:
-            try:
-                record = evidence.load(trace)
-            except (ValueError, TypeError, OSError):
-                continue  # Summary reports the unavailable child; membership is retained.
-            provenance = record.provenance or {}
-            if provenance.get('assessment_id') not in (None, ws.assessment_id):
-                raise ValueError('run belongs to another assessment')
-            if provenance.get('assessment_id') != ws.assessment_id or provenance.get('experiment_workspace_id') != ws.experiment_workspace_id:
-                record.provenance = {**provenance, 'assessment_id': ws.assessment_id, 'experiment_workspace_id': ws.experiment_workspace_id}
-                evidence.save(record)
+    if assessment.to_dict() != before:
+        assessment.updated_at = now()
+        service.repository.save(assessment)
+    for record in records:
+        provenance = record.provenance or {}
+        if provenance.get('assessment_id') != ws.assessment_id or provenance.get('experiment_workspace_id') != ws.experiment_workspace_id:
+            record.provenance = {**provenance, 'assessment_id': ws.assessment_id, 'experiment_workspace_id': ws.experiment_workspace_id}
+            evidence.save(record)
