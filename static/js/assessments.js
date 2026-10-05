@@ -39,7 +39,11 @@
     for (const key of ['system_profile_id', 'target_id', 'environment_id']) payload[key] = data.get(key) || null;
     if (form.dataset.id) {
       payload.status = data.get('status');
-      for (const key of ['analysis_context_ids', 'plan_ids', 'threat_model_ids']) payload[key] = split(data.get(key) || '');
+      for (const key of ['analysis_context_ids', 'plan_ids', 'threat_model_ids']) {
+        const existing = split(form.querySelector(`[name="${key}"]`).defaultValue || '');
+        const additions = split(data.get(key) || '').filter(value => !existing.includes(value));
+        if (additions.length) payload[key] = additions;
+      }
     }
     write(form, form.dataset.id ? 'PATCH' : 'POST', '/api/assessments' + (form.dataset.id ? '/' + encodeURIComponent(form.dataset.id) : ''), payload, result => '/assessments/' + encodeURIComponent(result.assessment_id));
   }));

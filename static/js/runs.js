@@ -23,7 +23,7 @@
   }
   function lineage(provenance) {
     const p = provenance || {};
-    const nodes = [["System", p.self_profile_id], ["Target", p.target_profile_id],
+    const nodes = [["Assessment", p.assessment_id], ["System", p.self_profile_id], ["Target", p.target_profile_id],
       ["Environment", p.environment_profile_id], ["Analysis context", p.analysis_context_id],
       ["Threat model", p.threat_model_id], ["Plan", p.plan_id], ["Original run", p.retest_of], ["Control", p.defense_id]];
     const present = nodes.filter(([, value]) => value);

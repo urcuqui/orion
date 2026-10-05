@@ -1,5 +1,4 @@
 """Explicit membership and read-only aggregation, not a second security engine."""
-from pathlib import Path
 from .model import Assessment, STATUSES, now
 from .repository import AssessmentRepository, identifier
 
@@ -71,7 +70,8 @@ class AssessmentService:
         from orion.findings import FindingStore
         from orion import plans
         from orion.context.store import load_profile
-        for ws_id in set(assessment.experiment_ids + data.get('experiment_ids', [])):
+        profile_changed = any(key in data and data[key] != getattr(assessment, key) for key in ('system_profile_id', 'target_id', 'environment_id'))
+        for ws_id in set((assessment.experiment_ids if profile_changed else []) + data.get('experiment_ids', [])):
             ws = load_workspace(ws_id, self.base_dir)
             if ws is None:
                 raise ValueError('experiment not found: ' + ws_id)
@@ -94,7 +94,7 @@ class AssessmentService:
         for finding_id in data.get('finding_ids', []):
             if FindingStore(self.base_dir).load(finding_id) is None:
                 raise ValueError('finding not found: ' + finding_id)
-        for plan_id in set(assessment.plan_ids + data.get('plan_ids', [])):
+        for plan_id in set((assessment.plan_ids if profile_changed else []) + data.get('plan_ids', [])):
             plan = plans.load_plan(plan_id, self.base_dir)
             if plan is None:
                 raise ValueError('plan not found: ' + plan_id)

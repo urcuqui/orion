@@ -258,3 +258,14 @@ def test_corrupt_assessment_does_not_hide_available_list_records(tmp_path):
     records, errors = service.repository.list()
     assert [record.assessment_id for record in records] == [a.assessment_id]
     assert errors[0]['assessment_id'] == 'ORN-ASMT-BROKEN'
+
+
+def test_unavailable_history_does_not_block_explicit_archive(tmp_path):
+    service = AssessmentService(tmp_path); a = effort(tmp_path, status='ACTIVE')
+    ws = service.create_experiment(a.assessment_id, plan(tmp_path).plan_id)
+    (tmp_path / ws.experiment_workspace_id / 'workspace.json').unlink()
+    service.complete(a.assessment_id)
+    service.archive(a.assessment_id)
+    assert service.get(a.assessment_id).status == 'ARCHIVED'
+    summary = service.summary(a.assessment_id)
+    assert summary['experiments']['total'] is None and summary['errors']
