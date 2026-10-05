@@ -11,7 +11,8 @@
 #}
 {% macro provenance_chain(p, attack_run_id=None, retest_run_id=None, finding_id=None, defense_id=None) %}
 {% set p = p or {} %}
-{% set nodes = [
+{% set nodes = [("Assessment", p.get("assessment_id"), ("/assessments/" ~ p.get("assessment_id")) if p.get("assessment_id") else None)] if p.get("assessment_id") else [] %}
+{% set nodes = nodes + [
     ("Know Yourself", p.get('self_profile_id'), None),
     ("Know Target", p.get('target_profile_id'), None),
     ("Know Environment", p.get('environment_profile_id'), None),

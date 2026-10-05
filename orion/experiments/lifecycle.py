@@ -39,6 +39,7 @@ class StageError(Exception):
 @dataclass
 class ExperimentLifecycle:
     experiment_workspace_id: str = field(default_factory=new_workspace_id)
+    assessment_id: Optional[str] = None
     plan_id: Optional[str] = None
     analysis_context_id: Optional[str] = None
     self_profile_id: Optional[str] = None
@@ -80,6 +81,9 @@ def save(ws: ExperimentLifecycle, base_dir: str = DEFAULT_DIR) -> Path:
     wdir = Path(base_dir) / ws.experiment_workspace_id
     wdir.mkdir(parents=True, exist_ok=True)
     (wdir / "workspace.json").write_text(json.dumps(ws.to_dict(), indent=2, default=str), encoding="utf-8")
+    if ws.assessment_id:
+        from orion.assessments.service import record_workspace
+        record_workspace(ws, base_dir)
     return wdir
 
 
@@ -125,8 +129,9 @@ def _proposal_runnable(p) -> bool:
     return bool(a and a.runnable)
 
 
-def create_from_plan(plan, base_dir: str = DEFAULT_DIR) -> ExperimentLifecycle:
+def create_from_plan(plan, base_dir: str = DEFAULT_DIR, assessment_id: Optional[str] = None) -> ExperimentLifecycle:
     ws = ExperimentLifecycle(
+        assessment_id=assessment_id,
         plan_id=plan.plan_id,
         analysis_context_id=plan.analysis_context_id,
         self_profile_id=plan.self_profile_id,
@@ -208,6 +213,7 @@ def run_blackbox_attack(ws: ExperimentLifecycle, params: Dict[str, Any],
         "self_profile_id": ws.self_profile_id, "target_profile_id": ws.target_profile_id,
         "environment_profile_id": ws.environment_profile_id, "threat_model_id": ws.threat_model_id,
         "experiment_workspace_id": ws.experiment_workspace_id,
+        **({"assessment_id": ws.assessment_id} if ws.assessment_id else {}),
     }
     ws.stages["attack"] = RUNNING
     save(ws, base_dir)
@@ -282,6 +288,7 @@ def run_agentic_attack(ws: ExperimentLifecycle, params: Dict[str, Any],
         "self_profile_id": ws.self_profile_id, "target_profile_id": ws.target_profile_id,
         "environment_profile_id": ws.environment_profile_id, "threat_model_id": ws.threat_model_id,
         "experiment_workspace_id": ws.experiment_workspace_id, "attack_id": attack.id,
+        **({"assessment_id": ws.assessment_id} if ws.assessment_id else {}),
     }
     ws.attack_mode = "agentic"
     ws.attack_catalog_id = attack.id
@@ -330,6 +337,7 @@ def run_live_agentic_attack(ws: ExperimentLifecycle, params: Dict[str, Any],
         "self_profile_id": ws.self_profile_id, "target_profile_id": ws.target_profile_id,
         "environment_profile_id": ws.environment_profile_id, "threat_model_id": ws.threat_model_id,
         "experiment_workspace_id": ws.experiment_workspace_id, "attack_id": attack.id,
+        **({"assessment_id": ws.assessment_id} if ws.assessment_id else {}),
     }
     ws.attack_mode = "agentic_live"
     ws.attack_catalog_id = attack.id
@@ -378,6 +386,7 @@ def run_whitebox_attack(ws: ExperimentLifecycle, params: Dict[str, Any],
         "self_profile_id": ws.self_profile_id, "target_profile_id": ws.target_profile_id,
         "environment_profile_id": ws.environment_profile_id, "threat_model_id": ws.threat_model_id,
         "experiment_workspace_id": ws.experiment_workspace_id,
+        **({"assessment_id": ws.assessment_id} if ws.assessment_id else {}),
     }
     ws.stages["attack"] = RUNNING
     save(ws, base_dir)
@@ -406,7 +415,8 @@ def _chain_provenance(ws: ExperimentLifecycle) -> Dict[str, Any]:
     return {"plan_id": ws.plan_id, "experiment_id": ws.active_experiment_id,
             "analysis_context_id": ws.analysis_context_id, "self_profile_id": ws.self_profile_id,
             "target_profile_id": ws.target_profile_id, "environment_profile_id": ws.environment_profile_id,
-            "threat_model_id": ws.threat_model_id, "experiment_workspace_id": ws.experiment_workspace_id}
+            "threat_model_id": ws.threat_model_id, "experiment_workspace_id": ws.experiment_workspace_id,
+            **({"assessment_id": ws.assessment_id} if ws.assessment_id else {})}
 
 
 def _asr(rec) -> float:

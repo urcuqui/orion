@@ -123,7 +123,7 @@
   };
 
   Orion.provenanceChain = function (ws) {
-    const nodes = [["System",ws.self_profile_id], ["Target",ws.target_profile_id], ["Environment",ws.environment_profile_id],
+    const nodes = [...(ws.assessment_id ? [["Assessment",ws.assessment_id,"/assessments/"]] : []), ["System",ws.self_profile_id], ["Target",ws.target_profile_id], ["Environment",ws.environment_profile_id],
       ["Analysis context",ws.analysis_context_id], ["Threat model",ws.threat_model_id], ["Plan",ws.plan_id],
       ["Experiment",ws.experiment_workspace_id,"/experiment/"], ["Attack run",ws.attack_run_id,"/runs/"],
       ["Finding",ws.finding_id,"/findings/"], ["Control",ws.defense_id], ["Retest",ws.retest_run_id,"/runs/"]];

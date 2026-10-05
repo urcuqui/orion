@@ -48,3 +48,13 @@ summary = assert_not_security_verdict(agent_summary)  # raises on a verdict clai
   attack is replayed (see [attack-replay.md](attack-replay.md)).
 - Treat ATLAS mappings suggested by an agent as approximate until verified
   against the curated index (`orion.mappings.validate_mappings`).
+
+## Assessments
+
+Agents may help describe scope and explain factual Assessment summaries. They
+do not choose Assessment membership implicitly, promote Finding status, declare
+controls effective or certify that a completed Assessment is secure. Linking,
+activation, completion and archiving are explicit operations; Next Action uses
+recorded context and the existing deterministic workspace lifecycle. The
+Assessment is a reference container, not a replacement security oracle. See
+[Assessments](assessments.md).

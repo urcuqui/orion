@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% from 'components/status.html' import status_badge %}
+{% from 'components/assessment_form.html' import assessment_form %}
+{% set section = 'assessments' %}
+{% block title %}Assessments — ORION{% endblock %}
+{% block content %}
+<div class="section-head"><h1>Assessments</h1><p class="sub">Coordinate multiple validation experiments over an explicit system, target and scope. Completion does not imply security.</p></div>
+{% if errors %}<div class="state">! PARTIAL — Some assessment records are unavailable.</div>{% endif %}
+<details class="panel"><summary>Create Assessment</summary>{{ assessment_form() }}</details>
+<section class="panel"><div class="table-scroll"><table class="orion"><caption>Bounded AI security validation efforts</caption><thead><tr>{% for label in ['Assessment','Status','System','Target','Experiments','Findings','Awaiting Retest','Updated'] %}<th scope="col">{{ label }}</th>{% endfor %}</tr></thead><tbody>
+{% for s in summaries %}{% set a = s.assessment %}<tr><td><a href="/assessments/{{ a.assessment_id }}">{{ a.name }}</a><div class="sub mono">{{ a.assessment_id }}</div></td><td>{{ status_badge(a.status) }}</td><td class="mono">{{ a.system_profile_id or 'UNKNOWN' }}</td><td class="mono">{{ a.target_id or 'UNKNOWN' }}</td><td>{{ s.experiments.total if s.experiments.total is not none else 'UNKNOWN' }}</td><td>{{ s.findings.total if s.findings.total is not none else 'UNKNOWN' }}</td><td>{{ s.controls.awaiting_retest if s.controls.awaiting_retest is not none else 'UNKNOWN' }}</td><td>{{ a.updated_at }}</td></tr>
+{% else %}<tr><td colspan="8">No Assessments yet. Define your scope to start one.</td></tr>{% endfor %}
+</tbody></table></div></section>
+{% endblock %}
+{% block scripts %}<script src="/static/js/assessments.js"></script>{% endblock %}
