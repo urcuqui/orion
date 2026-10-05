@@ -36,14 +36,22 @@
     if (!button || !nav) return;
     const narrow = window.matchMedia("(max-width: 768px)");
     function setOpen(open) {
+      if (!open && nav.contains(document.activeElement)) button.focus();
       button.setAttribute("aria-expanded", String(open));
+      button.setAttribute("aria-label", open ? "Close navigation" : "Open navigation");
       nav.classList.toggle("nav-collapsed", !open);
     }
     setOpen(!narrow.matches);
-    narrow.addEventListener("change", () => setOpen(!narrow.matches));
+    narrow.addEventListener("change", () => {
+      setOpen(!narrow.matches);
+      if (!narrow.matches && document.activeElement === button) {
+        const link = nav.querySelector('[aria-current="page"]') || nav.querySelector("a");
+        if (link) link.focus();
+      }
+    });
     button.addEventListener("click", () => setOpen(button.getAttribute("aria-expanded") !== "true"));
-    nav.addEventListener("keydown", event => {
-      if (event.key === "Escape" && narrow.matches) { setOpen(false); button.focus(); }
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape" && narrow.matches && button.getAttribute("aria-expanded") === "true" && (nav.contains(event.target) || event.target === button)) { setOpen(false); button.focus(); }
     });
   })();
 

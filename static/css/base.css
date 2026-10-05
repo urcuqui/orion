@@ -48,7 +48,7 @@ a:hover { text-decoration: underline; }
 .orion-sidebar { position: fixed; inset: 0 auto 0 0; width: 216px; padding: 22px 14px; background: var(--surface-terminal); border-right: 1px solid var(--border-default); overflow-y: auto; z-index: 110; }
 .orion-brand { display: block; color: var(--orion-crimson); font: 700 24px var(--mono); letter-spacing: .18em; text-shadow: none; }
 .brand-caption, .workspace-label { font: 600 10px var(--mono); letter-spacing: .1em; color: var(--text-secondary); margin-top: 6px; }
-.orion-sidebar .dragon-compact { margin: 14px 0; }
+.orion-sidebar .orion-sentinel-compact { margin: 14px 0; }
 .orion-nav { display: block; }
 .nav-group { margin: 18px 0; }
 .nav-label { color: var(--text-muted); font: 600 10px var(--ui); text-transform: uppercase; letter-spacing: .14em; padding: 0 10px 6px; }
@@ -401,7 +401,7 @@ input[type="search"] { background: var(--surface-terminal); color: var(--text-pr
 }
 @media (max-width: 768px) {
   .orion-sidebar { position: static; width: 100%; padding: 12px; }
-  .orion-sidebar .dragon-compact, .sidebar-note, .brand-caption { display: none; }
+  .orion-sidebar .orion-sentinel-compact, .sidebar-note, .brand-caption { display: none; }
   .orion-nav { display: flex; flex-wrap: wrap; gap: 12px; }
   .nav-group { flex: 1; min-width: 130px; margin: 8px 0; }
   .orion-nav a small { display: none; }

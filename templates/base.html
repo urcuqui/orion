@@ -1,4 +1,4 @@
-{% from "components/dragon.html" import dragon_sentinel %}
+{% from "components/sentinel.html" import orion_sentinel %}
 <!doctype html>
 <html lang="en">
 <head>
@@ -15,7 +15,7 @@
   <aside class="orion-sidebar" id="workflow-navigation" aria-label="Workspace navigation">
     <a class="orion-brand" href="{{ url_for('index') }}">ORION<span class="cursor">_</span></a>
     <div class="brand-caption">AI SECURITY VALIDATION</div>
-    {{ dragon_sentinel('compact') }}
+    {{ orion_sentinel('compact') }}
     <nav class="orion-nav" aria-label="Primary">
       {% set groups = [
         ('Overview', [('dashboard','index','Overview','')]),
@@ -40,7 +40,7 @@
     </label>
   </aside>
   <header class="orion-topbar">
-    <button class="btn nav-toggle" id="nav-toggle" aria-expanded="true" aria-controls="workflow-navigation">ORION_ · Menu</button>
+    <button class="btn nav-toggle" id="nav-toggle" type="button" aria-label="Close navigation" aria-expanded="true" aria-controls="workflow-navigation">ORION_ · Menu</button>
     <div><div class="workspace-label">ORION // AI SECURITY VALIDATION WORKSPACE</div>
       <div class="terminal-path">operator@orion:~{{ request.path if request.path != '/' else '/overview' }} $ <span class="cursor" aria-hidden="true">_</span></div>
     </div>
@@ -50,7 +50,7 @@
     {% block content %}{% endblock %}
   </main>
 
-  {{ dragon_sentinel('expanded', 'dragon-watermark') }}
+  {{ orion_sentinel('expanded', 'orion-sentinel-watermark') }}
 
   <footer class="orion-footer">
     ORION // AI SECURITY VALIDATION WORKSPACE &mdash; Know yourself. Know the target. Know the terrain.

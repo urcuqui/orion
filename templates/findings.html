@@ -22,20 +22,20 @@
   <div id="finding-count" class="sub" role="status"></div>
   <div class="table-scroll"><table class="orion findings-table">
     <caption>Recorded findings · security interpretation of evidence</caption>
-    <thead><tr>{% for label in ['Finding','Severity','Status','Target','Evidence','Retest','Last observed'] %}<th scope="col">{{ label }}</th>{% endfor %}</tr></thead>
+    <thead><tr>{% for label in ['Finding','Family','Severity','Status','Target','Retest','Last Observed'] %}<th scope="col">{{ label }}</th>{% endfor %}</tr></thead>
     <tbody>
       {% for f in findings %}
       <tr data-finding-row data-status="{{ f.status }}" data-severity="{{ f.severity }}" data-retest="{{ f.retest_status or 'NOT RETESTED' }}" data-family="{{ f.family }}" data-target="{{ f.affected_target or 'UNKNOWN' }}">
         <td><a class="finding-title" href="{{ url_for('finding_detail_page', finding_id=f.id) }}">{{ f.title }}</a>
-          <div class="sub finding-secondary">{{ f.family|replace('_',' ') or 'UNKNOWN family' }}</div>
           <details class="finding-secondary"><summary>Details</summary><dl>
             <dt>ID</dt><dd class="mono">{{ f.id }}</dd><dt>Confidence</dt><dd>{{ f.confidence }}</dd>
+            <dt>Evidence</dt><dd><a href="{{ url_for('finding_detail_page', finding_id=f.id) }}#finding-evidence">{{ f.evidence_refs|length }} evidence record(s)</a></dd>
             <dt>Control</dt><dd>{{ f.applied_control or 'Not applied' }}</dd>
           </dl></details></td>
+        <td>{{ {'traditional_ml':'Traditional ML', 'generative_ai':'Generative AI', 'agentic_ai':'Agentic AI'}.get(f.family, f.family|replace('_',' ') or 'UNKNOWN') }}</td>
         <td>{{ status_badge(f.severity) }}</td>
         <td>{{ status_badge(f.status) }}</td>
         <td class="mono">{{ f.affected_target or 'UNKNOWN' }}</td>
-        <td class="sub"><a href="{{ url_for('finding_detail_page', finding_id=f.id) }}#finding-evidence">{{ f.evidence_refs|length }} run(s)</a></td>
         <td>{{ status_badge(f.retest_status or 'NOT RETESTED') }}</td>
         <td><time datetime="{{ f.updated_at }}">{{ f.updated_at }}</time></td>
       </tr>

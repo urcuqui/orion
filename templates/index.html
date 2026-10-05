@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "components/dragon.html" import dragon_sentinel %}
+{% from "components/sentinel.html" import orion_sentinel %}
 {% from "components/status.html" import status_badge %}
 {% from "components/workspace.html" import page_header, next_action_card %}
 {% set section = 'dashboard' %}
@@ -12,7 +12,7 @@
     {% if overview.current %}<p><a class="mono" href="/experiment/{{ overview.current.experiment_workspace_id }}">{{ overview.current.experiment_workspace_id }}</a> · {{ overview.current.active_experiment_id or 'No active experiment' }}</p><p class="sub">Current stage: {{ overview.current.current_stage|upper }} · Plan {{ status_badge(overview.current.stages.get('plan')) }}</p>
     {% else %}<p class="sub">Select your system, target and optional environment in Analysis.</p>{% endif %}
   </div>
-  {{ dragon_sentinel('expanded', 'overview-sentinel') }}
+  {{ orion_sentinel('expanded', 'overview-sentinel') }}
 </section>
 {{ next_action_card(overview.action.label, overview.action.description, overview.action.href, 'Open experiment' if overview.current else 'Open analysis') }}
 <div class="two-col">

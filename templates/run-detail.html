@@ -25,7 +25,7 @@
 
 
   <section class="panel run-action-area" aria-label="Run result and next action">
-    <div class="run-next-action"><div><div class="field-label">Key result</div>{{ status_badge(record.status) }}
+    <div class="run-next-action"><div><div class="field-label">Security outcome</div>{{ status_badge(record.status) }}
       {% if workspace %}<p class="sub">Next action: {{ workspace.next_action.label }}</p>{% endif %}
     </div>
     {% if workspace %}

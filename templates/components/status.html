@@ -5,5 +5,5 @@
 {% endmacro %}
 
 {% macro policy_decision(decision) %}
-<span class="policy-decision"><span aria-hidden="true">{{ '×' if decision == 'DENY' else ('✓' if decision == 'ALLOW' else '?') }}</span> {{ decision or 'UNKNOWN' }}</span>
+<span class="policy-decision"><span aria-hidden="true">{{ '■' if decision in ('ALLOW', 'DENY') else '?' }}</span> {{ decision or 'UNKNOWN' }}</span>
 {% endmacro %}
