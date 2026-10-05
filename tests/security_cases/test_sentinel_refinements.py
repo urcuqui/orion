@@ -160,3 +160,24 @@ def test_observation_sidebar_active_states_are_independent():
             assert 'active' in parser.links[active]['class'].split()
             other = '/runs' if active.endswith('evidence') else '/runs?view=evidence'
             assert 'active' not in parser.links[other]['class'].split()
+
+
+def test_live_trace_outcome_uses_observation_and_preserves_unknown(monkeypatch):
+    from orion.evidence import EvidenceStore, ExperimentRecord
+    record = ExperimentRecord(trace_id='QA-LIVE-TRACE', status='UNKNOWN', execution_trace=[{
+        'trial': 1, 'response': {'status': 200, 'snippet': 'Recorded response'},
+        'request': {'sent': True}, 'observations': {}, 'endpoint': '/fixture',
+        'payload_name': 'Fixture', 'injected_payload': 'Test input',
+        'owasp': 'LLM01', 'owasp_name': 'Prompt injection'}])
+    monkeypatch.setattr(EvidenceStore, 'load', lambda *args: record)
+    with app.test_client() as client:
+        for value, expected in [(True, 'ATTACK_SUCCESS'), (False, 'ATTACK NOT SUCCEEDED'),
+                                (None, 'UNKNOWN')]:
+            record.execution_trace[0]['observations'] = {} if value is None else {'attack_success': value}
+            body = client.get('/runs/QA-LIVE-TRACE').data.decode()
+            outcome = body.split('SECURITY OUTCOME .', 1)[1].split('</pre>', 1)[0]
+            assert expected in outcome
+            assert 'ATTACK_BLOCKED' not in outcome
+            assert 'class="allow"' not in body and 'class="deny"' not in body
+    css = Path('static/css/base.css').read_text()
+    assert '.trace-trial .allow' not in css and '.trace-trial .deny' not in css

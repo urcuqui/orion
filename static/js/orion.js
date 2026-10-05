@@ -77,8 +77,10 @@
     });
   };
 
-  Orion.nextActionCard = function (label, description) {
-    return `<section class="next-action-card" aria-label="Next action"><div class="eyebrow">NEXT ACTION</div><h2>${Orion.esc(label || "UNKNOWN")}</h2><p>${Orion.esc(description)}</p><a class="btn btn-ghost" href="#stage-detail">Review current stage</a></section>`;
+  Orion.nextActionCard = function (label, description, stage) {
+    const navigationLabels = { plan: "Review Plan", attack: "Review Attack Parameters", measure: "View Measurements", defend: "Review Controls", retest: "Open Retest", evidence: "View Evidence" };
+    const navigationLabel = navigationLabels[stage] || "Review current stage";
+    return `<section class="next-action-card" aria-label="Next action"><div class="eyebrow">NEXT ACTION</div><h2>${Orion.esc(label || "UNKNOWN")}</h2><p>${Orion.esc(description)}</p><a class="btn btn-ghost" href="#stage-detail">${Orion.esc(navigationLabel)}</a></section>`;
   };
 
   Orion.executionBoundary = function (fields) {

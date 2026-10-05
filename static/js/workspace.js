@@ -49,7 +49,7 @@
       <h2>${Orion.esc(activeProposal ? activeProposal.name : "No active proposal")}</h2>
       ${progress(ws.stages || {}, ws.current_stage)}
       <p class="sub">Plan ${Orion.statusBadge((ws.stages || {}).plan)} · current stage: ${Orion.esc(ws.current_stage)} · ${Orion.esc(ws.active_experiment_id || "No active proposal")}</p></div>
-      ${Orion.nextActionCard(na.label, ws.defense_id && !ws.retest_run_id ? "Control applied. Mitigation not verified. Run the original attack again to verify the control." : "Review the recorded state below. Approval and execution are separate actions.")}`;
+      ${Orion.nextActionCard(na.label, ws.defense_id && !ws.retest_run_id ? "Control applied. Mitigation not verified. Run the original attack again to verify the control." : "Review the recorded state below. Approval and execution are separate actions.", na.stage)}`;
 
     // Experiment queue (plan proposals)
     const props = (plan.proposals || []);

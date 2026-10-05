@@ -222,8 +222,6 @@ table.compare td.col-hardened { color: var(--green); }
 /* ---------------------- Agentic execution trace ------------------------ */
 .trace-trial { border: 1px solid var(--border); background: var(--panel-alt); padding: 0.6rem 0.8rem; margin-bottom: 0.6rem; }
 .trace-trial h4 { margin: 0 0 0.4rem; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
-.trace-trial .allow { color: var(--green, #5cff8a); }
-.trace-trial .deny { color: var(--red); }
 
 /* ---------------- States (idle/loading/empty/error) ---------------- */
 .state.error { color: var(--red); border-color: var(--red-dark); }

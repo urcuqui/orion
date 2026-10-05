@@ -127,7 +127,7 @@ RATIONALE . {{ t.rationale }}{% elif t.type == 'tool_result' %}{{ t.tool }} -> {
 PAYLOAD ........ {{ t.injected_payload }}
 SENT ........... {{ t.request.sent }}{% if t.request.mitigated %}  [input filter applied]{% endif %}
 RESPONSE ({{ t.response.status }}) {{ t.response.snippet }}
-INSTRUCTION FOLLOWED . <span class="{{ 'deny' if t.observations.attack_success else 'allow' }}">{{ t.observations.attack_success }}</span></pre>
+SECURITY OUTCOME . {{ status_badge('ATTACK_SUCCESS' if t.observations.attack_success is sameas true else ('ATTACK NOT SUCCEEDED' if t.observations.attack_success is sameas false else 'UNKNOWN')) }}</pre>
     </div>
     {% else %}
     {# ---- controlled agentic lab trace ---- #}
