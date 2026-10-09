@@ -16,11 +16,15 @@ from __future__ import annotations
 from orion.experiments.base import ExperimentMode, ExperimentOutcome
 from orion.experiments.runner import run_scenario, replay, compare
 from orion.experiments.lifecycle import (
-    ExperimentLifecycle, StageError, create_from_plan, select_experiment,
-    run_attack, run_blackbox_attack, run_whitebox_attack, run_agentic_attack,
-    run_live_agentic_attack, attack_options,
-    measure, apply_defense, retest, next_action,
-    save as save_workspace, load as load_workspace, list_workspaces,
+    ExperimentLifecycle, StageError, attack_options, next_action,
+    load as load_workspace, list_workspaces,
+)
+from orion.experiments.orchestration import (
+    create_from_plan, select_experiment, run_attack, run_blackbox_attack,
+    run_whitebox_attack, run_agentic_attack, run_live_agentic_attack,
+    measure, apply_defense, retest, sync_assessment_membership,
+    persist_workspace_and_sync_assessment,
+    persist_workspace_and_sync_assessment as save_workspace,
 )
 
 __all__ = [
@@ -30,4 +34,5 @@ __all__ = [
     "run_live_agentic_attack", "attack_options",
     "measure", "apply_defense", "retest", "next_action",
     "save_workspace", "load_workspace", "list_workspaces",
+    "sync_assessment_membership", "persist_workspace_and_sync_assessment",
 ]

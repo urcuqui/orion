@@ -542,35 +542,28 @@ Scenarios are declarative YAML that bind the whole methodology together
 
 ## 14. Web UI
 
-A retro **adversarial-intelligence console**: black background, crimson borders,
-phosphor-green status, amber warnings, monospace type, subtle CRT scanlines
-(toggle in the top bar), an ASCII Orion dragon, and a command prompt. All
-sections share one design system (`base.html` + `static/css/base.css` +
-`orion-terminal.css`).
+The Flask/Jinja UI is an **AI Security Validation Workspace** with a persistent
+sidebar, terminal path header, Analyst/Classic appearance modes and a decorative
+Orion Sentinel. Analyst keeps operational screens clear; Classic adds restrained
+terminal personality. Appearance never changes execution or security state.
 
-Navigation (Art of War structure):
+Navigation retains the Art of War structure:
 
-Top-level navigation is three groups — **CONTEXT**, **EXPERIMENTATION**,
-**OBSERVABILITY**:
+- **OVERVIEW** — assessment summary, Next Action, posture, profiles and activity.
+- **ASSESS** — **Assessments**, System (Know Yourself), Target (Know Your Target),
+  Environment (Know the Terrain), Analysis (Understand the Battlefield).
+- **VALIDATE** — Experiments (PLAN → ATTACK → MEASURE → DEFEND → RETEST) and Findings.
+- **OBSERVE** — Runs (what executed) and Evidence (records/artifacts proving it).
 
-- **Dashboard** — command center: system status, dragon, grouped `[01]`–`[05]`
-  menu, recent activity (real run data), `orion@security:~$`.
-- **CONTEXT**
-  - **Know Yourself** — Traditional ML / Generative AI profiling → Self Profile.
-  - **Know Your Target** — Target Profile + Agent Analysis + Threat Model
-    (consumes the Environment Profile; does not own recon).
-  - **Know The Environment** — reconnaissance + Environment Profile (assets, AI
-    dependencies, MCP/tools, trust relationships, topology).
-- **EXPERIMENTATION**
-  - **Experiment** — the single workspace for Plan / Attack / Measure / Defend /
-    Retest. Attack, Measure and Defend are **stages**, not top-level apps; Retest
-    is its own stage.
-- **OBSERVABILITY**
-  - **Evidence** — runs, reports, comparisons, provenance (cross-cutting).
+An Experiment validates one hypothesis. An **Assessment** coordinates several
+experiments over a defined system, target and scope. Create one at `/assessments`,
+link analysis/plans/workspaces or create linked workspaces from existing plans,
+and review factual Findings, controls, Retests and provenance. Assessment
+completion is an analyst declaration, **not a secure-system verdict**. Existing
+standalone experiments still work. See [Assessments](docs/assessments.md) for the
+model, APIs, relationship semantics and foundation limits.
 
-Conference mode: append `?demo=1` to enlarge type, hide secondary controls and
-decorative CRT, and emphasize target type, AI surface, observations, suggested
-experiments, threat model and results.
+Conference mode (`?demo=1`) retains the existing Classic/demo presentation.
 
 The Flask app is preserved: adversarial image generation, AI chat, streaming
 (SSE), and the reconnaissance workflow with human approval. The methodology is

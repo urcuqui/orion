@@ -22,6 +22,8 @@ try:
     from orion.integrations.flask_blueprint import orion_bp, api_bp
     app.register_blueprint(orion_bp)
     app.register_blueprint(api_bp)
+    from orion.assessments.routes import assessment_bp
+    app.register_blueprint(assessment_bp)
 except Exception as _orion_exc:  # noqa: BLE001
     print(f"[orion] methodology blueprint not registered: {_orion_exc}")
 

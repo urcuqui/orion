@@ -1,0 +1,22 @@
+{% macro assessment_form(a=None) %}
+<form data-assessment-form data-id="{{ a.assessment_id if a else '' }}">
+  <label class="field"><span class="field-label">Name</span><input type="text" name="name" required value="{{ a.name if a else '' }}"></label>
+  <label class="field"><span class="field-label">Description</span><textarea name="description">{{ a.description if a else '' }}</textarea></label>
+  {% for field, label, kind in [('system_profile_id','System','self'),('target_id','Target','target'),('environment_id','Environment (optional)','environment')] %}
+  <label class="field"><span class="field-label">{{ label }}</span><select name="{{ field }}" data-profile-kind="{{ kind }}" data-current="{{ a[field] or '' if a else '' }}"><option value="">UNKNOWN / not provided</option>{% if a and a[field] %}<option selected value="{{ a[field] }}">{{ a[field] }}</option>{% endif %}</select></label>
+  {% endfor %}
+  {% set scope = a.scope if a else {} %}
+  {% for key, label in [('surfaces','Attack surfaces'),('in_scope_capabilities','In-scope capabilities'),('out_of_scope_capabilities','Out-of-scope capabilities')] %}
+  <label class="field"><span class="field-label">{{ label }} (comma separated)</span><input type="text" name="{{ key }}" value="{{ scope.get(key, [])|join(', ') }}"></label>{% endfor %}
+  <label class="field"><span class="field-label">Access model</span><input type="text" name="access_model" value="{{ scope.get('access_model', '') }}" placeholder="UNKNOWN"></label>
+  <label class="field"><span class="field-label">Scope notes</span><textarea name="notes">{{ scope.get('notes', '') }}</textarea></label>
+  {% if a %}
+  <label class="field"><span class="field-label">Assessment status · completion is not a security verdict</span><select name="status">{% for state in ['DRAFT','ACTIVE','COMPLETED','ARCHIVED'] %}<option value="{{ state }}"{{ ' selected' if a.status == state else '' }}>{{ state }}</option>{% endfor %}</select></label>
+  <label class="field"><span class="field-label">Analysis context IDs (comma separated)</span><input type="text" name="analysis_context_ids" value="{{ a.analysis_context_ids|join(', ') }}"></label>
+  <label class="field"><span class="field-label">Plan IDs (comma separated)</span><input type="text" name="plan_ids" value="{{ a.plan_ids|join(', ') }}"></label>
+  <label class="field"><span class="field-label">Threat model IDs (comma separated; retained with their source plans/context)</span><input type="text" name="threat_model_ids" value="{{ a.threat_model_ids|join(', ') }}"></label>
+  {% endif %}
+  <button class="btn btn-primary" type="submit">{{ 'Save Assessment' if a else 'Create Assessment' }}</button>
+  <div data-form-status role="status" aria-live="polite"></div>
+</form>
+{% endmacro %}

@@ -170,3 +170,14 @@ python -m orion compare <attack_trace_id> <hardened_trace_id>
 
 See also: [attack-replay.md](attack-replay.md), [agent-role.md](agent-role.md),
 [limitations.md](limitations.md).
+
+## Assessment container
+
+An Experiment validates one hypothesis; an Assessment coordinates multiple
+validation experiments against an explicit system/target/scope. It retains
+references to exact context, threat-model generations, plans, workspaces, Runs,
+Findings and applied control/Retest records. It adds a root to provenance, not a
+new methodology phase or a security decision engine.
+
+Assessment Completed ≠ Secure. Existing Finding corroboration and Retest
+effectiveness remain authoritative. [Assessment foundation](assessments.md).

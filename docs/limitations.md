@@ -53,3 +53,17 @@ result is scoped to its scenario. When you summarize:
 - state the data and parameters used;
 - prefer "the attack succeeded / was mitigated under these conditions" over
   "the model is (in)secure".
+
+## Assessment aggregation
+
+Assessment completion does not establish that its system is secure. Summaries
+aggregate existing Finding/Retest states; unavailable references remain UNKNOWN,
+not fabricated zeros. Findings can be shared across Assessments under existing
+global attack/target corroboration, so completion/archiving retains references
+rather than freezing their later states. Historical missing relationships cannot
+be reconstructed by guessing. Filesystem persistence has no cross-object
+transaction or multi-writer guarantee; summary resolution currently scans related
+artifact catalogs. See [Assessments](assessments.md) for explicit boundaries.
+
+Security regression products, reproducibility bundles, adaptive retesting,
+matrices, scheduled/CI assessments and PDF reporting remain future milestones.
