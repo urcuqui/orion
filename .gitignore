@@ -87,3 +87,4 @@ D:/
 artifacts/
 reports/
 static/adversarial/*.png
+artifacts_backup_*/
